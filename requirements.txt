@@ -1,0 +1,12 @@
+# Local development dependencies for metadata inspection and DICOM debugging.
+# Kaggle already provides many heavier ML packages; install torch/timm locally only
+# later if you want to train on this machine.
+numpy
+pandas
+pydicom
+opencv-python-headless
+matplotlib
+scikit-learn
+tqdm
+ipykernel
+ftfy
