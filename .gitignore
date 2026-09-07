@@ -6,3 +6,6 @@ __pycache__/
 
 rsna_knee_dicom_mini_part001.zip
 rsna_knee_dicom_mini_part001/
+
+# Derived artefacts: always regenerable, never versioned.
+data/processed/

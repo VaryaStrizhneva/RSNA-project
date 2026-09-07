@@ -1,11 +1,21 @@
-# What our data actually says
+# The competition data
 
-> **Nature of this document:** unlike
-> [`competition_description.md`](competition_description.md), which transcribes the
-> Kaggle page, **everything below is measured by us** on the CSVs in `data/raw/`.
-> Recomputable at any time with `python -m scripts.metadata_report`.
->
-> Last measured: 7 September 2026.
+What we measured ourselves on the five CSVs Kaggle provides, in `data/raw/`.
+
+Read [`competition_description.md`](competition_description.md) first for what the
+files are *supposed* to contain — this file is about what they actually contain.
+Everything below is recomputable:
+
+```bash
+python -m scripts.metadata_report --data-root data/raw
+```
+
+The short version: **the images are the easy part**. `train_series.csv` is clean and
+complete, but only 58 of 4,407 studies carry the labels we are asked to predict, so
+the targets have to come from the free-text reports. That problem has its own file,
+[`labels.md`](labels.md).
+
+Last measured: 7 September 2026.
 
 ---
 
@@ -120,3 +130,11 @@ long tail out to a few hundred), varying intensities / orientations / resolution
 a mix of transfer syntaxes, 86 retained DICOM tags.
 
 **Nobody has opened a single DICOM yet** — still to do.
+
+---
+
+## Where the labels come from
+
+The 1.3% label coverage above is the defining constraint of this competition, and it
+is treated separately: see [`labels.md`](labels.md) for the published label sources,
+how they compare, and which one we use.
