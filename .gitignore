@@ -14,3 +14,6 @@ kaggle/datasets/labels/report_labels_blend.csv
 # Real DICOMs: competition data, not redistributable (rules 2.4.b).
 data/raw/test_series/
 data/raw/train_series/
+
+# Generated inspection output.
+out/
