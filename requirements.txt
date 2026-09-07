@@ -1,6 +1,8 @@
-# Local development dependencies for metadata inspection and DICOM debugging.
-# Kaggle already provides many heavier ML packages; install torch/timm locally only
-# later if you want to train on this machine.
+# Local development dependencies.
+# torch is the CPU build: it is here to run the package's tests on synthetic tensors,
+# not to train. Training happens on Kaggle or a remote machine, where a GPU build is
+# already present. Install with:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
 numpy
 pandas
 pydicom
@@ -12,3 +14,4 @@ ipykernel
 ftfy
 kaggle
 scipy
+torch
