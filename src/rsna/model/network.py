@@ -1,0 +1,98 @@
+"""Encoder plus head, trained end to end."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from ..config import POOL_PARTS, TARGETS, Config
+from .heads import SlotHead
+
+
+class Model(nn.Module):
+    """A study is a bag of slot images.
+
+    The bag is flattened for the encoder and folded back before the head, so the
+    encoder never sees the study structure and the head never sees pixels.
+    """
+
+    def __init__(self, backbone: nn.Module, dim: int, config: Config,
+                 pool: str = "cls_mean", prior: bool = False):
+        super().__init__()
+        if pool not in POOL_PARTS:
+            raise ValueError(f"unknown pooling {pool!r}; expected one of {sorted(POOL_PARTS)}")
+        self.backbone = backbone
+        self.pool = pool
+        self.head = SlotHead(dim * POOL_PARTS[pool], config.n_slot, len(TARGETS),
+                             prior=prior, config=config)
+        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+
+    def forward(self, imgs: torch.Tensor, mask: torch.Tensor,
+                img_size: int | None = None) -> torch.Tensor:
+        """imgs: (batch, slot, channel, h, w) uint8. mask: (batch, slot)."""
+
+        batch, slots = imgs.shape[:2]
+        x = imgs.reshape(batch * slots, *imgs.shape[2:]).float().div_(255.0)
+
+        if img_size is not None and img_size != x.shape[-1]:
+            # The cache is held at the highest resolution any configuration needs and
+            # the rest downsample from it, so every configuration sees the same pixels
+            # through a different sampling grid rather than a different crop.
+            x = F.interpolate(x, size=(img_size, img_size), mode="bilinear",
+                              align_corners=False)
+
+        x = (x - self.mean) / self.std
+        out = self.backbone(pixel_values=x).last_hidden_state
+        patch = out[:, 1:]
+        parts = [out[:, 0], patch.mean(1)]
+
+        if self.pool == "cls_mean_focal":
+            # The upper tail of each channel over the patch grid, taken per channel
+            # rather than by selecting whole patches: a finding occupies a small part
+            # of the field, so a plain mean over 256 patches dilutes it by two orders
+            # of magnitude. This keeps the top eighth of each channel's responses.
+            k = max(1, patch.shape[1] // 8)
+            parts.append(patch.topk(k, dim=1).values.mean(1))
+
+        feat = torch.cat(parts, dim=1).reshape(batch, slots, -1)
+        return self.head(feat, mask)
+
+
+def build_model(config: Config, backbone: nn.Module | None = None,
+                source: str | Path | None = None, variant: str = "small",
+                pool: str = "cls_mean", prior: bool = False) -> Model:
+    """Load the encoder and open the last `config.unfreeze_last` blocks for training.
+
+    The early blocks of a self-supervised transformer are generic edge and texture
+    filters; the late blocks carry semantics. Opening only the late ones is the
+    cautious choice — there may not be enough supervision here to improve the early
+    ones, and there is certainly enough to damage them.
+
+    `backbone` is injectable so this can be exercised without DINOv2 present: the
+    tests build a stub with the same interface. `source` names where real weights come
+    from; unset, it is the attached model directory.
+    """
+
+    if backbone is None:
+        from transformers import AutoModel
+
+        if source is None:
+            raise FileNotFoundError(
+                "no backbone given and no source path; pass source= or a backbone")
+        backbone = AutoModel.from_pretrained(str(source))
+
+    n_layer = len(backbone.encoder.layer)
+    for param in backbone.parameters():
+        param.requires_grad = False
+    for block in backbone.encoder.layer[max(0, n_layer - config.unfreeze_last):]:
+        for param in block.parameters():
+            param.requires_grad = True
+    for param in backbone.layernorm.parameters():
+        param.requires_grad = True
+
+    dim = backbone.config.hidden_size
+    return Model(backbone, dim, config, pool=pool, prior=prior)
