@@ -26,7 +26,7 @@ from rsna.dicom import (
     CacheMismatch, annotate, build_cache, hdr_vec, load_cache, order_slices,
     plan_cache, read_slot, sample_indices,
 )
-from rsna.model import build_model, check_fingerprint, fingerprint
+from rsna.model import build_model, check_fingerprint, fingerprint, find_encoder
 from rsna.model.fingerprint import WeightsError
 from rsna.train import assign_folds, augment, build_targets, fit, predict, take_group
 from stub_backbone import StubBackbone
@@ -121,6 +121,12 @@ def test_model() -> None:
           all(p.grad is not None and p.grad.abs().sum() > 0 for p in m.head.parameters()))
     check("early encoder blocks stay frozen",
           not any(p.requires_grad for p in m.backbone.encoder.layer[0].parameters()))
+
+    check("names its encoder in the config",
+          (cfg.encoder, cfg.encoder_variant, cfg.pool) == ("dinov2", "small", "cls_mean"),
+          "a checkpoint fitted on one encoder cannot be read by another")
+    check("reports a missing encoder instead of guessing",
+          find_encoder(cfg, root="/nonexistent") is None)
 
     f = fingerprint(m, cfg)
     check("fingerprint is deterministic", np.array_equal(f, fingerprint(m, cfg)))

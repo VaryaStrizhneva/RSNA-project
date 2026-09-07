@@ -138,6 +138,21 @@ class Config:
     slots: list[Slot] = field(default_factory=lambda: list(SLOTS_RECOVERED))
     rules: PixelRules = field(default_factory=PixelRules)
 
+    # -- encoder ------------------------------------------------------------ #
+    #: Which pre-trained encoder the slot images go through. Named here rather than
+    #: passed at the call site because it decides what a set of weights *is*: a
+    #: checkpoint fitted on DINOv2-small cannot be read by a base-sized encoder, and
+    #: the head's input dimension follows from the encoder's hidden size.
+    #: The public baseline uses DINOv2-small (12 blocks, hidden 384, patch 14), mounted
+    #: on Kaggle as `metaresearch/dinov2/PyTorch/small/1`.
+    encoder: str = "dinov2"
+    encoder_variant: str = "small"
+    #: How the token grid becomes one vector per slot. See POOL_PARTS.
+    pool: str = "cls_mean"
+    #: Whether the head carries the fixed anatomical tilt of SLOT_PRIOR_TABLE. Off in
+    #: the baseline's own training; some published checkpoints were fitted with it.
+    prior: bool = False
+
     # -- laterality --------------------------------------------------------- #
     #: Inside this distance from the midline the side is not readable from geometry,
     #: and the study is left unresolved rather than guessed. Measured against the

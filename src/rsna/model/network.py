@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import torch
@@ -62,9 +63,32 @@ class Model(nn.Module):
         return self.head(feat, mask)
 
 
+def find_encoder(config: Config, root: str | Path = "/kaggle/input") -> Path | None:
+    """Locate a mounted encoder checkpoint, or None.
+
+    Matched on the directory holding a `config.json` whose path names the encoder,
+    preferring one that also names the variant. Searching by content rather than by an
+    expected path means the notebook keeps working whatever Kaggle calls the mount.
+    """
+
+    root = Path(root)
+    if not root.is_dir():
+        return None
+
+    hits = []
+    for current, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in ("train_series", "test_series")]
+        if "config.json" in files and config.encoder in current.lower():
+            hits.append(Path(current))
+
+    for hit in hits:
+        if config.encoder_variant in str(hit).lower():
+            return hit
+    return hits[0] if hits else None
+
+
 def build_model(config: Config, backbone: nn.Module | None = None,
-                source: str | Path | None = None, variant: str = "small",
-                pool: str = "cls_mean", prior: bool = False) -> Model:
+                source: str | Path | None = None) -> Model:
     """Load the encoder and open the last `config.unfreeze_last` blocks for training.
 
     The early blocks of a self-supervised transformer are generic edge and texture
@@ -72,18 +96,23 @@ def build_model(config: Config, backbone: nn.Module | None = None,
     cautious choice — there may not be enough supervision here to improve the early
     ones, and there is certainly enough to damage them.
 
-    `backbone` is injectable so this can be exercised without DINOv2 present: the
-    tests build a stub with the same interface. `source` names where real weights come
-    from; unset, it is the attached model directory.
+    Which encoder, which pooling and whether the head carries the anatomical prior all
+    come from `config`, so a weights package states them rather than the call site
+    guessing.
+
+    `backbone` is injectable so this can be exercised without the real encoder present:
+    the tests build a stub with the same interface. `source` overrides the search.
     """
 
     if backbone is None:
         from transformers import AutoModel
 
-        if source is None:
+        path = Path(source) if source is not None else find_encoder(config)
+        if path is None:
             raise FileNotFoundError(
-                "no backbone given and no source path; pass source= or a backbone")
-        backbone = AutoModel.from_pretrained(str(source))
+                f"{config.encoder}/{config.encoder_variant} is not mounted and no "
+                f"source was given")
+        backbone = AutoModel.from_pretrained(str(path))
 
     n_layer = len(backbone.encoder.layer)
     for param in backbone.parameters():
@@ -95,4 +124,4 @@ def build_model(config: Config, backbone: nn.Module | None = None,
         param.requires_grad = True
 
     dim = backbone.config.hidden_size
-    return Model(backbone, dim, config, pool=pool, prior=prior)
+    return Model(backbone, dim, config, pool=config.pool, prior=config.prior)
