@@ -10,3 +10,4 @@ scikit-learn
 tqdm
 ipykernel
 ftfy
+kaggle
