@@ -101,28 +101,43 @@ def _plane_map(annotated: pd.DataFrame) -> dict:
     return guess
 
 
-def show_ordering(slots: dict, config: Config) -> None:
+def _selection(slots: dict, limit: int, only_study: str | None,
+               only_slot: str | None) -> list[tuple[str, str, dict]]:
+    """(study, slot, record) triples to walk through, honouring the filters."""
+
+    chosen = []
+    for study, filled in slots.items():
+        if only_study and not study.endswith(only_study):
+            continue
+        for name, record in filled.items():
+            if only_slot and name != only_slot:
+                continue
+            chosen.append((study, name, record))
+    return chosen if limit <= 0 else chosen[:limit]
+
+
+def show_ordering(slots: dict, config: Config, selection: list) -> None:
     rule("4. order_slices — file order is not physical order")
     from scipy import stats as sp
 
-    for study, chosen in list(slots.items())[:2]:
-        for name, record in list(chosen.items())[:2]:
-            ordered, resolved = order_slices(record["dir"], record["files"], config)
-            rank = {f: i for i, f in enumerate(ordered)}
-            by_file = [rank[f] for f in record["files"]]
-            rho = sp.spearmanr(range(len(by_file)), by_file).statistic
-            record["ordered"] = ordered
-            print(f"  ...{study[-10:]} / {name:16s} {len(ordered):3d} slices  "
-                  f"geometry: {'yes' if resolved else 'NO — arbitrary order kept'}  "
-                  f"Spearman(file order, physical order) = {rho:+.3f}")
+    for study, name, record in selection:
+        ordered, resolved = order_slices(record["dir"], record["files"], config)
+        rank = {f: i for i, f in enumerate(ordered)}
+        by_file = [rank[f] for f in record["files"]]
+        rho = sp.spearmanr(range(len(by_file)), by_file).statistic
+        record["ordered"] = ordered
+        print(f"  ...{study[-10:]} / {name:16s} {len(ordered):3d} slices  "
+              f"geometry: {'yes' if resolved else 'NO — arbitrary order kept'}  "
+              f"Spearman(file order, physical order) = {rho:+.3f}")
     print("\n  A file name here is a SOP Instance UID: unique by construction, ordered by")
     print("  nothing. Sorting by it fails silently — no exception, just noise.")
 
 
-def show_pixels(slots: dict, sides: dict, config: Config, png_dir: Path | None) -> None:
+def show_pixels(selection: list, sides: dict, config: Config,
+                png_dir: Path | None) -> None:
     rule("5. read_slot — constant physical scale, then resize")
-    for study, chosen in list(slots.items())[:2]:
-        for name, record in list(chosen.items())[:2]:
+    for study, name, record in selection:
+        if True:
             if "ordered" not in record:
                 record["ordered"], _ = order_slices(record["dir"], record["files"], config)
             n = len(record["ordered"])
@@ -174,6 +189,13 @@ def main() -> None:
     parser.add_argument("--split", default="test_series")
     parser.add_argument("--png", default=None, metavar="DIR",
                         help="Also write the slot images the model would receive.")
+    parser.add_argument("--limit", type=int, default=4, metavar="N",
+                        help="How many (study, slot) pairs to walk through in sections "
+                             "4 and 5. 0 for all of them.")
+    parser.add_argument("--study", default=None, metavar="SUFFIX",
+                        help="Only this study — the last characters of its UID are enough.")
+    parser.add_argument("--slot", default=None, metavar="NAME",
+                        help="Only this slot, e.g. SAG_FLUID_FS.")
     args = parser.parse_args()
 
     config = Config()
@@ -190,8 +212,11 @@ def main() -> None:
     for chosen in slots.values():
         for name, record in chosen.items():
             record["plane"] = plane_map.get(record["SeriesInstanceUID"], "")
-    show_ordering(slots, config)
-    show_pixels(slots, sides, config, Path(args.png) if args.png else None)
+    selection = _selection(slots, args.limit, args.study, args.slot)
+    if not selection:
+        raise SystemExit("no (study, slot) pair matches those filters")
+    show_ordering(slots, config, selection)
+    show_pixels(selection, sides, config, Path(args.png) if args.png else None)
 
 
 if __name__ == "__main__":
