@@ -10,3 +10,7 @@ rsna_knee_dicom_mini_part001/
 # Derived artefacts: always regenerable, never versioned.
 data/processed/
 kaggle/datasets/labels/report_labels_blend.csv
+
+# Real DICOMs: competition data, not redistributable (rules 2.4.b).
+data/raw/test_series/
+data/raw/train_series/
