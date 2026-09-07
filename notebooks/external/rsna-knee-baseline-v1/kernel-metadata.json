@@ -1,0 +1,29 @@
+{
+  "id": "pilkwang/rsna-knee-baseline-v1",
+  "id_no": 129842990,
+  "title": "RSNA Knee baseline v1",
+  "code_file": "rsna-knee-baseline-v1.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "pilkwang/pilkwang-public-dataset-for-notebooks-figures",
+    "pilkwang/rsna-knee-llm-labels",
+    "pilkwang/rsna-knee-weights"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [
+    "metaresearch/dinov2/PyTorch/small/1"
+  ],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "machine_shape": "NvidiaTeslaT4"
+}
