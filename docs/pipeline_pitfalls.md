@@ -113,3 +113,36 @@ that assumes one stands in for the other at test time. See [`data.md`](data.md).
 
 `pilkwang/rsna-knee-llm-labels` has **4,406 rows for 4,407 training studies**. A
 naive `merge` silently loses one. Check row counts after every join.
+
+---
+
+## 10. A Kaggle run can report COMPLETE while having failed
+
+Two mechanisms combine to hide a failed run.
+
+**Kaggle may assign a P100.** Its compute capability is sm_60, and the installed
+PyTorch ships kernels only from sm_70 up, so the run dies at the first CUDA
+allocation with `no kernel image is available`. Pin the accelerator in
+`kernel-metadata.json`:
+
+```json
+"machine_shape": "NvidiaTeslaT4"
+```
+
+**The notebook writes a fallback submission first.** The public baseline calls
+`write_benchmark_submission()` before anything else, so a crash still leaves a valid
+`submission.csv` — full of 0.5. That is good engineering: a run that dies after the
+expensive decode pass still scores something instead of nothing.
+
+Together they produce a kernel marked **COMPLETE**, holding a well-formed submission
+that would score exactly 0.500.
+
+**Before submitting, check the predictions are not all identical.** Status is not
+evidence, and neither is a file existing.
+
+```bash
+kaggle kernels output <owner>/<slug> -p /tmp/out
+python -c "import pandas as pd,sys; d=pd.read_csv('/tmp/out/submission.csv'); \
+  print('distinct values:', d.iloc[:,1:].stack().nunique())"
+```
+
