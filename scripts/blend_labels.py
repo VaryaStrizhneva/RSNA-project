@@ -25,15 +25,15 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from src.data.label_eval import bootstrap_macro, load_gold, macro_auc, per_target_auc
-from src.data.labels import (
+from src.rsna.data.label_eval import bootstrap_macro, load_gold, macro_auc, per_target_auc
+from src.rsna.data.labels import (
     DISTINCT_SOURCES,
     LABEL_SOURCES,
     blend,
     load_label_table,
     to_ranks,
 )
-from src.data.metadata import TARGET_COLUMNS
+from src.rsna.data.metadata import TARGET_COLUMNS
 
 #: Candidate blends. Keys are names for `--write`; values are source names.
 #: Contaminated sources are deliberately absent: they cannot be scored here.
@@ -107,7 +107,7 @@ def selection_is_worth_it(gold: pd.DataFrame, ranked: dict, n_splits: int = 300,
 
 
 def _auc(truth, scores):
-    from src.data.label_eval import auc
+    from src.rsna.data.label_eval import auc
 
     return auc(truth, scores)
 

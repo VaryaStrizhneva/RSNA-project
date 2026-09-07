@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from src.data.metadata import (
+from src.rsna.data.metadata import (
     add_clean_reports,
     build_series_slots,
     get_expert_labeled_rows,

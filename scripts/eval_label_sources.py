@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.data.label_eval import bootstrap_macro, load_gold, macro_auc, per_target_auc
-from src.data.labels import LABEL_SOURCES, load_label_table
+from src.rsna.data.label_eval import bootstrap_macro, load_gold, macro_auc, per_target_auc
+from src.rsna.data.labels import LABEL_SOURCES, load_label_table
 
 
 def main() -> None:
