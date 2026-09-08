@@ -129,8 +129,15 @@ class Config:
     crop_mm: float = 130.0
     #: Slices stacked as the channels of one encoder input.
     group: int = 3
-    #: Slices decoded per slot.
-    slices: int = 3
+    #: Slices decoded per slot and kept in the cache. The model still sees `group` of
+    #: them at a time: training draws one window at random per step, inference slides a
+    #: window across and averages.
+    #:
+    #: 12 is what the published checkpoints were fitted with. The notebook's own
+    #: `plan_cache` falls back to 3 when the cache must fit in a Kaggle session's RAM,
+    #: which is a memory budget rather than a design choice — training under it would
+    #: reproduce a configuration nobody uses.
+    slices: int = 12
     #: Fraction of the ordered stack sampled across, avoiding the empty ends.
     band: tuple[float, float] = (0.20, 0.80)
 
@@ -196,7 +203,38 @@ class Config:
 
     @property
     def n_group(self) -> int:
+        """How many disjoint windows the cache holds."""
+
         return max(self.slices // self.group, 1)
+
+    def windows(self, overlap: bool = True, limit: int | None = None) -> list[int]:
+        """Start index of each window of `group` slices over the cached `slices`.
+
+        The cache holds more slices than the encoder takes at once, so something has to
+        say which ones go in. That is not a general utility — it only means anything for
+        an encoder that reads a contiguous block and has its outputs combined afterwards
+        — so it lives here, as a property of one configuration, and travels with the
+        weights.
+
+        * `overlap=False` — disjoint windows. Training draws one at random per step,
+          which is augmentation along the stack.
+        * `overlap=True` — sliding one slice at a time. Inference averages the logits
+          over all of them, which is why a member costs ten encoder passes per slot
+          rather than four.
+
+        `limit` keeps the **central** windows: the ends of a knee series are mostly soft
+        tissue outside the joint, so they are what a run short of time gives up first.
+        """
+
+        if overlap and self.slices >= self.group:
+            starts = list(range(self.slices - self.group + 1))
+        else:
+            starts = [g * self.group for g in range(self.n_group)]
+
+        if limit is not None and 0 < limit < len(starts):
+            middle = (len(starts) - limit) // 2
+            starts = starts[middle:middle + limit]
+        return starts
 
     @property
     def mm_per_pixel(self) -> float:

@@ -25,7 +25,7 @@ import torch
 import torch.nn.functional as F
 
 from ..config import TARGETS, Config
-from .augment import augment, take_group
+from .augment import augment, take_window
 
 
 def macro_auc(y: np.ndarray, p: np.ndarray) -> float:
@@ -42,33 +42,34 @@ def macro_auc(y: np.ndarray, p: np.ndarray) -> float:
 
 @torch.no_grad()
 def predict(model, cache, mask, index, config: Config, device,
-            img_size: int | None = None) -> np.ndarray:
-    """Average the logits over the groups of each slot.
+            img_size: int | None = None, overlap: bool = False) -> np.ndarray:
+    """Average the logits over the windows of each slot.
 
-    Training sees one group at a time, which acts as augmentation along the stack;
-    inference averages over all of them, so a prediction does not depend on which group
-    a single draw happened to pick. Where the cache holds one group per slot the two
-    coincide.
+    `overlap=False` by default, deliberately: this runs once per epoch to choose one,
+    and the disjoint windows cost four encoder passes where the sliding ones cost ten.
+    Final inference uses `overlap=True` — see `rsna.infer.predict_member`. The two
+    therefore measure slightly different things, which is fine for ranking epochs
+    against each other and would not be fine for comparing to a leaderboard score.
     """
 
+    windows = config.windows(overlap=overlap)
     model.eval()
     out = []
     for start in range(0, len(index), config.eval_batch):
         sel = index[start:start + config.eval_batch]
         m = torch.as_tensor(mask[sel]).to(device)
         acc = None
-        for g in range(config.n_group):
-            # Gathered a group at a time rather than whole and then sliced. The two are
+        for begin in windows:
+            # Gathered a window at a time rather than whole and then sliced. The two are
             # the same pixels, but taking a whole study out of the cache allocates every
             # slice it holds — most of which this pass will not look at until a later
-            # iteration, by which time they have been fetched again.
-            lo = g * config.group
+            # window, by which time they have been fetched again.
             rows = torch.as_tensor(
-                np.ascontiguousarray(cache[sel, :, lo:lo + config.group])).to(device)
+                np.ascontiguousarray(cache[sel, :, begin:begin + config.group])).to(device)
             with torch.autocast("cuda", enabled=str(device).startswith("cuda")):
                 z = model(rows, m, img_size).float()
             acc = z if acc is None else acc + z
-        out.append(torch.sigmoid(acc / config.n_group).cpu().numpy())
+        out.append(torch.sigmoid(acc / len(windows)).cpu().numpy())
     return np.concatenate(out) if out else np.zeros((0, len(TARGETS)), np.float32)
 
 
@@ -118,8 +119,10 @@ def fit(model, cache, mask, y, w, train_index, holdout_index, config: Config, de
         total_steps=steps, pct_start=0.15)
     scaler = torch.amp.GradScaler("cuda", enabled=str(device).startswith("cuda"))
 
+    train_windows = config.windows(overlap=False)
     holdout_y = (y[holdout_index] > 0.5).astype(int)
     best_auc, best_state, best_epoch = -1.0, None, -1
+    last_state = None
     history: list[EpochResult] = []
 
     for epoch in range(config.epochs):
@@ -130,10 +133,10 @@ def fit(model, cache, mask, y, w, train_index, holdout_index, config: Config, de
         for start in range(0, len(order) - config.batch_studies + 1, config.batch_studies):
             sel = order[start:start + config.batch_studies]
             rows = torch.as_tensor(np.ascontiguousarray(cache[sel])).to(device)
-            # One group per step: which slices a study is seen through varies between
+            # One window per step: which slices a study is seen through varies between
             # steps, which is augmentation along the stack rather than within a slice.
-            g = int(torch.randint(config.n_group, (1,)).item())
-            imgs = augment(take_group(rows, g, config), config)
+            start = int(rng.choice(train_windows))
+            imgs = augment(take_window(rows, start, config), config)
             m = torch.as_tensor(mask[sel]).to(device)
             target = torch.as_tensor(y[sel]).to(device)
             weight = torch.as_tensor(w[sel]).to(device)
@@ -164,9 +167,19 @@ def fit(model, cache, mask, y, w, train_index, holdout_index, config: Config, de
         if on_epoch is not None:
             on_epoch(result)
 
+        # Kept every epoch, because selection can fail to pick any: a holdout where a
+        # target has one class present scores NaN, every comparison against NaN is
+        # False, and the run would otherwise finish having saved nothing at all.
+        last_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+
         # Selection reads the holdout alone; see the module docstring.
-        if holdout_auc > best_auc:
+        if np.isfinite(holdout_auc) and holdout_auc > best_auc:
             best_auc, best_epoch = holdout_auc, epoch
-            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            best_state = last_state
+
+    if best_state is None:
+        # Nothing was selectable. Return the final epoch and say so with a NaN score,
+        # rather than a state that a caller would read as "the best one".
+        return FitResult(len(history) - 1, float("nan"), last_state, history, config)
 
     return FitResult(best_epoch, best_auc, best_state, history, config)

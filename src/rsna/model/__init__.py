@@ -10,8 +10,14 @@ last set. Here they come from a `Config`, which is what lets a weights package s
 the architecture it needs.
 """
 
-from .fingerprint import check_fingerprint, fingerprint
+from .fingerprint import WeightsError, check_fingerprint, fingerprint
 from .heads import SlotHead
 from .network import Model, build_model, find_encoder
+from .package import (Member, find_package, load_member, read_manifest,
+                      write_package)
 
-__all__ = ["Model", "SlotHead", "build_model", "find_encoder", "fingerprint", "check_fingerprint"]
+__all__ = [
+    "Model", "SlotHead", "build_model", "find_encoder",
+    "fingerprint", "check_fingerprint", "WeightsError",
+    "Member", "write_package", "find_package", "read_manifest", "load_member",
+]

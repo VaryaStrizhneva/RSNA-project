@@ -28,7 +28,7 @@ from rsna.dicom import (
 )
 from rsna.model import build_model, check_fingerprint, fingerprint, find_encoder
 from rsna.model.fingerprint import WeightsError
-from rsna.train import assign_folds, augment, build_targets, fit, predict, take_group
+from rsna.train import assign_folds, augment, build_targets, fit, predict, take_window
 from stub_backbone import StubBackbone
 from synthetic_dicom import series_record, write_series
 
@@ -143,7 +143,7 @@ def test_augment() -> None:
     print("\ntrain.augment")
     cfg = Config(img=56, slices=6, group=3)
     rows = torch.randint(0, 256, (4, cfg.n_slot, cfg.slices, cfg.img, cfg.img), dtype=torch.uint8)
-    g = take_group(rows, 1, cfg)
+    g = take_window(rows, cfg.group, cfg)
     check("takes one group of channels", g.shape[2] == cfg.group)
     a = augment(g, cfg)
     check("preserves shape and dtype", a.shape == g.shape and a.dtype == g.dtype)
@@ -290,9 +290,111 @@ def test_cache() -> None:
                   "same shape, different pixels — nothing downstream could tell")
 
 
+def test_windows() -> None:
+    """Which slices reach the encoder — a property of the config, not a utility."""
+
+    print("\nconfig.windows")
+    cfg = Config(slices=12, group=3)
+    check("training windows are disjoint", cfg.windows(overlap=False) == [0, 3, 6, 9],
+          "one drawn at random per step")
+    check("inference windows overlap", cfg.windows(overlap=True) == list(range(10)),
+          "all of them, logits averaged")
+    check("a short run keeps the central windows",
+          cfg.windows(overlap=True, limit=4) == [3, 4, 5, 6],
+          "the ends of a stack are soft tissue outside the joint")
+    check("a cache smaller than one window still yields one",
+          Config(slices=2, group=3).windows() == [0])
+    check("windows travel with the weights",
+          Config.from_dict(cfg.to_dict()).windows() == cfg.windows(),
+          "so inference cannot use a split training never saw")
+
+
+def test_submission() -> None:
+    """The file Kaggle scores."""
+
+    import tempfile
+
+    from rsna.infer import benchmark_submission, blend_members, write_submission
+
+    print("\ninfer.submission")
+    tmp = Path(tempfile.mkdtemp())
+    studies = [f"study{i}" for i in range(5)]
+
+    frame = pd.read_csv(benchmark_submission(studies, tmp / "bench.csv"))
+    check("benchmark is 0.5 everywhere", bool((frame[TARGETS].to_numpy() == 0.5).all()),
+          "what a crash after the decode pass should leave behind")
+
+    rng = np.random.default_rng(0)
+    predictions = rng.random((5, len(TARGETS))) * 1000  # arbitrary scale
+    frame = pd.read_csv(write_submission(predictions, studies, tmp / "a.csv"))
+    values = frame[TARGETS].to_numpy()
+    check("predictions are written as ranks",
+          bool((values > 0).all() and (values <= 1).all() and np.isclose(values.max(), 1.0)),
+          "the metric reads order only, and ranks make members blendable")
+    check("ranking preserves the order",
+          bool((np.argsort(values[:, 0]) == np.argsort(predictions[:, 0])).all()))
+
+    blended = blend_members([predictions, rng.random((5, len(TARGETS)))], [0.6, 0.4])
+    check("blending stays in rank space",
+          bool((blended > 0).all() and (blended <= 1).all()))
+
+    for name, bad in (("a wrong shape",
+                       lambda: write_submission(np.zeros((4, 12)), studies, tmp / "x.csv")),
+                      ("non-finite predictions",
+                       lambda: write_submission(np.full((5, 12), np.nan), studies, tmp / "x.csv")),
+                      ("duplicate studies",
+                       lambda: benchmark_submission(["a", "a"], tmp / "x.csv"))):
+        try:
+            bad()
+            check(f"refuses {name}", False)
+        except ValueError:
+            check(f"refuses {name}", True)
+
+
+def test_figures() -> None:
+    """Every figure builds under the default config.
+
+    They are only pictures, but they are how the pipeline gets read, and they break
+    silently: a figure that assumed `group` slices kept working until `slices` stopped
+    equalling it. Building each one is cheap and catches exactly that.
+    """
+
+    import tempfile
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from rsna import viz
+
+    print("\nviz")
+    tmp = Path(tempfile.mkdtemp())
+    cfg = Config(img=32, group=3, slices=6, crop_mm=16.0)
+    record = series_record(write_series(tmp / "viz", n_slices=16, size=64))
+    record["plane"] = "Coronal"
+
+    viz.verify_against_read_slot(record, cfg)
+    check("the illustrated chain equals read_slot", True,
+          "otherwise the figures show a preprocessing nobody runs")
+
+    built = []
+    for name, kwargs in (("figure_stack", {}), ("figure_steps", {"side": "R"}),
+                         ("figure_cache", {"side": "R"}), ("figure_channels", {"side": "R"}),
+                         ("figure_windows", {"side": "R", "overlap": False}),
+                         ("figure_windows", {"side": "R", "overlap": True})):
+        try:
+            figure = getattr(viz, name)(record, cfg, **kwargs)
+            plt.close(figure)
+            built.append(name)
+        except Exception as exc:
+            check(f"{name} builds", False, f"{type(exc).__name__}: {exc}")
+    check("every figure builds", len(built) == 6, ", ".join(sorted(set(built))))
+
+
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
-                 test_model, test_augment, test_loop):
+                 test_model, test_augment, test_loop, test_windows,
+                 test_submission, test_figures):
         test()
     print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")
     if FAILED:

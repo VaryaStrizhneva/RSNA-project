@@ -27,10 +27,13 @@ import torch.nn.functional as F
 from ..config import Config
 
 
-def take_group(rows: torch.Tensor, group_index: int, config: Config) -> torch.Tensor:
-    """Slice `config.group` consecutive channels out of cached slices."""
+def take_window(rows: torch.Tensor, start: int, config: Config) -> torch.Tensor:
+    """Slice the `config.group` channels of the window beginning at `start`.
 
-    start = group_index * config.group
+    Windows come from `Config.windows`, so training and inference cannot disagree about
+    which slices an encoder is allowed to see.
+    """
+
     return rows[:, :, start:start + config.group]
 
 
