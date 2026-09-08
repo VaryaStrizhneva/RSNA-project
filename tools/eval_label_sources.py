@@ -2,10 +2,10 @@
 
 Prints, for every registered source and any extra table passed on the command
 line, the macro AUC and the twelve per-target AUCs on the 58 expert-labelled
-studies. It writes nothing: use `blend_labels.py` to produce a table.
+studies. It writes nothing — it exists to compare sources, not to produce one.
 
-    python -m scripts.eval_label_sources
-    python -m scripts.eval_label_sources --table data/processed/report_labels_blend.csv
+    python -m tools.eval_label_sources
+    python -m tools.eval_label_sources --table path/to/another_table.csv
 """
 
 from __future__ import annotations

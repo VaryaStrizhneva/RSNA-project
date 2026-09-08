@@ -1,64 +1,50 @@
-# Submission pipeline
+# The Kaggle side
 
-Everything Kaggle runs is generated from this repo and pushed with the CLI.
-**Nothing is edited in the Kaggle UI** — the next push overwrites it, and a browser
-edit is invisible to the other person.
+What Kaggle is told to run, kept in git instead of in a browser.
 
 ```
-kaggle/
-  submit/
-    kernel-metadata.json   what to mount, GPU, internet off
-    notebook.ipynb         the submission notebook
-  datasets/labels/
-    dataset-metadata.json  our label table, for when a run needs it
-    report_labels_blend.csv    generated, gitignored
+kaggle/submit/
+  kernel-metadata.json   the slug, what to mount, GPU, internet off
+  notebook.ipynb         what actually runs
 ```
+
+`kaggle kernels push -p DIR` requires a directory holding both files, which is why this
+exists as a folder at all. Pushing to the same `id` creates a **new version** of the
+same kernel, never a new kernel.
 
 ## Pushing
 
 ```bash
-python -m scripts.kaggle_push            # notebook only
-python -m scripts.kaggle_push --dry-run  # print the commands, run nothing
+python -m scripts.kaggle_push            # stamps the commit into a copy, then pushes
+python -m scripts.kaggle_push --dry-run
 ```
 
-Then submit from <https://www.kaggle.com/code/mathysgouverneur/rsna-knee-submit>.
-The CLI cannot submit a code-competition notebook.
+The script never modifies the repo: it copies the kernel to a temp directory, prepends a
+cell printing the current commit, and pushes that. The run then states its own
+provenance in its Kaggle log — the only thing joining a leaderboard score to a commit.
 
-Record the result in [`../docs/experiments.md`](../docs/experiments.md) immediately.
+Then submit from the kernel's page (the CLI cannot), and record the result in
+[`../docs/experiments.md`](../docs/experiments.md).
 
-## The commit stamp
+## What `notebook.ipynb` is today, and what it must become
 
-Before pushing, the script copies the kernel to a temp directory and rewrites
-`RUN_STAMP` in the notebook with the current commit (plus `-dirty` if the tree does
-not match it). The repo copy is never modified.
+Today it is a **smoke test**: it writes 0.5 for every study and asserts the submission
+schema. It scored 0.500, which proved the mechanics — mounts, filename, internet off.
 
-The run therefore prints its own provenance into its Kaggle log. Kaggle records a
-score against a *kernel version*; git records the code; this is the only thing
-joining them.
+It has to become a **generic inference notebook**: twenty lines that mount a weights
+package and run it, with no model definition of its own.
 
-## The label dataset
-
-Left alone unless asked for, so a notebook change cannot silently republish data:
-
-```bash
-python -m scripts.kaggle_push --labels --bootstrap-labels   # first time: creates it
-python -m scripts.kaggle_push --labels                      # thereafter
-python -m scripts.kaggle_push --labels --blend steven_only
+```python
+sys.path.insert(0, "/kaggle/input/rsna-src")     # internet is off; a mounted
+from rsna.infer import predict_member, write_submission   # dataset is the only channel
+from rsna.package import find_package, load_member
 ```
 
-It exists because the scored notebook runs with **internet disabled**: mounted
-Kaggle datasets are the only way our own files reach it. Model weights will arrive
-the same way.
+Every decision then comes from the package's own `manifest.json` — encoder, resolution,
+slices, slots — so the same notebook runs *any* model we train without being edited.
+That is the point: the notebook is a launcher, the library is the pipeline.
 
-Its contract matches the public baseline's `find_label_table()` — any
-`report_labels*.csv` under `/kaggle/input` carrying `StudyInstanceUID` and the twelve
-targets. So the same dataset works with their notebook and with ours.
-
-## What the notebook does today
-
-Nothing but plumbing: 0.5 for every study, plus schema assertions. Nothing is
-attached — no labels, no weights — so a failure can only be about the submission
-mechanics themselves.
-
-**Expected score: 0.500.** Once that lands, the pipeline is trusted and real work
-can be added to the same notebook.
+Two things it will need that it does not have yet: `dataset_sources` naming the weights
+and the source package, and `"machine_shape": "NvidiaTeslaT4"` — without the pin, Kaggle
+may hand out a P100, whose compute capability the installed PyTorch no longer supports.
+See [`../docs/pipeline_pitfalls.md`](../docs/pipeline_pitfalls.md) §10.

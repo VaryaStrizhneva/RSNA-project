@@ -1,1 +1,0 @@
-notebooks/external/rsna-knee-baseline-v1/rsna-knee-baseline-v1.ipynb
