@@ -1,6 +1,6 @@
 """Scoring label tables against the expert-labelled studies.
 
-Shared by the evaluation and blending scripts. Everything here answers one
+Everything here answers one
 question — how well does a column of scores order the 58 studies that carry
 official labels — and everything here is limited by the same thing: those 58
 studies are the entire ground truth, and for MCL they contain nine positives.

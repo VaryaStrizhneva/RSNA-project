@@ -17,3 +17,6 @@ data/raw/train_series/
 
 # Generated inspection output.
 out/
+
+# Third-party encoder weights: refetched with one line, not versioned.
+models/

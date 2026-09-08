@@ -3,17 +3,19 @@
 What we measured ourselves on the five CSVs Kaggle provides, in `data/raw/`.
 
 Read [`competition_description.md`](competition_description.md) first for what the
-files are *supposed* to contain — this file is about what they actually contain.
+files are *supposed* to contain, and
+[`notebooks/preprocessing.ipynb`](../notebooks/preprocessing.ipynb) for how the
+heterogeneity measured below is turned into a fixed-shape tensor — this file is about what they actually contain.
 Everything below is recomputable:
 
 ```bash
-python -m scripts.metadata_report --data-root data/raw
+python -m tools.metadata_report --data-root data/raw
 ```
 
 The short version: **the images are the easy part**. `train_series.csv` is clean and
 complete, but only 58 of 4,407 studies carry the labels we are asked to predict, so
 the targets have to come from the free-text reports. That problem has its own file,
-[`labels.md`](labels.md).
+the section at the bottom of this file.
 
 Last measured: 7 September 2026.
 
@@ -135,6 +137,38 @@ a mix of transfer syntaxes, 86 retained DICOM tags.
 
 ## Where the labels come from
 
-The 1.3% label coverage above is the defining constraint of this competition, and it
-is treated separately: see [`labels.md`](labels.md) for the published label sources,
-how they compare, and which one we use.
+The 1.3% label coverage above is the defining constraint of this competition: the
+targets have to be derived from the free-text reports, and several people have
+published tables that do exactly that. Three are vendored under `data/external/`, each
+with a `PROVENANCE.md` recording its source, licence and checksums; the registry is
+[`src/rsna/data/labels.py`](../src/rsna/data/labels.py).
+
+Measured against the 58 expert-labelled studies with
+`python -m tools.eval_label_sources`:
+
+| Source | Macro AUC |
+|---|---|
+| `stevenleehans/llm_labels_v4_blend.csv` | **0.893** |
+| `pilkwang/report_labels_v2.csv` | 0.867 |
+| `yunusgmsoy/report_labels_v5.csv` | ⚠️ reproduces the official labels — trainable, not scorable |
+
+⚠️ A 58-study macro AUC carries a confidence interval about seven points wide. These
+numbers order the tables; they do not separate them.
+
+The first training run uses **pilkwang's table**: it is the one the published
+checkpoints were fitted with, and the only one carrying per-target `__conf` columns,
+which is what the loss weighting needs.
+
+### One idea nobody has tested
+
+Combining several tables into one — averaging their ranks, or weighting each study by
+how much the sources *agree* — is an obvious next step and completely unvalidated. We
+tried it once and threw it away: on 58 studies, no combination separated itself from
+the best single source, and per-target cherry-picking scored *worse* out of sample than
+in it.
+
+If it is picked up again, prvsiyan's EfficientNet-B3 branch does something worth
+copying: it takes three tables, uses their mean as the target, and derives the loss
+weight from their disagreement — `0.65 * agreement + 0.35 * certainty`. That answers
+the awkward question of what "confidence" means for a table that has no `__conf`
+column. It is one team's constants, unvalidated like the rest.
