@@ -23,7 +23,6 @@ import gc
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict
 from pathlib import Path
 from typing import Callable
 
