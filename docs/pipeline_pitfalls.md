@@ -1,5 +1,8 @@
 # Pipeline pitfalls
 
+> For *why* the pipeline is shaped the way it is, rather than what breaks it, read
+> [`notebooks/preprocessing.ipynb`](../notebooks/preprocessing.ipynb).
+>
 > Traps that produce **wrong results without raising an error**. Each one was
 > learned from a public notebook — see [`references.md`](references.md) for
 > attribution — and each is worth re-verifying on our own data before we trust it.

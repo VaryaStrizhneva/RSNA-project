@@ -6,7 +6,7 @@ what actually runs, and nobody notices until a score does not reproduce.
 
 | Notebook | What it is for |
 |---|---|
-| `preprocessing.ipynb` | Watch a raw DICOM slice become the array the encoder receives |
+| `preprocessing.ipynb` | **The preprocessing, end to end**: why each step exists, what each stage decides on real studies, and the pictures. Narrative, tables and figures in one place. |
 | `inspect_metadata.ipynb` | The original metadata exploration |
 | `external/` | Read-only copies of public notebooks. Never edited. |
 
@@ -23,8 +23,8 @@ git config filter.nbstrip.clean "$(pwd)/.venv/bin/python scripts/nbstrip.py"
 Without this, `git add` of a notebook stores its images. Your working copy keeps them
 either way; only the committed blob is stripped.
 
-## Same figures without Jupyter
+## No logic here
 
-```bash
-python -m scripts.visualise_preprocessing --slot SAG_FLUID_FS --out out/steps
-```
+Every table and figure comes from `rsna.viz`, and `viz.verify_against_read_slot`
+asserts the illustrated chain ends exactly where `read_slot` ends — so the notebook
+cannot drift into describing a preprocessing nobody runs.

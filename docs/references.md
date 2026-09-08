@@ -97,8 +97,7 @@ Used in: *(nothing yet)*
 
 Every notebook mounts a pre-computed table of report-derived labels rather than
 deriving them at run time. Three are vendored under `data/external/`, each with its
-own `PROVENANCE.md`; measurements and the comparison between them live in
-[`labels.md`](labels.md).
+own `PROVENANCE.md`; the comparison between them lives in [`data.md`](data.md).
 
 | Dataset | Licence | Vendored |
 |---|---|---|
