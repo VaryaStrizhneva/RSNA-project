@@ -456,10 +456,107 @@ def test_experiments() -> None:
         check("refuses an unknown experiment", True)
 
 
+def test_eval() -> None:
+    print("\neval")
+    import tempfile
+    from types import SimpleNamespace
+
+    import rsna.eval as ev
+
+    rng = np.random.default_rng(0)
+    n_target = len(TARGETS)
+
+    # -- metrics, on arrays whose answer is known -------------------------------- #
+    y = np.zeros((40, n_target), np.float32)
+    y[:20] = 1.0
+    perfect = y.copy()
+    check("a perfect ranking scores 1", ev.macro_auc(y, perfect) == 1.0)
+    check("an inverted ranking scores 0", ev.macro_auc(y, 1.0 - perfect) == 0.0)
+    one_class = np.ones((40, n_target), np.float32)
+    check("one class present scores NaN",
+          np.isnan(ev.macro_auc(one_class, perfect)))
+
+    scaled = ev.rank_normalise(perfect * 17.0 + 3.0)
+    check("rank normalising does not move the AUC",
+          abs(ev.macro_auc(y, scaled) - 1.0) < 1e-9,
+          "AUC reads ranks, so the scale must not matter")
+    check("rank normalising lands in [0, 1]",
+          bool(scaled.min() >= 0.0 and scaled.max() <= 1.0))
+    spread = ev.rank_normalise(rng.random((40, n_target)))
+    check("rank normalising spans the range when nothing ties",
+          bool(spread.min() == 0.0 and spread.max() == 1.0),
+          "ties share the mean rank, which is what keeps the AUC unchanged")
+
+    noisy = rng.random((40, n_target)).astype(np.float32)
+    lo, hi = ev.bootstrap_macro(y, noisy, n_boot=200, seed=0)
+    check("the interval brackets the estimate",
+          lo <= ev.macro_auc(y, noisy) <= hi, f"{lo:.3f}-{hi:.3f}")
+
+    # -- a record survives a round trip through disk ----------------------------- #
+    tmp = Path(tempfile.mkdtemp())
+    for fold in range(3):
+        truth = (rng.random((12, n_target)) < 0.4).astype(np.float32)
+        truth[:, 2] = 0.0                      # one target with a single class
+        pred = np.clip(truth * 0.6 + rng.random((12, n_target)) * 0.4, 0, 1)
+        history = [SimpleNamespace(epoch=e, loss=1.0 / (e + 2),
+                                   holdout_auc=0.5 + 0.01 * e,
+                                   annotation_auc=float("nan")) for e in range(8)]
+        ev.write_run_record(
+            tmp / f"pkg-f{fold}", "unit", fold, "train_series", "labels.csv",
+            SimpleNamespace(best_epoch=7, best_holdout_auc=0.57, history=history,
+                            holdout_true=truth, holdout_pred=pred),
+            [f"uid-{fold}-{i}" for i in range(12)])
+
+    records = ev.read_sweep(tmp)
+    check("reads back every fold", len(records) == 3)
+    check("keeps the predictions", records[0].p.shape == (12, n_target))
+    check("keeps the history", len(records[0].history) == 8)
+
+    y_all, p_all = ev.pool(records)
+    check("pooling gathers every study", len(y_all) == 36,
+          "each study predicted once, by a model that never saw it")
+
+    # -- the report is a pure function of those files ---------------------------- #
+    report = ev.build(records)
+    check("counts the studies", report["n_studies"] == 36)
+    scored = [r for r in report["targets"] if np.isfinite(r["auc"])]
+    check("every target carries an interval",
+          all(r["lo"] <= r["auc"] <= r["hi"] for r in scored),
+          "a point estimate on 12 studies without its width invites reading a "
+          "difference the run never measured")
+    wide, narrow = ev.auc_interval(0.8, 5, 75), ev.auc_interval(0.8, 400, 400)
+    check("fewer positives widen the interval",
+          (wide[1] - wide[0]) > 3 * (narrow[1] - narrow[0]),
+          f"{wide[1] - wide[0]:.3f} vs {narrow[1] - narrow[0]:.3f}")
+    check("reports one row per target", len(report["targets"]) == n_target)
+    check("flags a target with one class",
+          any(f["level"] == "error" and "one class" in f["text"]
+              for f in report["flags"]))
+    check("flags a run that ended on its best epoch",
+          any("final epoch" in f["text"] for f in report["flags"]))
+    check("summarises without a browser", "out-of-fold" in ev.summary_text(report))
+
+    page = ev.render_html(report)
+    check("the page carries its charts", page.count("<svg") >= 2 and "track" in page,
+          "inline SVG and CSS, so they stay crisp and the page stays one file")
+    check("the page fetches nothing", "http://" not in page and "https://" not in page
+          and "<img" not in page)
+    check("the page names the experiment", "unit" in page)
+
+    written = ev.write(report, tmp / "report.html")
+    check("writes the numbers beside the page", written.with_suffix(".json").is_file())
+
+    try:
+        ev.read_sweep(tmp / "pkg-f0" / "nothing-here")
+        check("refuses a directory with no record", False)
+    except (FileNotFoundError, OSError):
+        check("refuses a directory with no record", True)
+
+
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
                  test_model, test_stems, test_experiments, test_augment, test_loop, test_windows,
-                 test_submission, test_figures):
+                 test_submission, test_figures, test_eval):
         test()
     print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")
     if FAILED:

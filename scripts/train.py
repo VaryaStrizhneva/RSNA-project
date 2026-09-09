@@ -27,9 +27,11 @@ import pandas as pd
 import torch
 
 from src.rsna.config import TARGETS, Config
-from src.rsna.dicom import annotate, build_cache, laterality_of, pick_slots, walk
+from src.rsna.dicom import (CacheMismatch, annotate, build_cache, laterality_of,
+                            load_cache, pick_slots, walk)
 from src.rsna.model import build_model
 from src.rsna.model.fingerprint import fingerprint
+from src.rsna.eval import write_run_record
 from src.rsna.model import Member, write_package
 from src.rsna.train import assign_folds, build_targets, fit
 
@@ -135,12 +137,26 @@ def main() -> None:
     log(f"slots: {filled}/{len(slots) * config.n_slot} filled")
 
     # -- pixels --------------------------------------------------------------- #
-    failures: list = []
-    studies, cache, mask = build_cache(slots, plane_map, sides, config,
-                                       cache_slices=config.slices, path=args.cache,
-                                       log=log, decode_failures=failures)
-    if failures:
-        log(f"{len(failures)} series had a slice that would not decode")
+    # Reuse a cache decoded under the same reading, if one is there. This is the whole
+    # point of writing it to disk: the pixels do not depend on the experiment, so two
+    # approaches that differ only in how the encoder consumes them share one decode.
+    # `load_cache` refuses a cache built under a different config rather than returning
+    # arrays of the right shape holding the wrong pixels.
+    cache = None
+    if args.cache and Path(args.cache).is_file():
+        try:
+            studies, cache, mask = load_cache(args.cache, config, config.slices)
+            log(f"reusing the cache at {args.cache}: {cache.shape}")
+        except (CacheMismatch, OSError, KeyError) as exc:
+            log(f"not reusing {args.cache}: {exc}")
+
+    if cache is None:
+        failures: list = []
+        studies, cache, mask = build_cache(slots, plane_map, sides, config,
+                                           cache_slices=config.slices, path=args.cache,
+                                           log=log, decode_failures=failures)
+        if failures:
+            log(f"{len(failures)} series had a slice that would not decode")
 
     # -- targets -------------------------------------------------------------- #
     if args.fake_labels:
@@ -196,6 +212,15 @@ def main() -> None:
                          note=f"{args.experiment}; {split}, {len(studies)} studies, "
                               f"{'planted signal' if args.fake_labels else labels}")
     log(f"package written to {path}")
+
+    # -- what the report will read --------------------------------------------- #
+    # A few kilobytes of text beside the weights, so that every number a report wants
+    # can be recomputed later without a GPU, the cache, or the model. Written after the
+    # package, because a run that produced weights is worth keeping even if this fails.
+    write_run_record(path, args.experiment, fold, split, str(labels), result,
+                     [studies[i] for i in holdout])
+    log(f"history and holdout predictions written to {path}")
+
     print(json.dumps(json.loads((path / 'manifest.json').read_text())["members"][0],
                      indent=1))
 

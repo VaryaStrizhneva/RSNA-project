@@ -84,13 +84,21 @@ class EpochResult:
 
 @dataclass
 class FitResult:
-    """What a run produced, and enough to say what it was."""
+    """What a run produced, and enough to say what it was.
+
+    `holdout_true` / `holdout_pred` are the arrays the selected epoch was judged on,
+    kept so that everything a report wants to say - per-target AUC, confidence
+    intervals, which studies the model got wrong - can be worked out afterwards from a
+    few kilobytes of text, without a GPU and without reloading the weights.
+    """
 
     best_epoch: int
     best_holdout_auc: float
     state_dict: dict
     history: list[EpochResult] = field(default_factory=list)
     config: Config | None = None
+    holdout_true: np.ndarray | None = None
+    holdout_pred: np.ndarray | None = None
 
 
 def fit(model, cache, mask, y, w, train_index, holdout_index, config: Config, device,
@@ -123,7 +131,7 @@ def fit(model, cache, mask, y, w, train_index, holdout_index, config: Config, de
     train_windows = config.windows(overlap=False)
     holdout_y = (y[holdout_index] > 0.5).astype(int)
     best_auc, best_state, best_epoch = -1.0, None, -1
-    last_state = None
+    last_state, best_pred, last_pred = None, None, None
     history: list[EpochResult] = []
 
     for epoch in range(config.epochs):
@@ -172,15 +180,18 @@ def fit(model, cache, mask, y, w, train_index, holdout_index, config: Config, de
         # target has one class present scores NaN, every comparison against NaN is
         # False, and the run would otherwise finish having saved nothing at all.
         last_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+        last_pred = holdout_p
 
         # Selection reads the holdout alone; see the module docstring.
         if np.isfinite(holdout_auc) and holdout_auc > best_auc:
             best_auc, best_epoch = holdout_auc, epoch
-            best_state = last_state
+            best_state, best_pred = last_state, holdout_p
 
     if best_state is None:
         # Nothing was selectable. Return the final epoch and say so with a NaN score,
         # rather than a state that a caller would read as "the best one".
-        return FitResult(len(history) - 1, float("nan"), last_state, history, config)
+        return FitResult(len(history) - 1, float("nan"), last_state, history, config,
+                         holdout_y, last_pred)
 
-    return FitResult(best_epoch, best_auc, best_state, history, config)
+    return FitResult(best_epoch, best_auc, best_state, history, config,
+                     holdout_y, best_pred)
