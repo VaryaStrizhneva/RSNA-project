@@ -36,7 +36,8 @@ def predict_member(model, cache, mask, config: Config, device="cpu",
             # whole study out of the cache allocates every slice it holds, most of which
             # this pass will not look at until a later window.
             rows = torch.as_tensor(
-                np.ascontiguousarray(cache[sel, :, start:start + config.group])).to(device)
+                np.ascontiguousarray(
+                    cache[sel, :, start:start + config.window_size])).to(device)
             with torch.autocast("cuda", enabled=str(device).startswith("cuda")):
                 logits = model(rows, m, img_size).float()
             total = logits if total is None else total + logits

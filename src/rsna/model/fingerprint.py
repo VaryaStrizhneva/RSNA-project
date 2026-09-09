@@ -33,7 +33,8 @@ def fingerprint(model, config: Config, device: torch.device | str = "cpu",
 
     img_size = config.img if img_size is None else img_size
     generator = torch.Generator().manual_seed(config.seed)
-    imgs = torch.randint(0, 256, (2, config.n_slot, config.group, img_size, img_size),
+    imgs = torch.randint(0, 256,
+                         (2, config.n_slot, config.window_size, img_size, img_size),
                          generator=generator, dtype=torch.uint8).to(device)
     mask = torch.ones(2, config.n_slot, device=device)
     mask[1, -1] = 0.0  # exercise the masked branch of the softmax

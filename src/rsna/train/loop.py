@@ -65,7 +65,8 @@ def predict(model, cache, mask, index, config: Config, device,
             # slice it holds — most of which this pass will not look at until a later
             # window, by which time they have been fetched again.
             rows = torch.as_tensor(
-                np.ascontiguousarray(cache[sel, :, begin:begin + config.group])).to(device)
+                np.ascontiguousarray(
+                    cache[sel, :, begin:begin + config.window_size])).to(device)
             with torch.autocast("cuda", enabled=str(device).startswith("cuda")):
                 z = model(rows, m, img_size).float()
             acc = z if acc is None else acc + z
@@ -116,7 +117,7 @@ def fit(model, cache, mask, y, w, train_index, holdout_index, config: Config, de
     steps = max(config.epochs * (len(train_index) // config.batch_studies), 1)
     schedule = torch.optim.lr_scheduler.OneCycleLR(
         optimiser, max_lr=[config.lr_backbone, config.lr_head],
-        total_steps=steps, pct_start=0.15)
+        total_steps=steps, pct_start=config.warmup_frac)
     scaler = torch.amp.GradScaler("cuda", enabled=str(device).startswith("cuda"))
 
     train_windows = config.windows(overlap=False)

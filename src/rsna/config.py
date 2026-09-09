@@ -160,6 +160,19 @@ class Config:
     #: the baseline's own training; some published checkpoints were fitted with it.
     prior: bool = False
 
+    #: How the cached slices become the three channels a pretrained encoder expects.
+    #:
+    #: ``window``   take `group` contiguous slices. Training draws one window at
+    #:              random per step, inference slides across and averages — so the
+    #:              encoder runs once per window, ten times per slot at inference.
+    #: ``compress`` hand all `slices` to a learned 1x1 projection that mixes them
+    #:              into three channels. One encoder pass, and training sees exactly
+    #:              what inference sees. Costs the stack augmentation and the
+    #:              test-time averaging that ``window`` gets for free.
+    stem: str = "window"
+    #: Gated residual blocks before the projection, for ``stem="compress"``.
+    stem_depth: int = 1
+
     # -- laterality --------------------------------------------------------- #
     #: Inside this distance from the midline the side is not readable from geometry,
     #: and the study is left unresolved rather than guessed. Measured against the
@@ -176,6 +189,9 @@ class Config:
     lr_head: float = 1e-3
     #: The encoder is adapted, not retrained.
     lr_backbone: float = 8e-6
+    #: Fraction of the schedule spent warming the learning rate up. A hyperparameter
+    #: like the two above, and it belongs beside them rather than buried in the loop.
+    warmup_frac: float = 0.15
     unfreeze_last: int = 6
     weight_decay: float = 0.02
     eval_batch: int = 8
@@ -207,6 +223,12 @@ class Config:
 
         return max(self.slices // self.group, 1)
 
+    @property
+    def window_size(self) -> int:
+        """How many slices the encoder's stem consumes at once."""
+
+        return self.slices if self.stem == "compress" else self.group
+
     def windows(self, overlap: bool = True, limit: int | None = None) -> list[int]:
         """Start index of each window of `group` slices over the cached `slices`.
 
@@ -225,6 +247,12 @@ class Config:
         `limit` keeps the **central** windows: the ends of a knee series are mostly soft
         tissue outside the joint, so they are what a run short of time gives up first.
         """
+
+        if self.stem == "compress":
+            # The stem consumes the whole cache, so there is exactly one window and
+            # nothing to slide or average. Training and inference then see the same
+            # input, which is the point of this stem.
+            return [0]
 
         if overlap and self.slices >= self.group:
             starts = list(range(self.slices - self.group + 1))

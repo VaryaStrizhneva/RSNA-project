@@ -391,9 +391,74 @@ def test_figures() -> None:
     check("every figure builds", len(built) == 6, ", ".join(sorted(set(built))))
 
 
+def test_stems() -> None:
+    """Both ways of turning cached slices into three channels."""
+
+    print("\nmodel.stems")
+    for stem, channels, passes in (("window", 3, 10), ("compress", 12, 1)):
+        cfg = Config(stem=stem, slices=12, group=3, img=56)
+        check(f"{stem}: encoder takes {channels} channels", cfg.window_size == channels)
+        check(f"{stem}: {passes} pass(es) per slot at inference",
+              len(cfg.windows()) == passes,
+              "one window and no averaging is the point of compress")
+
+        model = _model(cfg)
+        imgs = torch.randint(0, 256, (2, cfg.n_slot, cfg.window_size, cfg.img, cfg.img),
+                             dtype=torch.uint8)
+        full = torch.ones(2, cfg.n_slot)
+        partial = full.clone()
+        partial[0, 3:] = 0
+        out = model(imgs, full, cfg.img)
+        check(f"{stem}: emits one logit per target", out.shape == (2, len(TARGETS)))
+        check(f"{stem}: the presence mask still changes the output",
+              not torch.allclose(out, model(imgs, partial, cfg.img)))
+
+        f = fingerprint(model, cfg)
+        check(f"{stem}: fingerprint is deterministic",
+              np.array_equal(f, fingerprint(model, cfg)))
+
+    from rsna.model.stems import build_stem
+    check("window builds no stem", build_stem(Config(stem="window")) is None)
+    blank = build_stem(Config(stem="compress", slices=8))(
+        torch.zeros(2, 8, 32, 32))
+    check("an absent slot stays blank through the stem", bool((blank == 0).all()),
+          "the projection has a bias, so zeros in would not give zeros out")
+    try:
+        build_stem(Config(stem="nonsense"))
+        check("refuses an unknown stem", False)
+    except ValueError:
+        check("refuses an unknown stem", True)
+
+
+def test_experiments() -> None:
+    """Named configs, and that they say what they claim."""
+
+    import experiments
+
+    print("\nexperiments")
+    names = experiments.available()
+    check("both approaches are registered",
+          {"window_baseline", "depth_compress"} <= set(names), ", ".join(names))
+    baseline, compress = experiments.load("window_baseline"), experiments.load("depth_compress")
+    check("window_baseline is the ported approach", baseline.config.stem == "window")
+    check("depth_compress compresses the stack", compress.config.stem == "compress")
+    check("an experiment defines the whole run",
+          all(getattr(compress, k) for k in ("split", "labels", "encoder"))
+          and compress.fold == 0,
+          "--experiment alone is enough to reproduce it")
+    check("an approach travels in the weights",
+          Config.from_dict(compress.config.to_dict()).stem == "compress",
+          "so load_member rebuilds the right model without being told")
+    try:
+        experiments.load("does_not_exist")
+        check("refuses an unknown experiment", False)
+    except SystemExit:
+        check("refuses an unknown experiment", True)
+
+
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
-                 test_model, test_augment, test_loop, test_windows,
+                 test_model, test_stems, test_experiments, test_augment, test_loop, test_windows,
                  test_submission, test_figures):
         test()
     print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")

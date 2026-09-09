@@ -11,6 +11,7 @@ import torch.nn.functional as F
 
 from ..config import POOL_PARTS, TARGETS, Config
 from .heads import SlotHead
+from .stems import build_stem
 
 
 class Model(nn.Module):
@@ -27,6 +28,8 @@ class Model(nn.Module):
             raise ValueError(f"unknown pooling {pool!r}; expected one of {sorted(POOL_PARTS)}")
         self.backbone = backbone
         self.pool = pool
+        # None for stem="window": the slices already are the three channels.
+        self.stem = build_stem(config)
         self.head = SlotHead(dim * POOL_PARTS[pool], config.n_slot, len(TARGETS),
                              prior=prior, config=config)
         self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
@@ -34,7 +37,9 @@ class Model(nn.Module):
 
     def forward(self, imgs: torch.Tensor, mask: torch.Tensor,
                 img_size: int | None = None) -> torch.Tensor:
-        """imgs: (batch, slot, channel, h, w) uint8. mask: (batch, slot)."""
+        """imgs: (batch, slot, channel, h, w) uint8, where `channel` is
+        `config.window_size` — three raw slices, or the whole cache for a stem that
+        compresses it. mask: (batch, slot)."""
 
         batch, slots = imgs.shape[:2]
         x = imgs.reshape(batch * slots, *imgs.shape[2:]).float().div_(255.0)
@@ -46,7 +51,13 @@ class Model(nn.Module):
             x = F.interpolate(x, size=(img_size, img_size), mode="bilinear",
                               align_corners=False)
 
-        x = (x - self.mean) / self.std
+        if self.stem is not None:
+            # The stem mixes the stack down to three channels and applies the ImageNet
+            # normalisation itself, so the buffers below are not used on this path.
+            x = self.stem(x)
+        else:
+            x = (x - self.mean) / self.std
+
         out = self.backbone(pixel_values=x).last_hidden_state
         patch = out[:, 1:]
         parts = [out[:, 0], patch.mean(1)]
