@@ -140,7 +140,7 @@ a mix of transfer syntaxes, 86 retained DICOM tags.
 The 1.3% label coverage above is the defining constraint of this competition: the
 targets have to be derived from the free-text reports, and several people have
 published tables that do exactly that. Three are vendored under `data/external/`, each
-with a `PROVENANCE.md` recording its source, licence and checksums; the registry is
+with an `INFOS.md` recording its source, licence and checksums; the registry is
 [`src/rsna/data/labels.py`](../src/rsna/data/labels.py).
 
 Measured against the 58 expert-labelled studies with
@@ -155,9 +155,86 @@ Measured against the 58 expert-labelled studies with
 ⚠️ A 58-study macro AUC carries a confidence interval about seven points wide. These
 numbers order the tables; they do not separate them.
 
-The first training run uses **pilkwang's table**: it is the one the published
-checkpoints were fitted with, and the only one carrying per-target `__conf` columns,
-which is what the loss weighting needs.
+The first training run uses **pilkwang's table**, for one reason only: it is what the
+published checkpoints were fitted with, so a run against it is comparable to theirs.
+It is *not* the best table, and an earlier version of this file gave a second reason
+that turned out to be wrong — see below.
+
+### What a "score" in these tables actually is
+
+Not a binary label. The reports are not binary either: a finding can be asserted,
+denied, or simply **never mentioned**, and an assertion can be graded. Every table
+encodes those three states plus a gradation on one axis in [0, 1].
+
+pilkwang's is the clearest, because its extractor
+([`api_labeler.py`](../data/external/pilkwang-rsna-knee-llm-labels/api_labeler.py))
+asks `claude-opus-5` for exactly two fields — `verdict` in `{YES, NO, UNK}` and
+`severity` in `{0,1,2,3}` — and a fixed lookup projects the five outcomes onto a score.
+The whole 4,406 x 12 table holds **five distinct values**:
+
+| state | score |
+|---|---|
+| YES, severity 3 | 0.94 |
+| YES, severity 2 | 0.82 |
+| YES, severity 1 | 0.68 |
+| **UNK — not mentioned** | **0.28** |
+| NO | 0.08 |
+
+`UNK` sitting above `NO` is the important part: silence is not denial, and it has to
+rank between the two.
+
+**Where each table puts silence is a free parameter nobody has tuned**, and it covers
+a quarter of every table — 84% of the cells on `Synovitis`:
+
+| Table | Distinct score values | Silence at |
+|---|---|---|
+| `pilkwang/report_labels_v2.csv` | 5 | 0.28 |
+| `stevenleehans/llm_labels_v2.csv` | 81 | 0.50 |
+| `stevenleehans/llm_labels_v4_blend.csv` | 211 | 0.25 |
+| `yunusgmsoy/report_labels_v5.csv` | 1,987 | varies (a 4-source mean) |
+
+### Confidence: what the `__conf` columns are worth
+
+Two claims that used to be in this file are false.
+
+**"pilkwang is the only table with `__conf` columns."** yunusgmsoy has them too, and
+they are better: 2,291 distinct values in [0.079, 1.0], correlating +0.64 with the
+certainty of its own target and +0.28 with agreement between the other two tables.
+They are also **contaminated** — exactly 1.000 on the 58 expert-labelled studies,
+where the table copies the official labels.
+
+**"A `__conf` column is what the loss weighting needs."** pilkwang's carries no
+information at all: across 4,406 x 12 cells only three `(verdict, conf)` pairs exist
+— `YES -> 0.95`, `NO -> 0.85`, `UNK -> 0.05`. It is a hand-written lookup on the
+verdict, which the score already encodes. Applied through `0.25 + 0.75 * conf` it
+reduces to three constants: `YES 0.9625`, `NO 0.8875`, `UNK 0.2875` — decaying
+silence, not weighting by confidence.
+
+A per-study confidence can be derived from **any** table with continuous scores, no
+extra column required:
+
+```python
+certainty = np.clip(2.0 * np.abs(y - 0.5), 0, 1)
+```
+
+Measured on the 58 expert studies (684 cells), splitting cells at the median of each
+criterion and reading the AUC of the target against the truth — AUC is used because it
+ignores the offset that the silence convention introduces, which an error metric does
+not:
+
+| Criterion | AUC, low half | AUC, high half | Gap |
+|---|---|---|---|
+| `certainty` from the score | 0.791 | **0.929** | **+0.138** |
+| agreement, pilkwang vs stevenleehans v4 | 0.834 | 0.908 | +0.074 |
+
+Both carry signal; certainty carries twice as much and is free. And agreement has a
+narrow reach whatever its quality: the median disagreement between the two tables is
+**0.055**, with only **3.8%** of cells apart by more than 0.3.
+
+⚠️ 57 studies, and the twelve cells of one study are correlated. This orders the two
+criteria; it does not measure either. And it evaluates the *label table*, not the
+model — that a cell is more reliable does not yet show that weighting it helps
+training. Only paired runs can say.
 
 ### One idea nobody has tested
 
@@ -165,10 +242,26 @@ Combining several tables into one — averaging their ranks, or weighting each s
 how much the sources *agree* — is an obvious next step and completely unvalidated. We
 tried it once and threw it away: on 58 studies, no combination separated itself from
 the best single source, and per-target cherry-picking scored *worse* out of sample than
-in it.
+in it. Note that what was thrown away was the blend as a **target**; the blend as a
+**weight** has never been measured.
 
-If it is picked up again, prvsiyan's EfficientNet-B3 branch does something worth
-copying: it takes three tables, uses their mean as the target, and derives the loss
-weight from their disagreement — `0.65 * agreement + 0.35 * certainty`. That answers
-the awkward question of what "confidence" means for a table that has no `__conf`
-column. It is one team's constants, unvalidated like the rest.
+prvsiyan's notebook does something worth copying, in `_v60_targets` (cell 66) — it is
+the target contract of every branch, not of one EfficientNet-B3 variant as this file
+used to say. It takes three tables, uses their mean as the target, and derives the
+loss weight from their disagreement:
+
+```python
+agreement = np.clip(1.0 - 2.0 * np.abs(cube - target).mean(0), 0, 1)
+certainty = np.clip(2.0 * np.abs(target - 0.5), 0, 1)
+weight    = 0.15 + 0.85 * (0.65 * agreement + 0.35 * certainty)
+```
+
+It needs **two** sources, not three — we have two clean ones, pilkwang and
+stevenleehans, so no further download is required. One caveat when comparing tables
+this way: they must place silence at the same value, or a quarter of the cells shows
+a disagreement that is pure convention. pilkwang (0.28) and `llm_labels_v4_blend`
+(0.25) are compatible; `llm_labels_v2` (0.50) is not.
+
+Its known failure mode is that agreement is not correctness: extractors sharing a
+blind spot agree perfectly while being uniformly wrong. The constants are one team's,
+unvalidated like the rest.
