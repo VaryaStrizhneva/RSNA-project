@@ -1,0 +1,17 @@
+{
+  "id": "mathysgouverneur/rsna-knee-extract",
+  "title": "RSNA Knee extract",
+  "code_file": "notebook.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [],
+  "kernel_sources": []
+}

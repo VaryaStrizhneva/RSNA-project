@@ -3,10 +3,13 @@
 What Kaggle is told to run, kept in git instead of in a browser.
 
 ```
-kaggle/submit/
-  kernel-metadata.json   the slug, what to mount, GPU, internet off
-  notebook.ipynb         what actually runs
+kaggle/
+  submit/    the scored notebook — what Kaggle runs to produce a submission
+  extract/   copies N studies into one archive, so a laptop can have real data
 ```
+
+Each holds a `kernel-metadata.json` (the slug, what to mount, GPU, internet off) and
+the notebook that runs.
 
 `kaggle kernels push -p DIR` requires a directory holding both files, which is why this
 exists as a folder at all. Pushing to the same `id` creates a **new version** of the
@@ -15,7 +18,8 @@ same kernel, never a new kernel.
 ## Pushing
 
 ```bash
-python -m scripts.kaggle_push            # stamps the commit into a copy, then pushes
+python -m scripts.kaggle_push                              # kaggle/submit
+python -m scripts.kaggle_push --kernel-dir kaggle/extract
 python -m scripts.kaggle_push --dry-run
 ```
 
