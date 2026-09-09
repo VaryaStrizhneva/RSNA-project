@@ -1,0 +1,11 @@
+{
+  "config": {
+    "stem": "window"
+  },
+  "run": {
+    "split": "train_series",
+    "labels": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
+    "encoder": "models/dinov2-small",
+    "fold": 0
+  }
+}

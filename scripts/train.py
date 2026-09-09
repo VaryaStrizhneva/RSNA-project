@@ -5,11 +5,11 @@ stops: the scored run does inference only, from the package this writes. Everyth
 calls lives in `src/rsna`, so a Kaggle notebook and this script cannot drift apart.
 
     # plumbing check: a handful of studies, tiny images, two epochs
-    python -m scripts.train --split test_series --limit 3 --img 112 --slices 6 \
-        --epochs 2 --fake-labels --out out/package
+    python -m scripts.train --experiment depth_compress --split test_series --limit 3 \
+        --img 112 --slices 6 --epochs 2 --fake-labels --out out/package
 
     # the real thing, once the DICOMs are local
-    python -m scripts.train --split train_series --out out/package-r336
+    python -m scripts.train --experiment window_baseline --out out/package-baseline
 
 The stages are printed as they complete, because when this breaks it will break at one
 of them and the log should say which.
@@ -32,6 +32,8 @@ from src.rsna.model import build_model
 from src.rsna.model.fingerprint import fingerprint
 from src.rsna.model import Member, write_package
 from src.rsna.train import assign_folds, build_targets, fit
+
+import experiments
 
 T0 = time.time()
 
@@ -65,13 +67,14 @@ def fake_targets(studies: list[str], config: Config, seed: int = 0):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--experiment", default="window_baseline",
+                        help=f"Named config to fit. One of: "
+                             f"{', '.join(experiments.available())}")
     parser.add_argument("--data-root", default="data/raw", type=Path)
-    parser.add_argument("--split", default="train_series")
-    parser.add_argument("--labels",
-                        default="data/external/pilkwang-rsna-knee-llm-labels/"
-                                "report_labels_v2.csv")
-    parser.add_argument("--encoder", default="models/dinov2-small",
-                        help="Local DINOv2 directory, or a mounted one on Kaggle.")
+    parser.add_argument("--split", default=None)
+    parser.add_argument("--labels", default=None)
+    parser.add_argument("--encoder", default=None,
+                        help="Local encoder directory, or a mounted one on Kaggle.")
     parser.add_argument("--out", default="out/package", type=Path)
     parser.add_argument("--cache", default=None, type=Path,
                         help="Where to keep the decoded cache. Omit to hold it in memory.")
@@ -82,24 +85,38 @@ def main() -> None:
     parser.add_argument("--slices", type=int, default=None)
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--batch", type=int, default=None)
-    parser.add_argument("--fold", type=int, default=0, help="Which fold is held out.")
+    parser.add_argument("--fold", type=int, default=None, help="Which fold is held out.")
     parser.add_argument("--device", default=None)
     args = parser.parse_args()
 
+    # The experiment defines the run; the flags only override it, for a quick check.
+    experiment = experiments.load(args.experiment)
     overrides = {k: v for k, v in (("img", args.img), ("slices", args.slices),
                                    ("epochs", args.epochs),
                                    ("batch_studies", args.batch)) if v is not None}
-    config = Config(**overrides)
+    config = experiment.config.replace(**overrides)
+
+    # A flag overrides the experiment, so a quick check can shrink a real run without
+    # editing its definition.
+    split = args.split or experiment.split
+    labels = args.labels or experiment.labels
+    encoder = args.encoder or experiment.encoder
+    fold = args.fold if args.fold is not None else experiment.fold
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    log(f"experiment: {args.experiment}  (stem={config.stem}, "
+        f"{config.window_size} channels to the encoder, "
+        f"{len(config.windows())} pass(es) per slot at inference)")
     log(f"config: {config.img}px, {config.slices} slices, group {config.group}, "
         f"{config.n_slot} slots, {config.epochs} epochs, batch {config.batch_studies}")
+    log(f"run: split={split}, fold={fold}, encoder={encoder}")
+    log(f"     labels={labels}")
     log(f"device: {device}")
 
     # -- headers -------------------------------------------------------------- #
-    headers = annotate(walk(args.data_root, args.split))
+    headers = annotate(walk(args.data_root, split))
     if headers.empty or "SeriesDescription" not in headers:
-        raise SystemExit(f"no series under {args.data_root / args.split}")
-    plane_map = plane_map_for(args.data_root, args.split)
+        raise SystemExit(f"no series under {args.data_root / split}")
+    plane_map = plane_map_for(args.data_root, split)
     headers["plane"] = headers["SeriesInstanceUID"].map(plane_map)
     log(f"{len(headers)} series across {headers['StudyInstanceUID'].nunique()} studies")
 
@@ -137,14 +154,14 @@ def main() -> None:
         log("targets: planted signal (plumbing run, the score means nothing)")
     else:
         train_csv = pd.read_csv(args.data_root / "train.csv", dtype={"StudyInstanceUID": str})
-        derived = pd.read_csv(args.labels, dtype={"StudyInstanceUID": str}).set_index(
+        derived = pd.read_csv(labels, dtype={"StudyInstanceUID": str}).set_index(
             "StudyInstanceUID")
         y, w = build_targets(studies, train_csv, derived, config)
         folds = assign_folds(train_csv, config).reindex(studies)
         supervised = int((w.sum(1) > 0).sum())
-        log(f"targets: {supervised}/{len(studies)} studies supervised from {args.labels}")
+        log(f"targets: {supervised}/{len(studies)} studies supervised from {labels}")
 
-    holdout = np.array([i for i, s in enumerate(studies) if folds.get(s, -1) == args.fold])
+    holdout = np.array([i for i, s in enumerate(studies) if folds.get(s, -1) == fold])
     train_idx = np.array([i for i in range(len(studies)) if i not in set(holdout.tolist())])
     if len(holdout) == 0 or len(train_idx) < config.batch_studies:
         cut = max(1, len(studies) // 5)
@@ -153,7 +170,7 @@ def main() -> None:
     log(f"train {len(train_idx)} / holdout {len(holdout)} studies")
 
     # -- fit ------------------------------------------------------------------- #
-    model = build_model(config, source=args.encoder).to(device)
+    model = build_model(config, source=encoder).to(device)
     log(f"model: {sum(p.numel() for p in model.parameters()) / 1e6:.1f}M parameters, "
         f"{sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6:.1f}M trainable")
 
@@ -168,16 +185,16 @@ def main() -> None:
 
     # -- package --------------------------------------------------------------- #
     model.load_state_dict(result.state_dict)
-    member = Member(name=f"fold{args.fold}_{config.img}px",
+    member = Member(name=f"{args.experiment}_fold{fold}_{config.img}px",
                     config=config,
                     state_dict=result.state_dict,
                     fingerprint=fingerprint(model, config, device),
-                    fold=args.fold,
+                    fold=fold,
                     holdout_auc=result.best_holdout_auc,
                     epoch=result.best_epoch)
     path = write_package(args.out, [member],
-                         note=f"{args.split}, {len(studies)} studies, "
-                              f"{'planted signal' if args.fake_labels else args.labels}")
+                         note=f"{args.experiment}; {split}, {len(studies)} studies, "
+                              f"{'planted signal' if args.fake_labels else labels}")
     log(f"package written to {path}")
     print(json.dumps(json.loads((path / 'manifest.json').read_text())["members"][0],
                      indent=1))
