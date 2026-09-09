@@ -17,9 +17,16 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sys
 import subprocess
 import tempfile
 from pathlib import Path
+
+
+#: The CLI installed beside this interpreter, rather than whatever is on PATH — the
+#: script must work when called as `.venv/bin/python -m scripts.kaggle_push` without
+#: the environment activated.
+KAGGLE = str(Path(sys.executable).with_name("kaggle"))
 
 
 def run(cmd: list[str], dry_run: bool = False) -> None:
@@ -93,7 +100,7 @@ def main() -> None:
 
     staging = stage(args.kernel_dir, stamp)
     try:
-        run(["kaggle", "kernels", "push", "-p", str(staging)], args.dry_run)
+        run([KAGGLE, "kernels", "push", "-p", str(staging)], args.dry_run)
     finally:
         # Always: a dry run that left directories behind would accumulate them in
         # /tmp for no benefit, since it prints everything it would have pushed.
