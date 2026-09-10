@@ -10,6 +10,8 @@ cannot disagree about it.
 """
 
 from .predict import blend_members, predict_member
+from .run import run_submission
 from .submission import benchmark_submission, write_submission
 
-__all__ = ["predict_member", "blend_members", "benchmark_submission", "write_submission"]
+__all__ = ["predict_member", "blend_members", "benchmark_submission",
+           "write_submission", "run_submission"]
