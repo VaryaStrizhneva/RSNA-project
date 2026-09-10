@@ -30,25 +30,36 @@ provenance in its Kaggle log — the only thing joining a leaderboard score to a
 Then submit from the kernel's page (the CLI cannot), and record the result in
 [`../docs/experiments.md`](../docs/experiments.md).
 
-## What `notebook.ipynb` is today, and what it must become
+## What `notebook.ipynb` is
 
-Today it is a **smoke test**: it writes 0.5 for every study and asserts the submission
-schema. It scored 0.500, which proved the mechanics — mounts, filename, internet off.
+A **launcher**, not a pipeline. It mounts three things and calls one function:
 
-It has to become a **generic inference notebook**: twenty lines that mount a weights
-package and run it, with no model definition of its own.
+| mount | what it is |
+|---|---|
+| `rsna-src` | our library, published as a dataset by `scripts/kaggle_dataset.py --source` |
+| `rsna-knee-weights` | a package: `manifest.json` plus one `.pt` per fold |
+| `metaresearch/dinov2` | the encoder, hosted by Kaggle — we publish no copy of our own |
 
-```python
-sys.path.insert(0, "/kaggle/input/rsna-src")     # internet is off; a mounted
-from rsna.infer import predict_member, write_submission   # dataset is the only channel
-from rsna.package import find_package, load_member
-```
+Internet is off in a scored run, so a mounted dataset is the only channel. The notebook
+locates each mount **by content** rather than by path, because Kaggle names a mount
+after its dataset and a rename would otherwise break it in silence.
 
-Every decision then comes from the package's own `manifest.json` — encoder, resolution,
-slices, slots — so the same notebook runs *any* model we train without being edited.
-That is the point: the notebook is a launcher, the library is the pipeline.
+Every decision — resolution, slice count, slots, stem, encoder variant — comes from the
+package's own manifest. Nothing about the model is written in the notebook, so it runs
+*any* model we train without being edited. The chain itself is
+[`rsna.infer.run_submission`](../src/rsna/infer/run.py), which `scripts/predict.py`
+calls too: one implementation, so a leaderboard score is reproducible locally.
 
-Two things it will need that it does not have yet: `dataset_sources` naming the weights
-and the source package, and `"machine_shape": "NvidiaTeslaT4"` — without the pin, Kaggle
-may hand out a P100, whose compute capability the installed PyTorch no longer supports.
-See [`../docs/pipeline_pitfalls.md`](../docs/pipeline_pitfalls.md) §10.
+It carries **no `try/except`**. A run that swallows its failure writes the 0.5 fallback
+and reports COMPLETE, which looks exactly like a model that learnt nothing — see
+[`../docs/pipeline_pitfalls.md`](../docs/pipeline_pitfalls.md) §10, which is where that
+lesson came from.
+
+The metadata pins `"machine_shape": "NvidiaTeslaT4"`. Without it Kaggle may hand out a
+P100, whose compute capability the installed PyTorch no longer supports.
+
+## Rehearsing before pushing
+
+The mounts can be faked locally — a directory per dataset under one root — and the
+notebook's cells run against them. That catches a missing mount, a bad import or a
+fingerprint mismatch in seconds instead of in a queued Kaggle run.
