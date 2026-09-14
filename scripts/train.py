@@ -11,6 +11,13 @@ calls lives in `src/rsna`, so a Kaggle notebook and this script cannot drift apa
     # the real thing, once the DICOMs are local
     python -m scripts.train --experiment window_baseline --out out/package-baseline
 
+    # local Kaggle-style mini mirror with full CSV metadata
+    python -m scripts.train --data-root data/raw --dicom-root /path/to/kaggle_style_mini \
+        --split train_series --limit 20 --img 112 --slices 6 --epochs 2 --batch 2
+
+    # honest weak-label training check: keep expert-labelled studies out of training
+    python -m scripts.train --split train_series --holdout-gold --out out/package-gold-check
+
 The stages are printed as they complete, because when this breaks it will break at one
 of them and the log should say which.
 """
@@ -27,6 +34,7 @@ import pandas as pd
 import torch
 
 from src.rsna.config import TARGETS, Config
+from src.rsna.data.labels import load_confidence_table
 from src.rsna.dicom import (CacheMismatch, annotate, build_cache, laterality_of,
                             load_cache, pick_slots, walk)
 from src.rsna.model import build_model
@@ -34,6 +42,7 @@ from src.rsna.model.fingerprint import fingerprint
 from src.rsna.eval import write_run_record
 from src.rsna.model import Member, write_package
 from src.rsna.train import assign_folds, build_targets, fit
+from src.rsna.train.folds import report_group
 
 import experiments
 
@@ -73,6 +82,8 @@ def main() -> None:
                         help=f"Named config to fit. One of: "
                              f"{', '.join(experiments.available())}")
     parser.add_argument("--data-root", default="data/raw", type=Path)
+    parser.add_argument("--dicom-root", default=None, type=Path,
+                        help="Folder holding DICOMs. Defaults to --data-root.")
     parser.add_argument("--split", default=None)
     parser.add_argument("--labels", default=None)
     parser.add_argument("--encoder", default=None,
@@ -88,8 +99,12 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--batch", type=int, default=None)
     parser.add_argument("--fold", type=int, default=None, help="Which fold is held out.")
+    parser.add_argument("--holdout-gold", action="store_true",
+                        help="Exclude expert-labelled studies from training and report "
+                             "their AUC separately.")
     parser.add_argument("--device", default=None)
     args = parser.parse_args()
+    dicom_root = args.dicom_root or args.data_root
 
     # The experiment defines the run; the flags only override it, for a quick check.
     experiment = experiments.load(args.experiment)
@@ -115,9 +130,9 @@ def main() -> None:
     log(f"device: {device}")
 
     # -- headers -------------------------------------------------------------- #
-    headers = annotate(walk(args.data_root, split))
+    headers = annotate(walk(dicom_root, split))
     if headers.empty or "SeriesDescription" not in headers:
-        raise SystemExit(f"no series under {args.data_root / split}")
+        raise SystemExit(f"no series under {dicom_root / split}")
     plane_map = plane_map_for(args.data_root, split)
     headers["plane"] = headers["SeriesInstanceUID"].map(plane_map)
     log(f"{len(headers)} series across {headers['StudyInstanceUID'].nunique()} studies")
@@ -172,16 +187,47 @@ def main() -> None:
         train_csv = pd.read_csv(args.data_root / "train.csv", dtype={"StudyInstanceUID": str})
         derived = pd.read_csv(labels, dtype={"StudyInstanceUID": str}).set_index(
             "StudyInstanceUID")
-        y, w = build_targets(studies, train_csv, derived, config)
+        confidence = load_confidence_table(labels)
+        y, w = build_targets(studies, train_csv, derived, config, confidence=confidence)
         folds = assign_folds(train_csv, config).reindex(studies)
         supervised = int((w.sum(1) > 0).sum())
-        log(f"targets: {supervised}/{len(studies)} studies supervised from {labels}")
+        conf_note = " with confidence weights" if confidence is not None else ""
+        log(f"targets: {supervised}/{len(studies)} studies supervised from "
+            f"{labels}{conf_note}")
 
-    holdout = np.array([i for i, s in enumerate(studies) if folds.get(s, -1) == fold])
-    train_idx = np.array([i for i in range(len(studies)) if i not in set(holdout.tolist())])
+    gold_index = np.array([], dtype=int)
+    gold_y = None
+    excluded = set()
+    if args.holdout_gold and not args.fake_labels:
+        gold = train_csv.set_index("StudyInstanceUID")[TARGETS]
+        gold = gold[gold.notna().all(axis=1)]
+        gold_studies = set(gold.index)
+        gold_index = np.array([i for i, study in enumerate(studies) if study in gold_studies],
+                              dtype=int)
+        report_groups = train_csv.set_index("StudyInstanceUID")["Report"].map(report_group)
+        gold_report_groups = set(report_groups.reindex(gold.index).dropna())
+        excluded_studies = set(report_groups[report_groups.isin(gold_report_groups)].index)
+        excluded = {i for i, study in enumerate(studies) if study in excluded_studies}
+        if len(gold_index):
+            gold_y = gold.loc[[studies[i] for i in gold_index], TARGETS].to_numpy(
+                dtype=np.int64)
+            extra = len(excluded) - len(gold_index)
+            log(f"gold holdout: {len(gold_index)} expert-labelled studies excluded "
+                f"from training, plus {extra} same-report study/studies")
+        else:
+            log("gold holdout: no expert-labelled studies in this DICOM subset")
+
+    holdout = np.array([i for i, s in enumerate(studies)
+                        if i not in excluded and folds.get(s, -1) == fold])
+    holdout_set = set(holdout.tolist())
+    train_idx = np.array([i for i in range(len(studies))
+                          if i not in excluded and i not in holdout_set])
     if len(holdout) == 0 or len(train_idx) < config.batch_studies:
-        cut = max(1, len(studies) // 5)
-        holdout, train_idx = np.arange(cut), np.arange(cut, len(studies))
+        candidates = np.array([i for i in range(len(studies)) if i not in excluded])
+        if len(candidates) <= config.batch_studies:
+            raise SystemExit("not enough non-gold studies to train after applying the split")
+        cut = max(1, len(candidates) // 5)
+        holdout, train_idx = candidates[:cut], candidates[cut:]
         log("fold split too small; fell back to a positional split")
     log(f"train {len(train_idx)} / holdout {len(holdout)} studies")
 
@@ -190,9 +236,15 @@ def main() -> None:
     log(f"model: {sum(p.numel() for p in model.parameters()) / 1e6:.1f}M parameters, "
         f"{sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6:.1f}M trainable")
 
+    def log_epoch(r) -> None:
+        message = (f"  epoch {r.epoch + 1}/{config.epochs}  loss {r.loss:.4f}  "
+                   f"holdout {r.holdout_auc:.4f}")
+        if np.isfinite(r.annotation_auc):
+            message += f"  gold {r.annotation_auc:.4f}"
+        log(message)
+
     result = fit(model, cache, mask, y, w, train_idx, holdout, config, device,
-                 on_epoch=lambda r: log(f"  epoch {r.epoch + 1}/{config.epochs}  "
-                                        f"loss {r.loss:.4f}  holdout {r.holdout_auc:.4f}"))
+                 gold_index=gold_index, gold_y=gold_y, on_epoch=log_epoch)
     if np.isfinite(result.best_holdout_auc):
         log(f"best epoch {result.best_epoch + 1}, holdout AUC {result.best_holdout_auc:.4f}")
     else:

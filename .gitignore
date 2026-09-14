@@ -4,8 +4,9 @@ __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
 
-rsna_knee_dicom_mini_part001.zip
-rsna_knee_dicom_mini_part001/
+rsna_knee_dicom_mini*.zip
+rsna_knee_dicom_mini*/
+*.dcm
 
 # Derived artefacts: always regenerable, never versioned.
 data/processed/

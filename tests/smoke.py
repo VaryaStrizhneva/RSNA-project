@@ -95,6 +95,13 @@ def test_folds() -> None:
           w[0][0] == c.gold_weight and w[1][0] == 1.0)
     check("expert labels win on value", y[0][0] == 1.0 and y[1][0] == 0.7)
 
+    confidence = pd.DataFrame({t: np.full(10, 0.2) for t in TARGETS},
+                              index=[f"s{i}" for i in range(10)])
+    _, weighted = build_targets(list(train["StudyInstanceUID"]), gold, derived, c,
+                                confidence=confidence)
+    check("uses source confidence for weak-label weights",
+          weighted[1][0] == 0.25 + 0.75 * 0.2)
+
 
 def _model(cfg: Config, **kw):
     return build_model(cfg, backbone=StubBackbone(dim=32, patch=8, **kw))
