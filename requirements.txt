@@ -3,6 +3,11 @@
 # not to train. Training happens on Kaggle or a remote machine, where a GPU build is
 # already present. Install with:
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#
+# The encoder is not in git (see .gitignore) because it is a third-party checkpoint
+# that any machine can refetch. On a new one:
+#   huggingface-cli download facebook/dinov2-small --local-dir models/dinov2-small
+# `build_model` then finds it there, or under a Kaggle mount, via `find_encoder`.
 numpy
 pandas
 pydicom
@@ -15,3 +20,5 @@ ftfy
 kaggle
 scipy
 torch
+# Loads the encoder checkpoint in `model/network.py`.
+transformers
