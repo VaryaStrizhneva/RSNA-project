@@ -169,12 +169,15 @@ class Config:
     #:              into three channels. One encoder pass, and training sees exactly
     #:              what inference sees. Costs the stack augmentation and the
     #:              test-time averaging that ``window`` gets for free.
-    #: How a report-derived label is weighted in the loss. ``"uniform"`` gives every
-    #: study 1.0; ``"confidence"`` applies ``0.25 + 0.75 * conf`` from the table's own
-    #: per-target column, which is what the published baseline does. The default is
-    #: uniform because that is what the runs before this field existed actually did —
-    #: a default that rewrote history would make old manifests lie.
-    weights: str = "uniform"
+    #: Where a report-derived label's loss weight comes from. ``"confidence"`` reads
+    #: the table's own per-target column, which is what the published baseline does;
+    #: ``"uniform"`` ignores it and weighs every study 1.0, which is the comparison the
+    #: weighted run has to be measured against. Read by `scripts.train`, which decides
+    #: whether to hand `build_targets` a confidence table at all.
+    #:
+    #: A manifest written before this field existed carries no value for it and will
+    #: read back as the default; those runs were in fact uniform.
+    weights: str = "confidence"
     #: The weight a study gets when its source expresses no confidence at all. Every
     #: published formula has this shape — ``floor + (1 - floor) * signal`` — and the
     #: teams disagree about the floor: pilkwang's baseline uses 0.25, prvsiyan's V52
