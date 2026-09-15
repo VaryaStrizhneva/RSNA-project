@@ -138,6 +138,24 @@ default is off — one competitor's idea, tried, not settled practice. See
    over four consecutive epochs. A peak on one epoch is not a result. Selection reads
    the holdout alone, deliberately, and that is right even though the holdout is capped.
 
+7. **Do not run experiments side by side on one GPU — run them one after another.**
+   Three runs launched together took **238 s an epoch each**, against **49 s** for the
+   same run alone. In aggregate that is 78 s per epoch delivered against 49 s: a 60%
+   loss. Pure queueing would have cost 3 × 113 ms a step; the observed step was 548 ms,
+   so 209 ms of every step went to nothing but switching between CUDA contexts. Without
+   MPS a GPU runs one context at a time, and taking turns is not free.
+
+8. **Free VRAM is not spare capacity.** Those three runs used 12.9 of 44.3 GiB and the
+   card was still the bottleneck. Memory says how many models you can *hold*; it says
+   nothing about how many you can *run*. The measurement to quote about headroom is
+   seconds per epoch, never gigabytes.
+
+9. **The training loop ships four times the pixels it uses.** `loop.py` copies the whole
+   cached stack to the device and only then slices the window: 62 MiB crossed per step
+   where 15 would do, unpinned and synchronous, with the GPU idle throughout. Slicing
+   before the transfer would fix it — conditionally, since `stem: compress` really does
+   consume all twelve slices. Not measured, not done.
+
 ## What we do not know
 
 - **How any of this maps to the leaderboard.** Nothing trained on the full corpus has
@@ -154,5 +172,5 @@ default is off — one competitor's idea, tried, not settled practice. See
 |---|---|
 | `window_30epochs`, 5 folds | lands on the measured plateau, and gives the OneCycle a sane shape — peak at epoch 4.5 instead of 1.5 or 9 |
 | submit `window_reference` | the only way to calibrate everything above against a leaderboard number |
-| `dinov2-base` | 86M parameters against 22M, same pixels so the cache is reused, and the L40 is at 10% |
+| `dinov2-base` | 86M parameters against 22M, and the same pixels, so the cache is reused. Whether the L40 has the room is a question about seconds per epoch, not about the 5 GiB the small encoder occupies |
 | layer-wise LR decay | the encoder has one learning rate for six unfrozen blocks; the standard recipe gives each block its own |
