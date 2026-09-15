@@ -49,7 +49,7 @@ Several folds at once, then one report over all of them:
 
 ```bash
 for f in 0 1 2 3 4; do
-  python -m scripts.train --experiment window_baseline --fold $f \
+  python -m scripts.train --experiment window_reference --fold $f \
     --cache out/cache-80.npy --out out/sweep-window-20/pkg-f$f
 done
 python -m scripts.report out/sweep-window-20

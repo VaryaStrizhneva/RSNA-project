@@ -513,9 +513,9 @@ def test_experiments() -> None:
     print("\nexperiments")
     names = experiments.available()
     check("both approaches are registered",
-          {"window_baseline", "depth_compress"} <= set(names), ", ".join(names))
-    baseline, compress = experiments.load("window_baseline"), experiments.load("depth_compress")
-    check("window_baseline is the ported approach", baseline.config.stem == "window")
+          {"window_reference", "depth_compress"} <= set(names), ", ".join(names))
+    baseline, compress = experiments.load("window_reference"), experiments.load("depth_compress")
+    check("window_reference is the ported approach", baseline.config.stem == "window")
     check("depth_compress compresses the stack", compress.config.stem == "compress")
     check("an experiment defines the whole run",
           all(getattr(compress, k) for k in ("split", "labels", "encoder"))

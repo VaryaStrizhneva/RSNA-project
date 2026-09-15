@@ -142,7 +142,7 @@ The rule: **if a run needs something `Config` cannot express, the field belongs 
 
 ## The experiments
 
-### `window_baseline`
+### `window_reference`
 
 The public baseline's approach, ported, and the reference everything else is measured
 against. Three contiguous slices reach the encoder; training draws one window at random

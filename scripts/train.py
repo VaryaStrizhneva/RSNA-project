@@ -9,7 +9,7 @@ calls lives in `src/rsna`, so a Kaggle notebook and this script cannot drift apa
         --img 112 --slices 6 --epochs 2 --fake-labels --out out/package
 
     # the real thing, once the DICOMs are local
-    python -m scripts.train --experiment window_baseline --out out/package-baseline
+    python -m scripts.train --experiment window_reference --out out/package-baseline
 
     # local Kaggle-style mini mirror with full CSV metadata
     python -m scripts.train --data-root data/raw --dicom-root /path/to/kaggle_style_mini \
@@ -78,7 +78,7 @@ def fake_targets(studies: list[str], config: Config, seed: int = 0):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--experiment", default="window_baseline",
+    parser.add_argument("--experiment", default="window_reference",
                         help=f"Named config to fit. One of: "
                              f"{', '.join(experiments.available())}")
     parser.add_argument("--data-root", default="data/raw", type=Path)
