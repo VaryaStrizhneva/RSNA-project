@@ -144,12 +144,28 @@ The rule: **if a run needs something `Config` cannot express, the field belongs 
 
 ### `window_reference`
 
-The public baseline's approach, ported, and the reference everything else is measured
-against. Three contiguous slices reach the encoder; training draws one window at random
-per step, inference slides the window and averages — **ten encoder passes per slot**.
+The published baseline, to the letter: pilkwang's table, `weights: confidence`, 10
+epochs, batch 8. Three contiguous slices reach the encoder; training draws one window at
+random per step, inference slides the window and averages — **ten encoder passes per
+slot**.
 
-Nothing here is our idea: the defaults above *are* the values the published checkpoints
-were fitted with, which is why this experiment names a single field.
+Nothing here is our idea. It names the four fields it does because a yardstick should
+state its own terms, not inherit them silently from a default that may move. That
+configuration scored **0.891** on the leaderboard; it is not meant to be improved, it is
+what the ideas are measured against.
+
+### `window_60epochs`
+
+`window_reference` with `epochs: 60` and nothing else. It exists because the reference
+run flagged all five folds as undertrained — the training loss was still falling when
+the tenth epoch ended.
+
+It answers a narrower question than it looks. `epochs` also sets `total_steps` on the
+OneCycle schedule, so sixty epochs is not ten epochs continued: the whole cycle is
+restretched, the peak moves from epoch 1.5 to epoch 9, and the model trains at a high
+learning rate for far longer. It tells you whether a longer cycle wins, not where the
+model stops learning. The second question needs a schedule that does not depend on the
+epoch count, which `Config` cannot express today.
 
 ### `depth_compress`
 
@@ -165,13 +181,6 @@ than abandoning the stem.
 Ported from `bend-the-knee-to-the-dinosaurs`, where it sits behind a switch whose
 default is off — one competitor's idea, tried, not settled practice. See
 [`../docs/references.md`](../docs/references.md).
-
-### `reference`
-
-The published baseline, to the letter: pilkwang's table, `weights: confidence`, 10
-epochs, batch 8. It exists to be compared with a number nobody can argue about — that
-configuration scored **0.891** on the leaderboard. It is not an idea of ours and is not
-meant to be improved; it is the yardstick the ideas are measured against.
 
 ## Comparing two of these
 
