@@ -76,6 +76,8 @@ unrecognised value is refused rather than defaulted.
 | `unfreeze_last` | `6` | trainable encoder blocks, counted from the end |
 | `stem` | `window` | or `compress` — see the two experiments below |
 | `stem_depth` | `1` | gated residual blocks before the projection, for `compress` |
+| `weights` | `uniform` | or `confidence`, which reads the label table's own `__conf` columns. The published baseline uses `confidence`; the default is `uniform` because that is what the runs predating this field did, and a default that rewrote history would make old manifests lie |
+| `weight_floor` | `0.25` | what a study weighs when its source expresses no confidence. Every published formula is `floor + (1 - floor) * signal`, and the teams disagree: pilkwang's baseline uses `0.25`, prvsiyan's V52 uses `0.15`. It sets how hard a report that never mentions a finding pulls — a quarter of every table, and 84% of the `Synovitis` column. Nobody has tuned it |
 
 ## `config` — fitting
 

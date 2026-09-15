@@ -169,6 +169,19 @@ class Config:
     #:              into three channels. One encoder pass, and training sees exactly
     #:              what inference sees. Costs the stack augmentation and the
     #:              test-time averaging that ``window`` gets for free.
+    #: How a report-derived label is weighted in the loss. ``"uniform"`` gives every
+    #: study 1.0; ``"confidence"`` applies ``0.25 + 0.75 * conf`` from the table's own
+    #: per-target column, which is what the published baseline does. The default is
+    #: uniform because that is what the runs before this field existed actually did —
+    #: a default that rewrote history would make old manifests lie.
+    weights: str = "uniform"
+    #: The weight a study gets when its source expresses no confidence at all. Every
+    #: published formula has this shape — ``floor + (1 - floor) * signal`` — and the
+    #: teams disagree about the floor: pilkwang's baseline uses 0.25, prvsiyan's V52
+    #: uses 0.15. It decides how hard a report that never mentions a finding pulls,
+    #: which is a quarter of every table and 84% of the `Synovitis` column, and nobody
+    #: has tuned it. A field rather than a constant so that it can be.
+    weight_floor: float = 0.25
     stem: str = "window"
     #: Gated residual blocks before the projection, for ``stem="compress"``.
     stem_depth: int = 1

@@ -172,10 +172,28 @@ def main() -> None:
         train_csv = pd.read_csv(args.data_root / "train.csv", dtype={"StudyInstanceUID": str})
         derived = pd.read_csv(labels, dtype={"StudyInstanceUID": str}).set_index(
             "StudyInstanceUID")
-        y, w = build_targets(studies, train_csv, derived, config)
+        # The confidence columns are the table's own, one per target. Read here rather
+        # than inside `build_targets` so that a table without them fails at the point
+        # where the file is named, not deep in the loop.
+        confidence = None
+        if config.weights == "confidence":
+            columns = [f"{t}__conf" for t in TARGETS]
+            missing = [c for c in columns if c not in derived.columns]
+            if missing:
+                raise SystemExit(
+                    f"weights='confidence' but {labels} has no {missing[0]} column. "
+                    f"Use an experiment with \"weights\": \"uniform\", or a table "
+                    f"that reports confidence.")
+            confidence = derived[columns].copy()
+            confidence.columns = TARGETS
+
+        y, w = build_targets(studies, train_csv, derived, config, confidence)
         folds = assign_folds(train_csv, config).reindex(studies)
         supervised = int((w.sum(1) > 0).sum())
         log(f"targets: {supervised}/{len(studies)} studies supervised from {labels}")
+        held = w[w > 0]
+        log(f"weights: {config.weights}, {held.min():.3f}-{held.max():.3f} "
+            f"(mean {held.mean():.3f})")
 
     holdout = np.array([i for i, s in enumerate(studies) if folds.get(s, -1) == fold])
     train_idx = np.array([i for i in range(len(studies)) if i not in set(holdout.tolist())])

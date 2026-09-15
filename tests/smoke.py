@@ -95,6 +95,48 @@ def test_folds() -> None:
           w[0][0] == c.gold_weight and w[1][0] == 1.0)
     check("expert labels win on value", y[0][0] == 1.0 and y[1][0] == 0.7)
 
+    # -- how a derived label is weighted --------------------------------------- #
+    conf = pd.DataFrame({t: np.r_[np.full(5, 0.95), np.full(5, 0.05)] for t in TARGETS},
+                        index=[f"s{i}" for i in range(10)])
+    weighted = c.replace(weights="confidence")
+    _, w2 = build_targets(list(train["StudyInstanceUID"]), gold, derived, weighted, conf)
+    check("confidence scales the weight",
+          abs(w2[1][0] - (0.25 + 0.75 * 0.95)) < 1e-6
+          and abs(w2[9][0] - (0.25 + 0.75 * 0.05)) < 1e-6,
+          "a study whose report says nothing pulls a third as hard")
+    check("expert labels ignore the confidence table", w2[0][0] == c.gold_weight)
+
+    # The published baseline writes `0.25 + 0.75 * conf`. Ours writes
+    # `floor + (1 - floor) * conf` so the floor can be tuned. At the default floor the
+    # two must be the *same* number, not a close one — a run meant to reproduce a
+    # published score cannot differ from it by a rounding decision.
+    literal = np.float32(0.25) + np.float32(0.75) * conf.to_numpy(np.float32)
+    check("the default floor reproduces the published formula bit for bit",
+          np.array_equal(w2[1:].view(np.int32), literal[1:].view(np.int32)),
+          "0.25 and 0.75 are both exact in binary, so 1 - 0.25 is exactly 0.75")
+
+    _, w3 = build_targets(list(train["StudyInstanceUID"]), gold, derived,
+                          c.replace(weights="confidence", weight_floor=0.15), conf)
+    check("a different floor moves the weights",
+          abs(w3[9][0] - (0.15 + 0.85 * 0.05)) < 1e-6,
+          "prvsiyan's V52 uses 0.15 where the baseline uses 0.25")
+    try:
+        build_targets(list(train["StudyInstanceUID"]), gold, derived,
+                      c.replace(weights="confidence", weight_floor=1.5), conf)
+        check("refuses a floor outside [0, 1]", False)
+    except ValueError:
+        check("refuses a floor outside [0, 1]", True)
+
+    for mode, table, why in [("confidence", None, "no table"),
+                             ("nonsense", conf, "unknown mode")]:
+        try:
+            build_targets(list(train["StudyInstanceUID"]), gold, derived,
+                          c.replace(weights=mode), table)
+            check(f"refuses {why}", False)
+        except ValueError:
+            check(f"refuses {why}", True,
+                  "silently weighting 1.0 would produce a run that misreports itself")
+
 
 def _model(cfg: Config, **kw):
     return build_model(cfg, backbone=StubBackbone(dim=32, patch=8, **kw))

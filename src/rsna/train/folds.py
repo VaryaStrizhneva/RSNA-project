@@ -75,12 +75,26 @@ def build_targets(
     only 58 of them and they are the best labels in the corpus, so they stay in
     training rather than being held out as a test set.
 
-    Report-derived labels are weighted between 0.25 and 1.0 by the source's own
-    confidence when it reports one. A table with no confidence column is treated as
-    uniformly confident rather than rejected — but note that a study covered by no
-    source at all gets weight zero and drops out of training entirely, which is
-    visible in the returned weights and should be counted by the caller.
+    Report-derived labels are weighted according to `config.weights`. Under
+    ``"confidence"`` a study weighs ``floor + (1 - floor) * conf`` per target, the
+    shape every published formula takes; at the default floor of 0.25 that is exactly
+    the published baseline's ``0.25 + 0.75 * conf``. Under ``"uniform"`` every study
+    weighs 1.0.
+
+    A study covered by no source at all gets weight zero and drops out of training
+    entirely, which is visible in the returned weights and should be counted by the
+    caller.
     """
+
+    if config.weights not in ("uniform", "confidence"):
+        raise ValueError(f"unknown weights mode {config.weights!r}")
+    if not 0.0 <= config.weight_floor <= 1.0:
+        raise ValueError(f"weight_floor must lie in [0, 1], got {config.weight_floor}")
+    if config.weights == "confidence" and confidence is None:
+        # Falling back to 1.0 here would produce a run that says it weighted by
+        # confidence and did not. The two are several points apart on the leaderboard,
+        # and nothing downstream could tell them apart.
+        raise ValueError("weights='confidence' needs a confidence table")
 
     gold = train.set_index("StudyInstanceUID")[TARGETS]
     gold = gold[gold.notna().all(axis=1)]
@@ -94,8 +108,9 @@ def build_targets(
             w[i] = config.gold_weight
         elif study in derived.index:
             y[i] = derived.loc[study, TARGETS].values
-            if confidence is not None and study in confidence.index:
-                w[i] = 0.25 + 0.75 * confidence.loc[study, TARGETS].values
+            if config.weights == "confidence" and study in confidence.index:
+                floor = config.weight_floor
+                w[i] = floor + (1.0 - floor) * confidence.loc[study, TARGETS].values
             else:
                 w[i] = 1.0
     return y, w
