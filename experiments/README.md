@@ -166,30 +166,32 @@ Ported from `bend-the-knee-to-the-dinosaurs`, where it sits behind a switch whos
 default is off — one competitor's idea, tried, not settled practice. See
 [`../docs/references.md`](../docs/references.md).
 
----
-
-Record every run in [`../docs/experiments.md`](../docs/experiments.md).
-
 ### `reference`
 
 The published baseline, to the letter: pilkwang's table, `weights: confidence`, 10
-epochs, batch 8. It exists to be compared with a number nobody can argue about —
-that configuration scored **0.891** on the leaderboard. It is not an idea of ours and
-is not meant to be improved; it is the yardstick the ideas are measured against.
+epochs, batch 8. It exists to be compared with a number nobody can argue about — that
+configuration scored **0.891** on the leaderboard. It is not an idea of ours and is not
+meant to be improved; it is the yardstick the ideas are measured against.
 
-### `uniform_pilkwang` · `uniform_steven` · `assertedness_steven`
+## Comparing two of these
 
-Three runs that change **one thing each** against `reference`, in this order:
+Change **one field** between two experiments, or the result answers no question. The
+weighting fields make that easy to get wrong, because three of them interact:
 
-| | against | isolates |
+| to isolate | hold fixed | vary |
 |---|---|---|
-| `uniform_pilkwang` | `reference` | the **weighting** — same table, no weights |
-| `uniform_steven` | `uniform_pilkwang` | the **table** — same weighting, better source |
-| `assertedness_steven` | `uniform_steven` | the **formula** on a table with no `__conf` |
+| the weighting | `labels` | `weights`: `confidence` against `uniform` |
+| the table | `weights` | `labels` |
+| the formula | `labels` | `weights`: `confidence` against `assertedness` |
 
-`stevenleehans/llm_labels_v4_blend.csv` scores 0.893 against the 58 expert studies
-where pilkwang scores 0.867, and it has no confidence column at all — which is what
-`assertedness` exists for.
+Note the last one is only available on a table that reports confidence — pilkwang does,
+`llm_labels_v4_blend` does not. On a table without it, `assertedness` is the only
+weighting there is, and the comparison is against `uniform`.
 
-Run them in that order. If `uniform_pilkwang` matches `reference`, the weighting does
-nothing on this corpus and the third run can be skipped entirely.
+Nothing here is measured yet. Whether *any* weighting beats `uniform` on the full corpus
+is open, and it is the question worth answering first: if it does not, the rest of this
+section is moot.
+
+---
+
+Record every run in [`../docs/experiments.md`](../docs/experiments.md).
