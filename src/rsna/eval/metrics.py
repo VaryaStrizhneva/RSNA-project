@@ -69,6 +69,41 @@ def pool(records: list) -> tuple[np.ndarray, np.ndarray]:
     return np.concatenate(ys), np.concatenate(ps)
 
 
+def ensemble_gold(records: list) -> tuple[np.ndarray, np.ndarray, list[str]]:
+    """The five folds' predictions on the expert studies, averaged into one.
+
+    Not `pool`, and the difference matters. The holdouts are *disjoint* — each study
+    appears in exactly one fold — so they are concatenated. The expert studies are held
+    out of every fold, so all five models predict the same ones; concatenating would
+    count each study five times and report an interval far too narrow. Averaging them
+    is also the more useful thing, because averaged ranks are precisely what a
+    submission carries.
+
+    Folds are aligned by study id rather than by row: the orders do match today, and a
+    silent mismatch here would score one patient's images against another's truth.
+    """
+
+    scored = [r for r in records if r.n_gold and r.gold_p is not None]
+    if not scored:
+        return (np.zeros((0, len(TARGETS))), np.zeros((0, len(TARGETS))), [])
+
+    shared = set(scored[0].gold_uids)
+    for record in scored[1:]:
+        shared &= set(record.gold_uids)
+    uids = [u for u in scored[0].gold_uids if u in shared]
+    if not uids:
+        return (np.zeros((0, len(TARGETS))), np.zeros((0, len(TARGETS))), [])
+
+    stacked = []
+    for record in scored:
+        where = {u: i for i, u in enumerate(record.gold_uids)}
+        rows = [where[u] for u in uids]
+        stacked.append(rank_normalise(record.gold_p[rows]))
+    truth = scored[0].gold_y[[{u: i for i, u in enumerate(scored[0].gold_uids)}[u]
+                              for u in uids]]
+    return truth, np.mean(stacked, axis=0), uids
+
+
 def bootstrap_macro(y: np.ndarray, p: np.ndarray, n_boot: int = 2000,
                     seed: int = 0, level: float = 0.95) -> tuple[float, float]:
     """Percentile confidence interval for the macro AUC, resampling studies.

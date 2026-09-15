@@ -31,6 +31,21 @@ def build(records: list, seed: int = 0) -> dict:
     rows = M.target_table(y, p) if len(y) else []
     finite = fold_aucs[np.isfinite(fold_aucs)]
 
+    # The expert-labelled studies, when `--holdout-gold` kept them out of every fold.
+    # Averaged rather than concatenated: all five models saw the same ones, so this is
+    # the ensemble a submission would carry, scored against the only truth we have.
+    gold_y, gold_p, gold_uids = M.ensemble_gold(records)
+    gold = None
+    if len(gold_y):
+        gold_interval = M.bootstrap_macro(gold_y, gold_p, seed=seed)
+        gold = {
+            "n": int(len(gold_y)),
+            "folds": sum(1 for r in records if r.n_gold),
+            "auc": M.macro_auc(gold_y, gold_p),
+            "interval": [float(gold_interval[0]), float(gold_interval[1])],
+            "targets": M.target_table(gold_y, gold_p),
+        }
+
     return {
         "experiment": records[0].experiment if records else "?",
         "labels": records[0].labels if records else "",
@@ -45,6 +60,7 @@ def build(records: list, seed: int = 0) -> dict:
         "pooled_auc": pooled,
         "interval": [float(interval[0]), float(interval[1])],
         "targets": rows,
+        "gold": gold,
         "flags": M.flags(records, rows, fold_aucs),
         "_records": records,
         "_pooled_arrays": (y, p),
@@ -130,8 +146,8 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
 .chart .band{fill:var(--accent);opacity:.14}
 .chart .ln{fill:none;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
 .chart .dot{stroke:var(--bg);stroke-width:1.5}
-.panels{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-@media(max-width:720px){.panels{grid-template-columns:1fr}}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+ gap:20px}
 .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:12px;
  color:var(--dim)}
 .key{display:inline-flex;align-items:center;gap:6px}
@@ -201,8 +217,8 @@ def _cards(report: dict) -> str:
     ])
 
 
-def _target_rows(report: dict) -> str:
-    rows = sorted(report["targets"],
+def _rows(targets: list[dict]) -> str:
+    rows = sorted(targets,
                   key=lambda r: -(r["auc"] if np.isfinite(r["auc"]) else -1))
     out = []
     for row in rows:
@@ -221,6 +237,36 @@ def _target_rows(report: dict) -> str:
             f'<td class="bar">{F.target_bar(row)}</td>'
             f'<td>{auc}</td><td class="{klass}">{span}</td></tr>')
     return "".join(out)
+
+
+def _gold_section(report: dict) -> str:
+    """What the run scored against the 58 expert readings, or why there is none."""
+
+    gold = report.get("gold")
+    if not gold:
+        return ('<p class="note">This run did not set the expert-labelled studies '
+                'aside, so there is nothing here to compare against the truth. Pass '
+                '<code>--holdout-gold</code> to <code>scripts.train</code> and they '
+                'are held out of every fold.</p>')
+
+    lo, hi = gold["interval"]
+    return f"""<div class="head">
+<div class="card"><div class="k">expert-label macro AUC</div>
+<div class="v">{gold['auc']:.4f}</div>
+<div class="n">95% interval {lo:.3f} – {hi:.3f}</div></div>
+<div class="card"><div class="k">studies</div>
+<div class="v">{gold['n']}</div>
+<div class="n">held out of all {gold['folds']} folds, then averaged</div></div>
+</div>
+<div class="scroll"><table>
+<thead><tr><th>target</th><th>pos.</th><th></th><th>AUC</th>
+<th>95% interval</th></tr></thead>
+<tbody>{_rows(gold['targets'])}</tbody>
+</table></div>
+<p class="note">This is the only number here measured against a radiologist reading
+the <em>images</em> rather than a language model reading the reports — and the only one
+that is not capped by the label table's own 0.867. It is also the noisiest: {gold['n']}
+studies, some targets with nine positives. It ranks; it does not separate.</p>"""
 
 
 def render_html(report: dict) -> str:
@@ -258,9 +304,12 @@ def render_html(report: dict) -> str:
 <div class="scroll"><table>
 <thead><tr><th>target</th><th>pos.</th><th></th><th>AUC</th>
 <th>95% interval</th></tr></thead>
-<tbody>{_target_rows(report) if len(y) else ''}</tbody>
+<tbody>{_rows(report['targets']) if len(y) else ''}</tbody>
 </table></div>
 {note}
+
+<h2>Against the expert labels</h2>
+{_gold_section(report)}
 
 <h2>Training</h2>
 <div class="box">{F.curves(records) if records else ''}</div>

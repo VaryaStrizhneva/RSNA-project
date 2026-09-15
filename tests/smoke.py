@@ -577,6 +577,49 @@ def test_eval() -> None:
 
     written = ev.write(report, tmp / "report.html")
     check("writes the numbers beside the page", written.with_suffix(".json").is_file())
+    check("says why there is no expert section", "--holdout-gold" in page)
+
+    # -- the expert-labelled studies, held out of every fold --------------------- #
+    gold_uids = [f"gold-{i}" for i in range(20)]
+    gold_truth = (rng.random((20, n_target)) < 0.4).astype(np.float32)
+    top = Path(tempfile.mkdtemp())
+    for fold in range(3):
+        truth = (rng.random((12, n_target)) < 0.4).astype(np.float32)
+        pred = rng.random((12, n_target)).astype(np.float32)
+        gold_pred = np.clip(gold_truth * 0.5 + rng.random((20, n_target)) * 0.5, 0, 1)
+        order = list(range(20))
+        if fold == 1:                      # one fold writes them in another order
+            order = order[::-1]
+        history = [SimpleNamespace(epoch=e, loss=1.0 / (e + 2),
+                                   holdout_auc=0.5 + 0.01 * e,
+                                   annotation_auc=0.5 + 0.02 * e) for e in range(8)]
+        ev.write_run_record(
+            top / f"pkg-f{fold}", "unit", fold, "train_series", "labels.csv",
+            SimpleNamespace(best_epoch=7, best_holdout_auc=0.57, history=history,
+                            holdout_true=truth, holdout_pred=pred,
+                            gold_true=gold_truth[order],
+                            gold_pred=gold_pred[order].astype(np.float32)),
+            [f"uid-{fold}-{i}" for i in range(12)],
+            gold_uids=[gold_uids[i] for i in order])
+
+    gold_records = ev.read_sweep(top)
+    check("reads the expert predictions back", gold_records[0].n_gold == 20)
+
+    gy, gp, guids = ev.ensemble_gold(gold_records)
+    check("averages the folds instead of stacking them", len(gy) == 20,
+          "all three models saw the same studies; stacking would count each one "
+          "three times and report an interval far too narrow")
+    check("aligns the folds by study id, not by row",
+          np.array_equal(gy, gold_truth[[gold_uids.index(u) for u in guids]]),
+          "one fold wrote them reversed; a row-wise merge would score one patient "
+          "against another's truth")
+
+    gold_report = ev.build(gold_records)
+    check("the report carries the expert section",
+          gold_report["gold"] is not None and gold_report["gold"]["n"] == 20)
+    gold_page = ev.render_html(gold_report)
+    check("and a third curve for it", gold_page.count("<svg") >= 4,
+          "loss, holdout, expert — plus the fold spread")
 
     try:
         ev.read_sweep(tmp / "pkg-f0" / "nothing-here")

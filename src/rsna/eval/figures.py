@@ -121,7 +121,7 @@ def curves(records: list) -> str:
     that shows.
     """
 
-    loss, auc, legend = [], [], []
+    loss, auc, gold, legend = [], [], [], []
     for record in records:
         colour = f"var(--f{record.fold % 5})"
         epochs = [e["epoch"] + 1 for e in record.history]
@@ -131,11 +131,21 @@ def curves(records: list) -> str:
                      "colour": colour})
         auc.append({"x": epochs, "y": aucs, "colour": colour,
                     "mark": (best + 1, aucs[best]) if 0 <= best < len(aucs) else None})
+        expert = [e.get("annotation_auc") for e in record.history]
+        if any(v is not None and np.isfinite(v) for v in expert):
+            gold.append({"x": epochs, "y": expert, "colour": colour})
         legend.append(f'<span class="key"><i style="background:{colour}"></i>'
                       f'fold {record.fold}</span>')
 
-    return (f'<div class="panels">{_panel(loss, "training loss")}'
-            f'{_panel(auc, "holdout macro AUC", chance=0.5)}</div>'
+    panels = [_panel(loss, "training loss"),
+              _panel(auc, "holdout macro AUC", chance=0.5)]
+    if gold:
+        # Never used to choose an epoch — 58 studies cannot rank two epochs against
+        # each other — so it carries no marker. It is here to be read beside the
+        # holdout: the two measure agreement with different things.
+        panels.append(_panel(gold, "expert-label macro AUC", chance=0.5))
+
+    return (f'<div class="panels">{"".join(panels)}</div>'
             f'<div class="legend">{"".join(legend)}'
             f'<span class="key"><i class="ring"></i>epoch kept</span></div>')
 

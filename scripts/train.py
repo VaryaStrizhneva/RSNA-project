@@ -281,8 +281,11 @@ def main() -> None:
     # can be recomputed later without a GPU, the cache, or the model. Written after the
     # package, because a run that produced weights is worth keeping even if this fails.
     write_run_record(path, args.experiment, fold, split, str(labels), result,
-                     [studies[i] for i in holdout])
-    log(f"history and holdout predictions written to {path}")
+                     [studies[i] for i in holdout],
+                     gold_uids=[studies[i] for i in gold_index])
+    log(f"history and predictions written to {path}"
+        + (f" (including {len(gold_index)} expert-labelled studies)"
+           if len(gold_index) else ""))
 
     print(json.dumps(json.loads((path / 'manifest.json').read_text())["members"][0],
                      indent=1))
