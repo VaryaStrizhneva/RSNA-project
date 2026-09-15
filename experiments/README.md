@@ -140,48 +140,6 @@ The rule: **if a run needs something `Config` cannot express, the field belongs 
 
 ---
 
-## The experiments
-
-### `window_reference`
-
-The published baseline, to the letter: pilkwang's table, `weights: confidence`, 10
-epochs, batch 8. Three contiguous slices reach the encoder; training draws one window at
-random per step, inference slides the window and averages — **ten encoder passes per
-slot**.
-
-Nothing here is our idea. It names the four fields it does because a yardstick should
-state its own terms, not inherit them silently from a default that may move. That
-configuration scored **0.891** on the leaderboard; it is not meant to be improved, it is
-what the ideas are measured against.
-
-### `window_60epochs`
-
-`window_reference` with `epochs: 60` and nothing else. It exists because the reference
-run flagged all five folds as undertrained — the training loss was still falling when
-the tenth epoch ended.
-
-It answers a narrower question than it looks. `epochs` also sets `total_steps` on the
-OneCycle schedule, so sixty epochs is not ten epochs continued: the whole cycle is
-restretched, the peak moves from epoch 1.5 to epoch 9, and the model trains at a high
-learning rate for far longer. It tells you whether a longer cycle wins, not where the
-model stops learning. The second question needs a schedule that does not depend on the
-epoch count, which `Config` cannot express today.
-
-### `depth_compress`
-
-All twelve cached slices at once, mixed to three channels by a learned projection.
-
-**Buys:** one encoder pass per slot instead of ten — most of the inference budget back —
-and training sees exactly what inference sees.
-
-**Costs:** the stack augmentation and the test-time averaging, both free in the window
-scheme. If it underperforms, look there first; the answer is probably band jitter rather
-than abandoning the stem.
-
-Ported from `bend-the-knee-to-the-dinosaurs`, where it sits behind a switch whose
-default is off — one competitor's idea, tried, not settled practice. See
-[`../docs/references.md`](../docs/references.md).
-
 ## Comparing two of these
 
 Change **one field** between two experiments, or the result answers no question. The
@@ -203,4 +161,5 @@ section is moot.
 
 ---
 
-Record every run in [`../docs/experiments.md`](../docs/experiments.md).
+What each of these produced is in [`RESULTS.md`](RESULTS.md). What reached the
+leaderboard is in [`../docs/experiments.md`](../docs/experiments.md).
