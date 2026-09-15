@@ -21,12 +21,15 @@ one of two things, and they are not the same:
 | Experiment | Folds | Epochs | OOF AUC | Expert AUC | Output | Date |
 |---|---|---|---|---|---|---|
 | `window_reference` | 5 | 10 | **0.8330** | **0.8258** | `out/ref/` | 2026-09-15 |
-| `window_60epochs` | fold 0 only | 60 | — | — | `out/window_60epochs/` | 2026-09-15 |
+| `window_60epochs` | fold 0 only | 60 | 0.8427 * | 0.8454 * | `out/window_60epochs/` | 2026-09-15 |
 | `depth_compress` | never run | | | | | |
 
-A single fold produces neither number: OOF needs all five to cover the corpus, and the
-expert score is the average of five models on the same 58 studies. Single-fold runs are
-compared on their own fold's holdout and gold instead.
+**\* Read the single-fold row carefully — it is not comparable to the row above it.**
+With one fold, "out-of-fold" is that fold's own 870 held-out studies rather than the
+whole corpus, and the expert score is **one model** where the reference's is the average
+of five. A single 60-epoch model scoring 0.8454 against a five-model 10-epoch ensemble
+at 0.8258 is a real signal, but the honest comparison is fold 0 to fold 0: **0.8454
+against 0.8270**, both single models on the same 58 studies.
 
 ---
 
@@ -80,8 +83,16 @@ Averaged five epochs at a time, to see past the noise:
 Both metrics peak in the same window and decline slowly after, while the training loss
 keeps falling from 0.376 to 0.335. That is overfitting with nothing bought.
 
-Its weights package still names the experiment `long`, which is what the experiment was
-called when it ran.
+Its own report (`out/window_60epochs/report.html`) raises **0 warnings**, where the
+reference raised three. The undertrained diagnosis is gone, which is the point of the
+run. Per target it is strongest on Medial OA 0.873, Synovitis 0.872 and Baker's 0.870,
+weakest on MCL 0.807, PF OA 0.807 and Contusion 0.826 — a flatter spread than the
+reference, whose worst target sat at 0.788.
+
+The package was written while the experiment was still called `long`; the id, the
+filename, the manifest note and `history.json` have since been renamed by hand, and the
+fingerprint was re-verified after the edit. Only `train-f0.log` still says `long`, and
+it should: it is the record of what actually ran.
 
 ### `depth_compress` — never run
 
