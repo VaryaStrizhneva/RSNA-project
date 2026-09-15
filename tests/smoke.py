@@ -118,6 +118,49 @@ def test_folds() -> None:
     check("a different floor moves the weights",
           abs(lowered[1][0] - (0.15 + 0.85 * 0.2)) < 1e-6)
 
+    # -- assertedness: weighting a table that reports no confidence ------------- #
+    from rsna.data.labels import silence_of
+    from rsna.train.folds import assertedness
+
+    grid = np.linspace(0.0, 1.0, 41)
+    check("assertedness at silence 0.5 is exactly prvsiyan's certainty",
+          np.allclose(assertedness(grid, 0.5), np.clip(2 * np.abs(grid - 0.5), 0, 1)),
+          "it is that formula with the anchor made explicit, not a rival to it")
+
+    shifted = assertedness(grid, 0.25)
+    check("the silence is the floor of the curve",
+          abs(assertedness(np.array([0.25]), 0.25)[0]) < 1e-12
+          and shifted.min() == 0.0)
+    check("a weak assertion outranks the silence",
+          assertedness(np.array([0.35]), 0.25)[0] > assertedness(np.array([0.25]), 0.25)[0],
+          "the defect certainty has on this table: 0.35 is nearer 0.5 than 0.25 is")
+    check("a confident denial weighs as much as a confident claim",
+          abs(assertedness(np.array([0.0]), 0.25)[0]
+              - assertedness(np.array([1.0]), 0.25)[0]) < 1e-12,
+          "the two sides are normalised separately because they are not the same length")
+
+    derived_soft = pd.DataFrame({t: np.r_[np.full(5, 0.25), np.full(5, 0.97)]
+                                 for t in TARGETS},
+                                index=[f"s{i}" for i in range(10)])
+    told = c.replace(weights="assertedness", silence=0.25)
+    _, w4 = build_targets(list(train["StudyInstanceUID"]), gold, derived_soft, told)
+    check("silent studies fall to the floor, asserted ones do not",
+          abs(w4[1][0] - c.weight_floor) < 1e-6 and w4[9][0] > 0.9,
+          "and no confidence column was involved")
+
+    try:
+        build_targets(list(train["StudyInstanceUID"]), gold, derived_soft,
+                      c.replace(weights="assertedness"))
+        check("refuses assertedness without a silence level", False)
+    except ValueError:
+        check("refuses assertedness without a silence level", True)
+
+    check("the registry knows each table's silence",
+          silence_of("llm_labels_v4_blend.csv") == 0.25
+          and silence_of("report_labels_v2.csv") == 0.28
+          and silence_of("/tmp/never-seen.csv") is None,
+          "measured from the cells pilkwang's verdict column calls UNK")
+
     for bad, why in [({"weight_floor": 1.5}, "a floor outside [0, 1]"),
                      ({"weights": "nonsense"}, "an unknown weights mode")]:
         try:

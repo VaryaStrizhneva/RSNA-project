@@ -34,6 +34,18 @@ class LabelSource:
     #: studies. Such a table may be trained on, but scoring it against those same
     #: studies measures nothing.
     contaminated: bool
+    #: The score this table gives a finding its report never mentions — its "I do not
+    #: know" value, which is *not* the middle of the range and differs between tables.
+    #:
+    #: Measured, not assumed: pilkwang publishes a `__verdict` column, so the cells
+    #: where a report is silent are known exactly; each table's value below is the mode
+    #: of what it assigns to those same cells. The agreement is noted because the two
+    #: extractors do not draw the line in quite the same place.
+    #:
+    #: A weighting that decides how hard a silence should pull needs this number, and
+    #: it belongs to the table rather than to a run — repeating it in each experiment
+    #: is how two runs come to disagree about a property of the same file.
+    silence: float | None = None
 
 
 LABEL_SOURCES = [
@@ -41,28 +53,49 @@ LABEL_SOURCES = [
         "pilkwang",
         EXTERNAL_ROOT / "pilkwang-rsna-knee-llm-labels" / "report_labels_v2.csv",
         contaminated=False,
+        silence=0.28,  # 100% — it is the UNK score itself
     ),
     LabelSource(
         "steven_v4_blend",
         EXTERNAL_ROOT / "stevenleehans-rsna-knee-llm-report-labels" / "llm_labels_v4_blend.csv",
         contaminated=False,
+        silence=0.25,  # 63% of pilkwang's silent cells
     ),
     LabelSource(
         "steven_v2",
         EXTERNAL_ROOT / "stevenleehans-rsna-knee-llm-report-labels" / "llm_labels_v2.csv",
         contaminated=False,
+        silence=0.50,  # 63%
     ),
     LabelSource(
         "steven_full",
         EXTERNAL_ROOT / "stevenleehans-rsna-knee-llm-report-labels" / "llm_labels_full.csv",
         contaminated=False,
+        silence=0.50,  # 85%
     ),
     LabelSource(
         "yunus_merged",
         EXTERNAL_ROOT / "yunusgmsoy-rsna-knee-llm-labels-4-source-merged" / "report_labels_v5.csv",
         contaminated=True,
+        silence=0.246,  # 52%; a four-source mean, so less sharply defined
     ),
 ]
+
+
+def silence_of(source: LabelSource | str | Path) -> float | None:
+    """The table's "the report does not say" score, or None if we have not measured it.
+
+    Matched on the file name rather than the full path so that a table mounted
+    somewhere else — a Kaggle input, another volume — is still recognised.
+    """
+
+    if isinstance(source, LabelSource):
+        return source.silence
+    name = Path(source).name
+    for known in LABEL_SOURCES:
+        if known.path.name == name:
+            return known.silence
+    return None
 
 
 def load_label_frame(source: LabelSource | str | Path) -> pd.DataFrame:

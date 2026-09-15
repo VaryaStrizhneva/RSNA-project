@@ -62,6 +62,30 @@ def fold_report(train: pd.DataFrame, folds: pd.Series, config: Config) -> pd.Dat
     return out
 
 
+def assertedness(y: np.ndarray, silence: float) -> np.ndarray:
+    """How far a score asserts something, in either direction, from a table's silence.
+
+    A label table has three states, not two: it can affirm, deny, or never mention the
+    finding. The third is the one worth decaying, and it does not sit at the middle of
+    the range — `v4_blend` puts it at 0.25, `llm_labels_v2` at 0.50, pilkwang at 0.28.
+
+    The two sides are normalised separately because they are not the same length. With
+    silence at 0.25 a confident denial travels 0.25 while a confident affirmation
+    travels 0.75; a plain distance would score the denial a third as strongly, and a
+    confident "no" is worth exactly as much as a confident "yes".
+
+    With ``silence = 0.5`` the two halves are equal and this reduces, exactly, to
+    prvsiyan's ``certainty = 2 * |y - 0.5|``. It is that formula with the anchor made
+    explicit rather than assumed.
+    """
+
+    if not 0.0 < silence < 1.0:
+        raise ValueError(f"silence must lie strictly inside (0, 1), got {silence}")
+    below = (silence - y) / silence
+    above = (y - silence) / (1.0 - silence)
+    return np.clip(np.maximum(below, above), 0.0, 1.0)
+
+
 def build_targets(
     studies: list[str],
     train: pd.DataFrame,
@@ -89,10 +113,15 @@ def build_targets(
     caller.
     """
 
-    if config.weights not in ("uniform", "confidence"):
+    if config.weights not in ("uniform", "confidence", "assertedness"):
         raise ValueError(f"unknown weights mode {config.weights!r}")
     if not 0.0 <= config.weight_floor <= 1.0:
         raise ValueError(f"weight_floor must lie in [0, 1], got {config.weight_floor}")
+    if config.weights == "assertedness" and config.silence is None:
+        raise ValueError(
+            "weights='assertedness' needs config.silence — the table's own score for a "
+            "finding its report never mentions. scripts.train resolves it from "
+            "rsna.data.labels; set it explicitly for a table that registry does not know")
 
     gold = train.set_index("StudyInstanceUID")[TARGETS]
     gold = gold[gold.notna().all(axis=1)]
@@ -106,8 +135,10 @@ def build_targets(
             w[i] = config.gold_weight
         elif study in derived.index:
             y[i] = derived.loc[study, TARGETS].values
-            if confidence is not None and study in confidence.index:
-                floor = config.weight_floor
+            floor = config.weight_floor
+            if config.weights == "assertedness":
+                w[i] = floor + (1.0 - floor) * assertedness(y[i], config.silence)
+            elif confidence is not None and study in confidence.index:
                 w[i] = floor + (1.0 - floor) * confidence.loc[study, TARGETS].values
             else:
                 w[i] = 1.0

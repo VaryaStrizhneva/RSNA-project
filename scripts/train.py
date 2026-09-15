@@ -34,7 +34,7 @@ import pandas as pd
 import torch
 
 from src.rsna.config import TARGETS, Config
-from src.rsna.data.labels import load_confidence_table
+from src.rsna.data.labels import load_confidence_table, silence_of
 from src.rsna.dicom import (CacheMismatch, annotate, build_cache, laterality_of,
                             load_cache, pick_slots, walk)
 from src.rsna.model import build_model
@@ -120,6 +120,21 @@ def main() -> None:
     encoder = args.encoder or experiment.encoder
     fold = args.fold if args.fold is not None else experiment.fold
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Resolve the table's silence level once, here, and stamp it into the config that
+    # goes to the manifest. The experiment does not repeat a property of a file, and a
+    # package still records the number this run actually weighted with — a registry
+    # corrected later cannot rewrite what an old run did.
+    if config.weights == "assertedness" and config.silence is None:
+        found = silence_of(labels)
+        if found is None:
+            raise SystemExit(
+                f"weights='assertedness' but no silence level is recorded for "
+                f"{Path(labels).name}. Add it to rsna.data.labels.LABEL_SOURCES, or "
+                f"set \"silence\" in the experiment.")
+        config = config.replace(silence=found)
+        log(f"silence for {Path(labels).name}: {found} (from the label registry)")
+
     log(f"experiment: {args.experiment}  (stem={config.stem}, "
         f"{config.window_size} channels to the encoder, "
         f"{len(config.windows())} pass(es) per slot at inference)")
@@ -187,22 +202,27 @@ def main() -> None:
         train_csv = pd.read_csv(args.data_root / "train.csv", dtype={"StudyInstanceUID": str})
         derived = pd.read_csv(labels, dtype={"StudyInstanceUID": str}).set_index(
             "StudyInstanceUID")
-        confidence = load_confidence_table(labels)
-        if config.weights == "uniform":
-            # The table may well carry confidence; this configuration says to ignore
-            # it, so that a uniformly weighted run stays available as the comparison
-            # the weighted one is measured against.
-            confidence = None
-        elif confidence is None:
+        # Only one mode reads the table's own column. `uniform` ignores it on purpose,
+        # so that the unweighted comparison stays available; `assertedness` derives the
+        # weight from the scores themselves, which is what lets a table without a
+        # confidence column be weighted at all.
+        confidence = (load_confidence_table(labels)
+                      if config.weights == "confidence" else None)
+        if config.weights == "confidence" and confidence is None:
             raise SystemExit(
-                f"weights={config.weights!r} but {labels} reports no confidence. "
-                f"Use an experiment with \"weights\": \"uniform\", or a table that "
-                f"does.")
+                f"weights='confidence' but {labels} reports no confidence. Use "
+                f"\"weights\": \"assertedness\", which reads the scores instead, or "
+                f"\"uniform\".")
         y, w = build_targets(studies, train_csv, derived, config, confidence=confidence)
         folds = assign_folds(train_csv, config).reindex(studies)
         supervised = int((w.sum(1) > 0).sum())
-        conf_note = (f" with confidence weights, floor {config.weight_floor}"
-                     if confidence is not None else " uniformly weighted")
+        if config.weights == "assertedness":
+            conf_note = (f" weighted by assertedness, silence {config.silence}, "
+                         f"floor {config.weight_floor}")
+        elif confidence is not None:
+            conf_note = f" with confidence weights, floor {config.weight_floor}"
+        else:
+            conf_note = " uniformly weighted"
         log(f"targets: {supervised}/{len(studies)} studies supervised from "
             f"{labels}{conf_note}")
 

@@ -76,7 +76,8 @@ unrecognised value is refused rather than defaulted.
 | `unfreeze_last` | `6` | trainable encoder blocks, counted from the end |
 | `stem` | `window` | or `compress` — see the two experiments below |
 | `stem_depth` | `1` | gated residual blocks before the projection, for `compress` |
-| `weights` | `confidence` | reads the label table's own `__conf` columns, as the published baseline does. `uniform` ignores them and weighs every study 1.0 — the comparison a weighted run has to be measured against. A table with no confidence column and `weights: confidence` is a hard error, never a silent fallback |
+| `weights` | `confidence` | where a report-derived label's loss weight comes from. `confidence` reads the table's own `__conf` columns, as the published baseline does — a table without them is a hard error, never a silent fallback. `uniform` weighs every study 1.0, the comparison the others must be measured against. `assertedness` derives the weight from the scores, so a table with no confidence column can still be weighted |
+| `silence` | `null` | the score a table gives a finding its report never mentions — needed by `assertedness`, and **not** the middle of the range: `llm_labels_v4_blend` puts it at 0.25, `llm_labels_v2` at 0.50, pilkwang at 0.28. Leave it null and `scripts.train` looks it up in `rsna.data.labels.LABEL_SOURCES` and stamps the resolved value into the manifest, so an experiment never repeats a property of a file. With `silence: 0.5`, `assertedness` is exactly prvsiyan's `certainty` |
 | `weight_floor` | `0.25` | what a study weighs when its source expresses no confidence. Every published formula is `floor + (1 - floor) * signal`, and the teams disagree: pilkwang's baseline uses `0.25`, prvsiyan's V52 uses `0.15`. It sets how hard a report that never mentions a finding pulls — a quarter of every table, and 84% of the `Synovitis` column. Nobody has tuned it |
 
 ## `config` — fitting
@@ -139,7 +140,7 @@ The rule: **if a run needs something `Config` cannot express, the field belongs 
 
 ---
 
-## The two experiments
+## The experiments
 
 ### `window_baseline`
 
@@ -168,3 +169,27 @@ default is off — one competitor's idea, tried, not settled practice. See
 ---
 
 Record every run in [`../docs/experiments.md`](../docs/experiments.md).
+
+### `reference`
+
+The published baseline, to the letter: pilkwang's table, `weights: confidence`, 10
+epochs, batch 8. It exists to be compared with a number nobody can argue about —
+that configuration scored **0.891** on the leaderboard. It is not an idea of ours and
+is not meant to be improved; it is the yardstick the ideas are measured against.
+
+### `uniform_pilkwang` · `uniform_steven` · `assertedness_steven`
+
+Three runs that change **one thing each** against `reference`, in this order:
+
+| | against | isolates |
+|---|---|---|
+| `uniform_pilkwang` | `reference` | the **weighting** — same table, no weights |
+| `uniform_steven` | `uniform_pilkwang` | the **table** — same weighting, better source |
+| `assertedness_steven` | `uniform_steven` | the **formula** on a table with no `__conf` |
+
+`stevenleehans/llm_labels_v4_blend.csv` scores 0.893 against the 58 expert studies
+where pilkwang scores 0.867, and it has no confidence column at all — which is what
+`assertedness` exists for.
+
+Run them in that order. If `uniform_pilkwang` matches `reference`, the weighting does
+nothing on this corpus and the third run can be skipped entirely.

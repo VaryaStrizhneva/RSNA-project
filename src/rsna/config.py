@@ -169,11 +169,17 @@ class Config:
     #:              into three channels. One encoder pass, and training sees exactly
     #:              what inference sees. Costs the stack augmentation and the
     #:              test-time averaging that ``window`` gets for free.
-    #: Where a report-derived label's loss weight comes from. ``"confidence"`` reads
-    #: the table's own per-target column, which is what the published baseline does;
-    #: ``"uniform"`` ignores it and weighs every study 1.0, which is the comparison the
-    #: weighted run has to be measured against. Read by `scripts.train`, which decides
-    #: whether to hand `build_targets` a confidence table at all.
+    #: Where a report-derived label's loss weight comes from.
+    #:
+    #: * ``"uniform"`` — every study weighs 1.0. The comparison the others are measured
+    #:   against, and the only one that is not a guess.
+    #: * ``"confidence"`` — the table's own per-target column, as the published baseline
+    #:   does. Only for tables that report one.
+    #: * ``"assertedness"`` — how far the score sits from the table's own silence, so
+    #:   that a table with no confidence column can still be weighted. With
+    #:   ``silence = 0.5`` this is exactly prvsiyan's ``certainty``; see `build_targets`.
+    #:
+    #: Read by `scripts.train`, which decides what to hand `build_targets`.
     #:
     #: A manifest written before this field existed carries no value for it and will
     #: read back as the default; those runs were in fact uniform.
@@ -185,6 +191,12 @@ class Config:
     #: which is a quarter of every table and 84% of the `Synovitis` column, and nobody
     #: has tuned it. A field rather than a constant so that it can be.
     weight_floor: float = 0.25
+    #: The label table's "the report does not say" score, needed by ``weights =
+    #: "assertedness"``. Left ``None`` in an experiment, `scripts.train` looks it up in
+    #: `rsna.data.labels.LABEL_SOURCES` and stamps the resolved value here before the
+    #: package is written — so an experiment never repeats a property of a file, and a
+    #: manifest still records the number the run actually used.
+    silence: float | None = None
     stem: str = "window"
     #: Gated residual blocks before the projection, for ``stem="compress"``.
     stem_depth: int = 1
