@@ -53,6 +53,20 @@ class RunRecord:
     gold_uids: list[str] = field(default_factory=list)
     gold_y: np.ndarray | None = None
     gold_p: np.ndarray | None = None
+    #: How many windows the predictions in `p` and `gold_p` were averaged over. The
+    #: per-epoch scores in `history` come from the cheap disjoint pass that selection
+    #: reads; these come from the sliding pass inference actually uses. `None` on a
+    #: record written before the distinction existed — those hold the cheap pass.
+    inference_windows: int | None = None
+    #: How many the selection pass read. Equal to `inference_windows` for a stem whose
+    #: two window sets coincide — `compress` consumes the whole stack, so there is only
+    #: ever one window — and a report should say that rather than print two identical
+    #: columns. `None` on a record written before either field existed.
+    selection_windows: int | None = None
+    #: The selected model's scores under that pass. `best_holdout_auc` above is what
+    #: *chose* the epoch; these are what the epoch is *worth*.
+    final_holdout_auc: float | None = None
+    final_gold_auc: float | None = None
 
     @property
     def n(self) -> int:
@@ -80,8 +94,19 @@ def _predictions(frame_uids: list[str], truth, pred) -> "pd.DataFrame":
 
 def write_run_record(path: str | Path, experiment: str, fold: int, split: str,
                      labels: str, result, uids: list[str],
-                     gold_uids: list[str] | None = None) -> Path:
-    """Write `history.json`, `holdout.csv` and, when there is one, `gold.csv`."""
+                     gold_uids: list[str] | None = None,
+                     final_holdout_pred=None, final_gold_pred=None,
+                     final_holdout_auc: float | None = None,
+                     final_gold_auc: float | None = None,
+                     inference_windows: int | None = None,
+                     selection_windows: int | None = None) -> Path:
+    """Write `history.json`, `holdout.csv` and, when there is one, `gold.csv`.
+
+    The `final_*` arguments carry the selected model measured over the windows
+    inference uses, rather than the cheaper set selection reads. When they are given
+    they are what lands in the CSVs, because they are what the model actually predicts;
+    `history.json` keeps both scores so the difference stays visible.
+    """
 
     path = Path(path)
     path.mkdir(parents=True, exist_ok=True)
@@ -93,6 +118,10 @@ def write_run_record(path: str | Path, experiment: str, fold: int, split: str,
         "labels": labels,
         "best_epoch": int(result.best_epoch),
         "best_holdout_auc": _finite(result.best_holdout_auc),
+        "inference_windows": inference_windows,
+        "selection_windows": selection_windows,
+        "final_holdout_auc": None if final_holdout_auc is None else _finite(final_holdout_auc),
+        "final_gold_auc": None if final_gold_auc is None else _finite(final_gold_auc),
         "epochs": [{"epoch": int(e.epoch),
                     "loss": _finite(e.loss),
                     "holdout_auc": _finite(e.holdout_auc),
@@ -100,11 +129,14 @@ def write_run_record(path: str | Path, experiment: str, fold: int, split: str,
                    for e in result.history],
     }, indent=1) + "\n", encoding="utf-8")
 
-    if result.holdout_pred is not None and result.holdout_true is not None:
+    holdout_pred = (result.holdout_pred if final_holdout_pred is None
+                    else final_holdout_pred)
+    if holdout_pred is not None and result.holdout_true is not None:
         _predictions(uids, result.holdout_true,
-                     result.holdout_pred).to_csv(path / HOLDOUT, index=False)
+                     holdout_pred).to_csv(path / HOLDOUT, index=False)
 
-    gold_pred = getattr(result, "gold_pred", None)
+    gold_pred = (getattr(result, "gold_pred", None) if final_gold_pred is None
+                 else final_gold_pred)
     gold_true = getattr(result, "gold_true", None)
     if gold_uids and gold_pred is not None and gold_true is not None:
         _predictions(list(gold_uids), gold_true,
@@ -147,6 +179,10 @@ def read_run_record(path: str | Path) -> RunRecord:
         best_holdout_auc=float(meta["best_holdout_auc"])
         if meta.get("best_holdout_auc") is not None else float("nan"),
         history=meta.get("epochs", []),
+        inference_windows=meta.get("inference_windows"),
+        selection_windows=meta.get("selection_windows"),
+        final_holdout_auc=meta.get("final_holdout_auc"),
+        final_gold_auc=meta.get("final_gold_auc"),
         uids=uids, y=y, p=p,
         gold_uids=gold_uids, gold_y=gold_y, gold_p=gold_p,
     )

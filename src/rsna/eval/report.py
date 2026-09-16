@@ -21,6 +21,12 @@ from . import figures as F
 from . import metrics as M
 
 
+def _or_nan(x) -> float:
+    """A missing score and an unmeasurable one both read as NaN downstream."""
+
+    return float("nan") if x is None else float(x)
+
+
 def build(records: list, seed: int = 0) -> dict:
     """Every number the report states, computed once."""
 
@@ -46,6 +52,35 @@ def build(records: list, seed: int = 0) -> dict:
             "targets": M.target_table(gold_y, gold_p),
         }
 
+    # What the selected model scores under the windows inference slides, beside what
+    # selection read. Both are needed: the first is what the model is worth, the second
+    # is what chose it, and a run that only states one of them invites the reader to
+    # assume they are the same number.
+    inference = None
+    windows = {r.inference_windows for r in records if r.inference_windows}
+    if windows:
+        per_fold = []
+        for r in records:
+            at_best = next((e for e in r.history if e.get("epoch") == r.best_epoch), {})
+            per_fold.append({
+                "fold": r.fold,
+                "selected": _or_nan(r.best_holdout_auc),
+                "final": _or_nan(r.final_holdout_auc),
+                "gold_selected": _or_nan(at_best.get("annotation_auc")),
+                "gold_final": _or_nan(r.final_gold_auc),
+            })
+        selection = {r.selection_windows for r in records if r.selection_windows}
+        inference = {
+            "windows": sorted(windows)[0] if len(windows) == 1 else sorted(windows),
+            "selection_windows": (sorted(selection)[0] if len(selection) == 1
+                                  else sorted(selection) or None),
+            # A stem that consumes the whole stack has one window either way. Saying so
+            # beats printing two identical columns and letting the reader wonder.
+            "aligned": len(selection) == 1 and selection == windows,
+            "folds": per_fold,
+            "mixed": len(windows) > 1 or any(r.inference_windows is None for r in records),
+        }
+
     return {
         "experiment": records[0].experiment if records else "?",
         "labels": records[0].labels if records else "",
@@ -61,6 +96,7 @@ def build(records: list, seed: int = 0) -> dict:
         "interval": [float(interval[0]), float(interval[1])],
         "targets": rows,
         "gold": gold,
+        "inference": inference,
         "flags": M.flags(records, rows, fold_aucs),
         "_records": records,
         "_pooled_arrays": (y, p),
@@ -80,6 +116,16 @@ def summary_text(report: dict) -> str:
         f"+/- {report['fold_std']:.4f}   "
         + "  ".join(f"f{i}:{v:.3f}" for i, v in enumerate(report["fold_aucs"])),
     ]
+    # The line above reports what *selected* each fold; the line before it reports what
+    # the selected models are worth. Naming the difference costs one line and saves the
+    # reader from reading a gap between them as a mistake.
+    inf = report.get("inference")
+    if inf:
+        gaps = [f["final"] - f["selected"] for f in inf["folds"]]
+        gaps = [g for g in gaps if g == g]
+        lines.insert(2, f"  measured over            {inf['windows']} sliding windows"
+                        + (f", {sum(gaps) / len(gaps):+.4f} on the pass that chose"
+                           if gaps else ""))
     scored = [r for r in report["targets"] if np.isfinite(r["auc"])]
     if scored:
         worst = sorted(scored, key=lambda r: r["auc"])[:3]
@@ -196,6 +242,7 @@ td.bar{width:42%;padding:9px 16px}
 .info .tag{color:var(--accent)}
 
 .note{color:var(--dim);font-size:13px;margin-top:12px}
+.d{color:var(--dim);font-size:12.5px}
 code{background:var(--raise);border:1px solid var(--line);padding:1px 6px;
  border-radius:5px;font-family:var(--mono);font-size:12.5px;color:var(--ink)}
 """
@@ -269,6 +316,78 @@ that is not capped by the label table's own 0.867. It is also the noisiest: {gol
 studies, some targets with nine positives. It ranks; it does not separate.</p>"""
 
 
+def _inference_section(report: dict) -> str:
+    """The selected model under the windows inference slides, beside what chose it."""
+
+    inf = report.get("inference")
+    if not inf:
+        return ('<p class="note">This run predates the final aligned pass, so every '
+                'number above was measured over the disjoint windows selection reads '
+                'rather than the sliding ones inference uses. '
+                '<code>scripts.rescore</code> adds the missing measurement to a '
+                'finished package without retraining it.</p>')
+
+    if inf.get("aligned"):
+        n = inf["windows"]
+        checked = all(abs(f["final"] - f["selected"]) < 5e-4 for f in inf["folds"]
+                      if f["final"] == f["final"] and f["selected"] == f["selected"])
+        return f"""<div class="head">
+<div class="card"><div class="k">windows per slot</div>
+<div class="v">{n}</div>
+<div class="n">the same at selection and at inference</div></div>
+</div>
+<p class="note">This configuration hands the encoder the whole cached stack, so there
+is one window and nothing to slide: the pass that ranked the epochs is the pass that
+will run at submission, and every number in this report is already the one the model
+will produce. The final pass was run anyway, over weights reloaded from the package
+rather than the live model, {'and it reproduced the score that selected them'
+    if checked else '<strong>and it did not reproduce the score that selected them, '
+                    'which should not happen</strong>'}.</p>"""
+
+    def delta(row, key):
+        d = row[f"{key}_final"] - row[f"{key}_selected"] if key == "gold" \
+            else row["final"] - row["selected"]
+        return "" if d != d else f'<span class="d">{d:+.4f}</span>'
+
+    body = "".join(
+        f"<tr><td>fold {r['fold']}</td>"
+        f"<td>{r['selected']:.4f}</td>"
+        f"<td>{r['final']:.4f}</td><td>{delta(r, 'holdout')}</td>"
+        f"<td>{'—' if r['gold_selected'] != r['gold_selected'] else format(r['gold_selected'], '.4f')}</td>"
+        f"<td>{'—' if r['gold_final'] != r['gold_final'] else format(r['gold_final'], '.4f')}</td>"
+        f"<td>{delta(r, 'gold')}</td></tr>"
+        for r in inf["folds"])
+
+    n, sel = inf["windows"], inf.get("selection_windows")
+    # Label the columns with what they are — a window count — rather than with why the
+    # pass was run. "selection" and "inference" say nothing to a reader who was not
+    # there; "4 disjoint" and "10 sliding" need no glossary.
+    a = f"{sel} disjoint" if sel else "at selection"
+    b = f"{n} sliding"
+    mixed = ('<p class="note"><strong>The folds disagree about how they were '
+             'measured.</strong> Comparing them is comparing two different '
+             'measurements.</p>' if inf["mixed"] else "")
+    return f"""<div class="head">
+<div class="card"><div class="k">windows per slot</div>
+<div class="v">{n}</div>
+<div class="n">sliding, as <code>rsna.infer</code> runs them</div></div>
+</div>
+<div class="scroll"><table>
+<thead><tr><th></th><th colspan=3>holdout</th><th colspan=3>expert</th></tr>
+<tr><th></th><th>{a}</th><th>{b}</th><th></th>
+<th>{a}</th><th>{b}</th><th></th></tr></thead>
+<tbody>{body}</tbody>
+</table></div>
+{mixed}
+<p class="note">The first column of each pair is what the run measured while it was
+training, once an epoch, to decide which epoch to keep: disjoint windows, fewer encoder
+passes, cheap enough to afford thirty times. The second is that chosen model measured
+again the way it will be used — sliding windows, averaged — which is the only one that
+answers what it is worth. <strong>Every other number in this report is the second
+column.</strong> The gap between them is small and steady on the holdout, and erratic
+on the expert studies, which is what 58 studies buy you.</p>"""
+
+
 def render_html(report: dict) -> str:
     """One self-contained page: markup, style and charts, no external anything."""
 
@@ -310,6 +429,9 @@ def render_html(report: dict) -> str:
 
 <h2>Against the expert labels</h2>
 {_gold_section(report)}
+
+<h2>Under the inference it will run</h2>
+{_inference_section(report)}
 
 <h2>Training</h2>
 <div class="box">{F.curves(records) if records else ''}</div>
