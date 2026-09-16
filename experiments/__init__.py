@@ -45,6 +45,11 @@ RUN_DEFAULTS = {
     "labels": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
     "encoder": "models/dinov2-small",
     "fold": 0,
+    # Whether the expert-labelled studies are held out of training. It decides what the
+    # run is fitted on, so it belongs here rather than on the command line: two runs of
+    # the same experiment that disagree about it are not the same experiment, and a
+    # record that names one without the other cannot be reproduced from its name.
+    "holdout_gold": False,
 }
 
 

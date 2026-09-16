@@ -1,13 +1,13 @@
 {
   "config": {
     "stem": "window",
-    "weights": "confidence",
-    "epochs": 60,
+    "weights": "assertedness",
+    "epochs": 30,
     "batch_studies": 8
   },
   "run": {
     "split": "train_series",
-    "labels": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
+    "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
     "encoder": "models/dinov2-small",
     "fold": 0,
     "holdout_gold": true

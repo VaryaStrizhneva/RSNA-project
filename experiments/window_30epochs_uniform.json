@@ -1,8 +1,8 @@
 {
   "config": {
     "stem": "window",
-    "weights": "confidence",
-    "epochs": 60,
+    "weights": "uniform",
+    "epochs": 30,
     "batch_studies": 8
   },
   "run": {

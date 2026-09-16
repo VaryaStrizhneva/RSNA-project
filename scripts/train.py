@@ -41,7 +41,7 @@ from src.rsna.model import build_model
 from src.rsna.model.fingerprint import fingerprint
 from src.rsna.eval import write_run_record
 from src.rsna.model import Member, write_package
-from src.rsna.train import assign_folds, build_targets, fit
+from src.rsna.train import assign_folds, build_targets, fit, macro_auc, predict
 from src.rsna.train.folds import report_group
 
 import experiments
@@ -99,7 +99,7 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--batch", type=int, default=None)
     parser.add_argument("--fold", type=int, default=None, help="Which fold is held out.")
-    parser.add_argument("--holdout-gold", action="store_true",
+    parser.add_argument("--holdout-gold", action="store_true", default=False,
                         help="Exclude expert-labelled studies from training and report "
                              "their AUC separately.")
     parser.add_argument("--device", default=None)
@@ -229,7 +229,11 @@ def main() -> None:
     gold_index = np.array([], dtype=int)
     gold_y = None
     excluded = set()
-    if args.holdout_gold and not args.fake_labels:
+    # The experiment decides; the flag can only turn it on, for a quick check that does
+    # not deserve a file of its own. It cannot turn it off, because an experiment that
+    # declares it is stating what it is rather than suggesting a default.
+    holdout_gold = args.holdout_gold or bool(experiment.holdout_gold)
+    if holdout_gold and not args.fake_labels:
         gold = train_csv.set_index("StudyInstanceUID")[TARGETS]
         gold = gold[gold.notna().all(axis=1)]
         gold_studies = set(gold.index)
@@ -282,8 +286,29 @@ def main() -> None:
         log(f"no epoch was selectable (holdout AUC is NaN — too few studies, or a "
             f"target with one class); kept the last epoch, {result.best_epoch + 1}")
 
-    # -- package --------------------------------------------------------------- #
+    # -- the selected model, measured the way it will be used ------------------- #
+    # Selection reads a cheap proxy: disjoint windows, four encoder passes, enough to
+    # rank epochs against one another and verified to land within 0.4 points of an
+    # oracle. What the model is *worth* is a different question, and it has to be
+    # answered over the windows `rsna.infer` slides at submission time. Once, after the
+    # choice is made — the ranking does not need ten passes an epoch, and paying for
+    # them thirty times over would cost 39% of the run to sharpen a number nobody reads.
+    # A stem whose two window sets coincide, like `compress`, pays nothing here.
     model.load_state_dict(result.state_dict)
+    n_final, n_select = len(config.windows(overlap=True)), len(config.windows(overlap=False))
+    final_pred = predict(model, cache, mask, holdout, config, device, overlap=True)
+    final_auc = macro_auc((y[holdout] > 0.5).astype(int), final_pred)
+    final_gold_pred = final_gold_auc = None
+    if len(gold_index) and gold_y is not None:
+        final_gold_pred = predict(model, cache, mask, gold_index, config, device,
+                                  overlap=True)
+        final_gold_auc = macro_auc(gold_y, final_gold_pred)
+    log(f"final pass over {n_final} sliding window(s), selection read {n_select}: "
+        f"holdout {final_auc:.4f}"
+        + (f", gold {final_gold_auc:.4f}" if final_gold_auc is not None else "")
+        + f"  (selection saw holdout {result.best_holdout_auc:.4f})")
+
+    # -- package --------------------------------------------------------------- #
     member = Member(name=f"{args.experiment}_fold{fold}_{config.img}px",
                     config=config,
                     state_dict=result.state_dict,
@@ -302,7 +327,10 @@ def main() -> None:
     # package, because a run that produced weights is worth keeping even if this fails.
     write_run_record(path, args.experiment, fold, split, str(labels), result,
                      [studies[i] for i in holdout],
-                     gold_uids=[studies[i] for i in gold_index])
+                     gold_uids=[studies[i] for i in gold_index],
+                     final_holdout_pred=final_pred, final_gold_pred=final_gold_pred,
+                     final_holdout_auc=final_auc, final_gold_auc=final_gold_auc,
+                     inference_windows=n_final, selection_windows=n_select)
     log(f"history and predictions written to {path}"
         + (f" (including {len(gold_index)} expert-labelled studies)"
            if len(gold_index) else ""))
