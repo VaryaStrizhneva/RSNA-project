@@ -36,6 +36,11 @@ WEIGHTS_SLUG = "rsna-knee-weights"
 def owns(slug: str) -> bool:
     """Whether the account already has this dataset.
 
+    Paged rather than asked for a big page: `--page-size` does not exist in the CLI,
+    and an unrecognised flag makes the command print usage to stdout and exit — which
+    reads as an empty listing, so every dataset looks new and `create` is attempted on
+    slugs that already exist.
+
     Asked by listing our own datasets rather than by querying the slug: `datasets
     status` and `datasets files` both answer with an HTTP error printed to stdout and
     an exit code of 0, so neither can be tested. This one either lists the ref or does
@@ -43,10 +48,18 @@ def owns(slug: str) -> bool:
     so the answer has to be right.
     """
 
-    listing = subprocess.run([KAGGLE, "datasets", "list", "-m", "--page-size", "200"],
-                             capture_output=True, text=True)
-    return any(line.split()[:1] == [f"{OWNER}/{slug}"]
-               for line in listing.stdout.splitlines() if line.strip())
+    ref = f"{OWNER}/{slug}"
+    for page in range(1, 26):
+        listing = subprocess.run(
+            [KAGGLE, "datasets", "list", "-m", "-v", "-p", str(page)],
+            capture_output=True, text=True)
+        rows = [line for line in listing.stdout.splitlines()
+                if line.strip() and not line.startswith("ref,")]
+        if not rows or rows[0].startswith("No datasets"):
+            return False
+        if any(line.split(",")[0] == ref for line in rows):
+            return True
+    return False
 
 
 def run(cmd: list[str], dry_run: bool = False) -> None:
