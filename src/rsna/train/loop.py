@@ -124,16 +124,27 @@ def fit(model, cache, mask, y, w, train_index, holdout_index, config: Config, de
     torch.manual_seed(config.seed)
     rng = np.random.default_rng(config.seed)
 
-    optimiser = torch.optim.AdamW([
+    # Every group is named here, because `requires_grad` is not what decides whether a
+    # parameter moves — the optimiser is. A module left out of it keeps its
+    # initialisation for the whole run while every log line goes on counting it as
+    # trainable, which is the kind of silence that costs a day.
+    groups = [
         {"params": [p for p in model.backbone.parameters() if p.requires_grad],
          "lr": config.lr_backbone},
-        {"params": model.head.parameters(), "lr": config.lr_head},
-    ], weight_decay=config.weight_decay)
+        {"params": list(model.head.parameters()), "lr": config.lr_head},
+    ]
+    max_lr = [config.lr_backbone, config.lr_head]
+    if model.stem is not None:
+        # A stem is new weights fitted from scratch, like the head, so it learns at the
+        # head's rate rather than the encoder's cautious one.
+        groups.append({"params": list(model.stem.parameters()), "lr": config.lr_head})
+        max_lr.append(config.lr_head)
+
+    optimiser = torch.optim.AdamW(groups, weight_decay=config.weight_decay)
 
     steps = max(config.epochs * (len(train_index) // config.batch_studies), 1)
     schedule = torch.optim.lr_scheduler.OneCycleLR(
-        optimiser, max_lr=[config.lr_backbone, config.lr_head],
-        total_steps=steps, pct_start=config.warmup_frac)
+        optimiser, max_lr=max_lr, total_steps=steps, pct_start=config.warmup_frac)
     scaler = torch.amp.GradScaler("cuda", enabled=str(device).startswith("cuda"))
 
     train_windows = config.windows(overlap=False)

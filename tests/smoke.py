@@ -466,6 +466,19 @@ def test_figures() -> None:
     check("every figure builds", len(built) == 6, ", ".join(sorted(set(built))))
 
 
+def _optimiser_groups(model, config):
+    """The groups `rsna.train.loop.fit` builds, so the test moves when the loop does."""
+
+    groups = [
+        {"params": [p for p in model.backbone.parameters() if p.requires_grad],
+         "lr": config.lr_backbone},
+        {"params": list(model.head.parameters()), "lr": config.lr_head},
+    ]
+    if model.stem is not None:
+        groups.append({"params": list(model.stem.parameters()), "lr": config.lr_head})
+    return groups
+
+
 def test_stems() -> None:
     """Both ways of turning cached slices into three channels."""
 
@@ -476,6 +489,16 @@ def test_stems() -> None:
         check(f"{stem}: {passes} pass(es) per slot at inference",
               len(cfg.windows()) == passes,
               "one window and no averaging is the point of compress")
+
+        # `requires_grad` says a parameter *may* move; only the optimiser makes it. A
+        # stem outside every param group trains to nothing while the run reports it as
+        # trainable and finishes without a word — which is exactly what happened.
+        model = _model(cfg)
+        named = dict(model.named_parameters())
+        seen = {id(q) for g in _optimiser_groups(model, cfg) for q in g["params"]}
+        orphans = [n for n, q in named.items() if q.requires_grad and id(q) not in seen]
+        check(f"{stem}: every trainable parameter reaches the optimiser",
+              not orphans, ", ".join(orphans[:3]))
 
         model = _model(cfg)
         imgs = torch.randint(0, 256, (2, cfg.n_slot, cfg.window_size, cfg.img, cfg.img),
