@@ -1,0 +1,16 @@
+{
+  "config": {
+    "stem": "window",
+    "weights": "assertedness",
+    "epochs": 60,
+    "batch_studies": 8,
+    "encoder_variant": "base"
+  },
+  "run": {
+    "split": "train_series",
+    "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+    "encoder": "models/dinov2-base",
+    "fold": 0,
+    "holdout_gold": false
+  }
+}
