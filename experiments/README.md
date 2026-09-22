@@ -161,5 +161,121 @@ section is moot.
 
 ---
 
+## Planned label experiments
+
+These files are a handoff queue. They are intentionally boring: same model, same image
+pipeline, same 30 epochs, same holdout-gold setting. Their job is to change one thing
+at a time so the result can be read later.
+
+Run one fold first if GPU time is limited. If a comparison still looks interesting, run
+all five folds and then make a report over the sweep.
+
+```bash
+python -m scripts.train --experiment labels_pilkwang_confidence --fold 0 \
+  --cache out/cache-window.npy --out out/labels_pilkwang_confidence/pkg-f0
+
+python -m scripts.report out/labels_pilkwang_confidence
+```
+
+Full five-fold version:
+
+```bash
+for f in 0 1 2 3 4; do
+  python -m scripts.train --experiment labels_pilkwang_confidence --fold $f \
+    --cache out/cache-window.npy --out out/labels_pilkwang_confidence/pkg-f$f
+done
+python -m scripts.report out/labels_pilkwang_confidence
+```
+
+On PowerShell:
+
+```powershell
+foreach ($f in 0..4) {
+  python -m scripts.train --experiment labels_pilkwang_confidence --fold $f `
+    --cache out/cache-window.npy --out out/labels_pilkwang_confidence/pkg-f$f
+}
+python -m scripts.report out/labels_pilkwang_confidence
+```
+
+Before running blend experiments, build the generated label tables:
+
+```bash
+python -m tools.build_label_blend \
+  --table data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv \
+  --table data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv \
+  --weight 0.5 --weight 0.5 \
+  --method rank \
+  --out data/processed/labels/pilkwang_steven_rank_50_50.csv
+
+python -m tools.build_label_blend \
+  --recipe configs/label_blends/pilkwang_steven_conservative.json \
+  --out data/processed/labels/pilkwang_steven_target_conservative.csv
+```
+
+### Stage 1: weighting
+
+Question: does the training weight formula matter when the label table is fixed?
+
+| Experiment | Labels | Weights | Why |
+|---|---|---|---|
+| `labels_pilkwang_confidence` | pilkwang | confidence | published baseline style |
+| `labels_pilkwang_uniform` | pilkwang | uniform | no weak-label weighting |
+| `labels_pilkwang_assertedness` | pilkwang | assertedness | same table, score-derived weights |
+
+Decision rule: if they are tied within noise, prefer the simpler/stabler one. Do not
+move to target-specific recipes because one fold moved a few thousandths.
+
+### Stage 2: label source and global blend
+
+Question: with the weighting story understood, does the label table itself help?
+
+| Experiment | Labels | Weights | Why |
+|---|---|---|---|
+| `labels_steven_v4_uniform` | steven v4 blend | uniform | table effect without assertedness |
+| `labels_steven_v4_assertedness` | steven v4 blend | assertedness | current best single-fold idea |
+| `labels_blend_rank_50_50_uniform` | pilkwang/steven rank blend | uniform | generated global blend |
+
+The rank-blend table uses `uniform` weights deliberately. Once two tables are converted
+to percentile ranks and averaged, the result no longer has a clean "silent report"
+score, so `assertedness` would be hard to interpret.
+
+### Stage 3: target-specific blend
+
+Question: do a few targets benefit from different source weights?
+
+| Experiment | Labels | Weights | Why |
+|---|---|---|---|
+| `labels_blend_target_conservative_uniform` | target-specific rank blend | uniform | conservative recipe from the expert-label audit |
+
+Use the 58 expert-labelled studies to propose target weights, not to prove them. Adopt
+the target-specific blend only if training results improve against the global blend.
+
+### Recording a completed run
+
+After every completed sweep, add a row to [`RESULTS.md`](RESULTS.md):
+
+```markdown
+| `experiment_name` | 5 | 30 | held out | 0.xxxx | 0.xxxx | - |
+```
+
+Then add a short note with:
+
+- exact command(s) used
+- output directory
+- label table path
+- weighting mode
+- whether gold labels were held out
+- OOF macro AUC
+- expert-label macro AUC, if present
+- per-target table, or a link to the HTML report
+- public leaderboard score, only if submitted
+- practical notes: GPU, runtime, warnings, failed folds
+
+Generated label CSVs under `data/processed/labels/` and run outputs under `out/` are
+not committed. Commit the recipe and the experiment JSONs, because they are the
+reproducible description of how to rebuild those files.
+
+---
+
 What each of these produced is in [`RESULTS.md`](RESULTS.md). What reached the
 leaderboard is in [`../docs/experiments.md`](../docs/experiments.md).

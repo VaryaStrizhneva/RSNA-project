@@ -1,0 +1,15 @@
+{
+  "config": {
+    "stem": "window",
+    "weights": "uniform",
+    "epochs": 30,
+    "batch_studies": 8
+  },
+  "run": {
+    "split": "train_series",
+    "labels": "data/processed/labels/pilkwang_steven_rank_50_50.csv",
+    "encoder": "models/dinov2-small",
+    "fold": 0,
+    "holdout_gold": true
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "method": "rank",
+  "sources": {
+    "pilkwang": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
+    "steven_v4_blend": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv"
+  },
+  "targets": {
+    "default": {
+      "pilkwang": 0.5,
+      "steven_v4_blend": 0.5
+    },
+    "Synovitis": {
+      "pilkwang": 0.25,
+      "steven_v4_blend": 0.75
+    },
+    "Contusion": {
+      "pilkwang": 0.25,
+      "steven_v4_blend": 0.75
+    },
+    "Fracture": {
+      "pilkwang": 0.75,
+      "steven_v4_blend": 0.25
+    }
+  }
+}
