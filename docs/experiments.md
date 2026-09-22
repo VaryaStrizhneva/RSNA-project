@@ -10,11 +10,48 @@ row can always be recovered from a run that was not logged at the time.
 
 | # | Date | Kernel version | Commit | What changed | Public LB | Notes |
 |---|---|---|---|---|---|---|
-| 1 | | | | Dummy 0.5 benchmark — pipeline smoke test | *(expect 0.500)* | |
+| 1 | 2026-09-07 | — | — | Dummy 0.5 benchmark — pipeline smoke test | 0.500 | as expected |
+| 2 | 2026-09-07 | baseline repro v2 | — | pilkwang's notebook, re-run on our account | 0.891 | ours, though it reproduces someone else's recipe |
+| 3 | 2026-09-10 | 2 | — | trained on 80 studies — plumbing, not a model | 0.677 | |
+| 4 | 2026-09-16 | 4 | `7188488` | the whole corpus: 4407 studies, 5 folds, 30 epochs, expert labels left in training | 0.891 | matches the published baseline exactly |
+| 5 | 2026-09-16 | 5 | `8eafeb3` | the label table: steven `llm_labels_v4_blend` + `assertedness`, everything else as #4 | **0.899** | first submission above the baseline |
+| — | 2026-09-17 | 6 | `f214adc` | DINOv2-base, 2 folds | *(none)* | kernel ERROR: the weights dataset was still processing when the kernel ran |
+| — | 2026-09-22 | 7 | `1cd86a1` | screening run, first attempt | *(none)* | same cause as #6 — pushed before the dataset was `ready` |
+| 6 | 2026-09-22 | 8 | `1cd86a1` | **screening family**: 1 fold, expert labels held out, steven v4 + `assertedness` | 0.884 | not comparable to #4/#5 — one model instead of five, 59 fewer training studies |
+
+**More than one variable moved in row #5**, and it took a separate single-fold screen to
+find out which: the table, not the weighting. See [`../experiments/RESULTS.md`](../experiments/RESULTS.md).
+
+### Two scales, not one
+
+Internal numbers sit below the leaderboard, but not by a constant — how far depends on
+how the submission was built:
+
+| Family | Internal OOF | Public LB | Gap |
+|---|---|---|---|
+| 5 folds, experts in training (#4, #5) | 0.8557 | 0.899 | +4.3 |
+| 1 fold, experts held out (#6) | 0.8560 | 0.884 | +2.8 |
+
+The out-of-fold score always measures **one model per study**. A five-fold submission
+averages five, so its OOF understates it by more than a single-fold one. Converting an
+internal number to an expected leaderboard score needs the right rule of the two.
+
+### Pushing a kernel: wait for `ready`
+
+Rows without a score above failed the same way twice. `scripts.kaggle_dataset` returns
+while Kaggle is still processing the upload — it prints *"Dataset version is being
+created"* — and a kernel pushed straight after mounts nothing, then exits on
+`no weights package is mounted`. Check `kaggle datasets status <slug>` reads `ready`
+before `scripts.kaggle_push`.
+
+That the run *failed* rather than scoring 0.5 is by design: the scored notebook has no
+`try/except` around `run_submission`, precisely so a broken mount cannot be mistaken for
+a model that learnt nothing.
 
 ## Reference points, not our runs
 
-Scores from public notebooks, for calibration. Not produced by our pipeline.
+Scores from public notebooks, for calibration. Not produced by our pipeline — except
+pilkwang's, which row #2 above reproduces on our own account.
 
 | Source | Public LB |
 |---|---|

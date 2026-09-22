@@ -37,7 +37,21 @@ day spent wondering what was missing to reach 0.891 — was drawn without knowin
 | `window_30epochs_uniform` | fold 0 | 30 | held out | 0.8465 * | 0.8564 * | — |
 | `window_30epochs_v4blend` | fold 0 | 30 | held out | **0.8560** * | 0.8591 * | — |
 | **`window_30epochs_goldin`** | **5** | **30** | **in training** | **0.8443** | **0.8405** † | **0.891** |
-| `depth_compress` | never run | | | | | |
+| `base_60epochs_v4blend_goldin` | 2 of 5 | 60 | in training | 0.8487 * | — | — |
+| `compress_30epochs_v4blend_goldin` | 5 | 30 | in training | 0.8147 | 0.7968 † | — |
+| `labels_steven_v4_uniform` | fold 0 | 30 | held out | 0.8574 * | 0.8603 * | — |
+
+The screening family below shares one configuration — **fold 0, 30 epochs, expert labels
+held out** — so its rows compare with each other, and not with the five-fold rows above.
+`window_30epochs`, `window_30epochs_uniform` and `window_30epochs_v4blend` belong to it
+under their earlier names; Varvara's `labels_*` names are the same runs.
+
+| Screen | Labels | Weights | OOF * | Expert * | Public LB |
+|---|---|---|---|---|---|
+| `labels_pilkwang_confidence` | pilkwang | confidence | 0.8464 | 0.8606 | — |
+| `labels_pilkwang_uniform` | pilkwang | uniform | 0.8465 | 0.8564 | — |
+| `labels_steven_v4_assertedness` | steven v4 | assertedness | 0.8560 | 0.8591 | **0.884** |
+| **`labels_steven_v4_uniform`** | **steven v4** | **uniform** | **0.8574** | **0.8603** | — |
 
 Outputs are `out/<experiment>/`, except `window_reference`, which is `out/ref/`. All run
 on 2026-09-15, except `window_30epochs_goldin`, which ran overnight into 2026-09-16.
@@ -238,6 +252,26 @@ default is off — one competitor's idea, tried, not settled practice. See
    where 15 would do, unpinned and synchronous, with the GPU idle throughout. Slicing
    before the transfer would fix it — conditionally, since `stem: compress` really does
    consume all twelve slices. Not measured, not done.
+
+### The weighting question, answered
+
+The README calls it *"the question worth answering first: whether **any** weighting beats
+`uniform`"*. Four runs, one fold each, everything but the named field held fixed:
+
+| | on pilkwang | on steven v4 |
+|---|---|---|
+| `uniform` | 0.8465 | **0.8574** |
+| `confidence` | 0.8464 | *(the table has no confidence column)* |
+| `assertedness` | *(running)* | 0.8560 |
+
+**Changing the table moves 0.0109. Changing the formula moves 0.0014, and in the wrong
+direction.** The +0.0096 that took `window_30epochs_v4blend` to 0.899 on the leaderboard
+came entirely from steven's table; `assertedness` contributed nothing and cost a
+thousandth and a half.
+
+So `uniform` it is — it needs no floor, no silence level, and no confidence column from
+the table, which also makes every future table usable without asking whether it reports
+one.
 
 ## What we do not know
 
