@@ -11,6 +11,7 @@ detecting a perturbation, and the loop learning a signal that is there.
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -466,6 +467,54 @@ def test_figures() -> None:
     check("every figure builds", len(built) == 6, ", ".join(sorted(set(built))))
 
 
+def test_encoder_unchanged() -> None:
+    """The DINOv2 path, pinned before it is refactored.
+
+    Not a claim that these numbers are right — a claim that they are what the code
+    produced on 2026-09-23, so a change of plumbing that quietly changes the model
+    cannot pass unnoticed. Regenerate `tests/golden/encoder_dinov2.json` only when a
+    change to the model is *intended*, and say so in the commit that does it.
+
+    The real encoder is not in git, so this runs against the stub. The other half of
+    the check is that every existing package still verifies its own fingerprint, which
+    needs the weights and is done with `scripts.rescore`.
+    """
+
+    print("\nmodel.encoder (characterisation)")
+    golden_file = Path(__file__).with_name("golden") / "encoder_dinov2.json"
+    if not golden_file.is_file():
+        check("golden file is present", False, str(golden_file))
+        return
+    golden = json.loads(golden_file.read_text())
+
+    cases = {"cls_mean": Config(img=56, slices=3, group=3),
+             "cls_mean_focal": Config(img=56, slices=3, group=3, pool="cls_mean_focal"),
+             "compress": Config(img=56, slices=12, group=3, stem="compress")}
+    for name, cfg in cases.items():
+        want = golden[name]
+        torch.manual_seed(0)
+        model = build_model(cfg, backbone=StubBackbone(dim=64, patch=8)).eval()
+        g = torch.Generator().manual_seed(1)
+        imgs = torch.randint(0, 256, (3, cfg.n_slot, cfg.window_size, cfg.img, cfg.img),
+                             generator=g, dtype=torch.uint8)
+        mask = torch.ones(3, cfg.n_slot)
+        mask[0, 2:] = 0
+        with torch.no_grad():
+            got = model(imgs, mask, cfg.img).flatten().tolist()
+
+        worst = max(abs(a - b) for a, b in zip(got, want["out"]))
+        check(f"{name}: output unchanged", worst < 1e-9, f"worst element {worst:.2e}")
+
+        names = sorted(n for n, p in model.named_parameters() if p.requires_grad)
+        missing, extra = set(want["trainable"]) - set(names), set(names) - set(want["trainable"])
+        check(f"{name}: the same parameters train", not missing and not extra,
+              f"lost {sorted(missing)[:2]} gained {sorted(extra)[:2]}" if (missing or extra) else "")
+
+        fp = fingerprint(model, cfg).flatten().tolist()
+        worst_fp = max(abs(a - b) for a, b in zip(fp, want["fingerprint"]))
+        check(f"{name}: fingerprint unchanged", worst_fp < 1e-9, f"worst {worst_fp:.2e}")
+
+
 def _optimiser_groups(model, config):
     """The groups `rsna.train.loop.fit` builds, so the test moves when the loop does."""
 
@@ -696,7 +745,8 @@ def test_eval() -> None:
 
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
-                 test_model, test_stems, test_experiments, test_augment, test_loop, test_windows,
+                 test_model, test_stems, test_encoder_unchanged, test_experiments,
+                 test_augment, test_loop, test_windows,
                  test_submission, test_figures, test_eval):
         test()
     print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")
