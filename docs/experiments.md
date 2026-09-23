@@ -18,9 +18,17 @@ row can always be recovered from a run that was not logged at the time.
 | — | 2026-09-17 | 6 | `f214adc` | DINOv2-base, 2 folds | *(none)* | kernel ERROR: the weights dataset was still processing when the kernel ran |
 | — | 2026-09-22 | 7 | `1cd86a1` | screening run, first attempt | *(none)* | same cause as #6 — pushed before the dataset was `ready` |
 | 6 | 2026-09-22 | 8 | `1cd86a1` | **screening family**: 1 fold, expert labels held out, steven v4 + `assertedness` | 0.884 | not comparable to #4/#5 — one model instead of five, 59 fewer training studies |
+| 7 | 2026-09-22 | 9 | `8f1aaaa` | same screen, pilkwang + `confidence` | 0.884 | **identical to #6**, though they differ by 0.0096 out of fold |
+| 8 | 2026-09-23 | 10 | `8f1aaaa`-dirty | same screen, pilkwang + `uniform` | 0.881 | dirty tree was documentation only; the code is `8f1aaaa` |
+| 9 | 2026-09-23 | 11 | `8f1aaaa`-dirty | same screen, **steven v4 + `uniform`** | **0.886** | best of the four screens here and out of fold; same note on the stamp |
+| 10 | 2026-09-23 | 12 | `8f1aaaa`-dirty | same screen, per-target rank blend of both tables | 0.864 | 0.0175 below #9 out of fold, 0.022 below here — the holdout predicted this one |
 
-**More than one variable moved in row #5**, and it took a separate single-fold screen to
-find out which: the table, not the weighting. See [`../experiments/RESULTS.md`](../experiments/RESULTS.md).
+**More than one variable moved in row #5**, and a single-fold screen was run to find out
+which. Both metrics agree: the table, not the weighting. Rows #6-#9 rank the same way
+here as out of fold (rank correlation +0.63), with the leaderboard compressing the gap
+by about four. Read them as groups — the two steven rows against the two pilkwang rows —
+and not pair by pair, since #7 and #8 differ by 0.0001 out of fold. See
+[`../experiments/RESULTS.md`](../experiments/RESULTS.md).
 
 ### Two scales, not one
 

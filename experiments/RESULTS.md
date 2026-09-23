@@ -48,10 +48,19 @@ under their earlier names; Varvara's `labels_*` names are the same runs.
 
 | Screen | Labels | Weights | OOF * | Expert * | Public LB |
 |---|---|---|---|---|---|
-| `labels_pilkwang_confidence` | pilkwang | confidence | 0.8464 | 0.8606 | — |
-| `labels_pilkwang_uniform` | pilkwang | uniform | 0.8465 | 0.8564 | — |
+| **`labels_steven_v4_uniform`** | **steven v4** | **uniform** | **0.8574** | **0.8603** | **0.886** |
 | `labels_steven_v4_assertedness` | steven v4 | assertedness | 0.8560 | 0.8591 | **0.884** |
-| **`labels_steven_v4_uniform`** | **steven v4** | **uniform** | **0.8574** | **0.8603** | — |
+| `labels_pilkwang_uniform` | pilkwang | uniform | 0.8465 | 0.8564 | **0.881** |
+| `labels_pilkwang_confidence` | pilkwang | confidence | 0.8464 | 0.8606 | **0.884** |
+| `labels_pilkwang_assertedness` | pilkwang | assertedness | 0.8453 | 0.8562 | — |
+| `labels_blend_rank_50_50_uniform` | rank blend 50/50 | uniform | 0.8401 | 0.8449 | — |
+| `labels_blend_target_conservative_uniform` | per-target blend | uniform | 0.8399 | 0.8398 | **0.864** |
+| `labels_riad_hybrid_uniform` | riad `HYBRID` | uniform | 0.8514 | 0.8488 | *(submitted)* |
+
+All seven ran on fold 0 with the expert studies held out, 30 epochs, `dinov2-small`,
+and no error or warning. The first five are the seven-way screen Varvara laid out; the
+three at the top of the list also appear above under their earlier names
+(`window_30epochs*`), which is where their packages live.
 
 Outputs are `out/<experiment>/`, except `window_reference`, which is `out/ref/`. All run
 on 2026-09-15, except `window_30epochs_goldin`, which ran overnight into 2026-09-16.
@@ -262,16 +271,122 @@ The README calls it *"the question worth answering first: whether **any** weight
 |---|---|---|
 | `uniform` | 0.8465 | **0.8574** |
 | `confidence` | 0.8464 | *(the table has no confidence column)* |
-| `assertedness` | *(running)* | 0.8560 |
+| `assertedness` | 0.8453 | 0.8560 |
 
-**Changing the table moves 0.0109. Changing the formula moves 0.0014, and in the wrong
-direction.** The +0.0096 that took `window_30epochs_v4blend` to 0.899 on the leaderboard
-came entirely from steven's table; `assertedness` contributed nothing and cost a
-thousandth and a half.
+**Changing the table moves 0.0109. Changing the formula moves 0.0012 on pilkwang and
+0.0014 on steven — and on both it is `uniform` that wins.** The +0.0096 that took
+`window_30epochs_v4blend` to 0.899 looked like it came from the weighting; on this
+evidence it came from steven's table, and `assertedness` cost a thousandth.
 
 So `uniform` it is — it needs no floor, no silence level, and no confidence column from
 the table, which also makes every future table usable without asking whether it reports
 one.
+
+### The leaderboard does not see the gap the holdout sees
+
+Four screens have been submitted, and the leaderboard agrees with the holdout about
+which table is better:
+
+| Screen | OOF | Expert | Public LB |
+|---|---|---|---|
+| **steven v4 + `uniform`** | **0.8574** | **0.8603** | **0.886** |
+| steven v4 + `assertedness` | 0.8560 | 0.8591 | 0.884 |
+| pilkwang + `confidence` | 0.8464 | 0.8606 | 0.884 |
+| pilkwang + `uniform` | 0.8465 | 0.8564 | 0.881 |
+
+Rank correlation **+0.63**, linear **+0.73**. Grouped by table rather than read row by
+row: steven averages 0.8567 out of fold against pilkwang's 0.8465, and 0.885 on the
+leaderboard against 0.8825. **+0.0102 inside, +0.0025 outside** — the same direction,
+compressed by roughly four.
+
+What this does *not* support is reading any single pair. `confidence` and `uniform` on
+pilkwang differ by **0.0001** out of fold, so their order is a coin toss; the leaderboard
+happened to put three thousandths between them. With three submissions in hand that pair
+looked like proof the leaderboard ignored the holdout entirely — the fourth shows it was
+a pair of indistinguishable models being over-read.
+
+**Compare groups, not rows.** A gap under ~0.005 on the public leaderboard is not
+evidence of anything, and neither is a gap under ~0.002 out of fold.
+
+### Out of fold predicts the gaps that matter
+
+The per-target blend is the one screen far enough from the others to test whether the
+holdout predicts anything at all:
+
+| | out of fold | public LB |
+|---|---|---|
+| `steven v4 + uniform` | 0.8574 | 0.886 |
+| per-target blend | 0.8399 | 0.864 |
+| **difference** | **−0.0175** | **−0.022** |
+
+It lands almost exactly where the holdout said it would — slightly lower, even. So the
+out-of-fold score is a usable triage: it cannot rank two configurations a thousandth
+apart, but it will not miss one that is two points worse. Screening ideas on one fold
+before spending five is sound; picking a winner among near-ties from it is not.
+
+Three readings of the table question, and this evidence narrows but does not close them:
+
+1. The public leaderboard is a *sample* of the test set, rounded to three decimals, and
+   [`../docs/experiments.md`](../docs/experiments.md) already warns that a gain under
+   ~0.005 there proves nothing. Two close models can land on one value.
+2. Steven's table really is better on this fold's 870 studies and no better on the
+   ~1,300 hidden ones.
+3. One fold is one draw. Folds differ by 0.012 among themselves — more than the 0.009
+   being argued over.
+
+**What this does not overturn:** `uniform` beating the weighting formulas, and both
+blends falling below their sources. Those gaps are either larger or repeated across
+several runs.
+
+**What it does hold in suspense:** how much of the 0.899 steven's table is worth. The
+screen says the table is worth about +0.0025 on the leaderboard at one fold. Whether that
+survives at five folds with the experts back in training is the run worth doing —
+`steven v4 + uniform`, the best configuration the screen found, in the conditions that
+produced 0.899.
+
+### A table's ceiling does not predict what a model trained on it reaches
+
+`tools.eval_label_sources` scores a label table directly against the 58 expert studies —
+its ceiling, before any model. Ranking tables that way turned out not to rank the models
+fitted on them:
+
+| Table | Ceiling on the 58 | OOF of a model trained on it |
+|---|---|---|
+| riad `HYBRID` | **0.9025** | 0.8514 |
+| flight `v4hybrid` | 0.8991 | *(cut at epoch 16, 0.8426 — not a result)* |
+| steven `v4_blend` | 0.8927 | **0.8574** |
+| pilkwang | 0.8672 | 0.8465 |
+
+Between pilkwang and steven the ceiling predicted the outcome: +0.0255 of ceiling, +0.0109
+of model. Between steven and riad it inverted — **+0.0098 of ceiling, −0.0060 of model**.
+
+Two explanations, and one fold cannot separate them. The ceiling rests on 58 studies and
+carries a seven-point interval, so the +0.0098 may not exist. Or a table can be accurate
+where we can check it and blunt over the other 4,349 studies: an *ensembled* table averages
+its sources, which sharpens a ranking of 58 and softens the signal 4,407 studies of
+training consume. The second is testable — compare the score distributions, not the AUCs.
+
+Until it is settled, **the ceiling is a filter, not a ranking**: useful to reject a table
+that scores 1.0000 and is therefore contaminated, not to choose between two that are close.
+
+### Blending two tables is worse than either of them
+
+| | OOF | Expert |
+|---|---|---|
+| steven v4 alone | **0.8574** | **0.8603** |
+| pilkwang alone | 0.8465 | 0.8564 |
+| rank blend, 50/50 | 0.8401 | 0.8449 |
+| per-target blend, from the expert audit | 0.8399 | 0.8398 |
+
+Both blends land **below the weaker of their two sources**, by roughly the margin that
+separates the sources from each other. Averaging percentile ranks does not interpolate
+between two tables — it destroys something each of them holds on its own. The per-target
+recipe, which leans toward steven on `Synovitis` and `Contusion` and toward pilkwang on
+`Fracture`, does no better than the flat 50/50, so the loss is not a matter of choosing
+the wrong weights.
+
+Stage 3 therefore falls with stage 2: there is no reason to build a target-specific
+recipe on top of a blending step that costs a point on its own.
 
 ## What we do not know
 
