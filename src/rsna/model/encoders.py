@@ -56,9 +56,18 @@ class EncoderSpec:
 
     @property
     def in_channels(self) -> int:
-        """How many channels the backbone takes. Three for anything pretrained on RGB;
-        a stem exists to reduce the slice stack to this number."""
+        """How many channels the backbone actually takes.
 
+        Three for anything pretrained on RGB; a stem exists to reduce the slice stack
+        to this number. Read off the first convolution rather than asserted, because a
+        backbone built for a different channel count has had that convolution rebuilt —
+        and a spec that merely repeated what it was told would agree with `config` even
+        when the weights disagree, which is the one thing this check exists to catch.
+        """
+
+        for module in self.module.modules():
+            if isinstance(module, nn.Conv2d):
+                return module.in_channels
         return 3
 
     @property
@@ -192,11 +201,6 @@ class TimmBackbone(EncoderSpec):
         return self.module.num_features
 
     @property
-    def in_channels(self) -> int:
-        # Set by `load` from the config, because timm rebuilds the stem for it.
-        return getattr(self.module, "_rsna_in_chans", 3)
-
-    @property
     def n_prefix(self) -> int:
         return int(getattr(self.module, "num_prefix_tokens", 0))
 
@@ -245,11 +249,9 @@ class TimmBackbone(EncoderSpec):
     def load(cls, config, path: Path) -> nn.Module:
         import timm
 
-        model = timm.create_model(config.encoder_variant, pretrained=True,
-                                  pretrained_cfg_overlay={"file": str(path)},
-                                  num_classes=0, in_chans=config.encoder_channels)
-        model._rsna_in_chans = config.encoder_channels
-        return model
+        return timm.create_model(config.encoder_variant, pretrained=True,
+                                 pretrained_cfg_overlay={"file": str(path)},
+                                 num_classes=0, in_chans=config.encoder_channels)
 
 
 def find_encoder(config, root: str | Path = "/kaggle/input") -> Path | None:

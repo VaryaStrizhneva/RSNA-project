@@ -53,7 +53,6 @@ class StubTimmViT(nn.Module):
             [nn.Sequential(nn.Linear(dim, dim), nn.GELU()) for _ in range(n_layer)])
         self.norm = nn.LayerNorm(dim)
         self.prefix = nn.Parameter(torch.zeros(1, n_prefix, dim))
-        self._rsna_in_chans = in_chans
 
     def forward_features(self, x):
         x = self.embed(x).flatten(2).transpose(1, 2)
@@ -83,7 +82,6 @@ class StubTimmConv(nn.Module):
                 [nn.Conv2d(dim, dim, 3, padding=1) for _ in range(n)])
             self.stages.append(stage)
         self.norm = nn.GroupNorm(1, dim)
-        self._rsna_in_chans = in_chans
 
     def forward_features(self, x):
         x = self.stem(x)

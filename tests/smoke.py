@@ -575,6 +575,32 @@ def test_encoders() -> None:
               "three-channel backbone, twelve-channel window — caught at build, not "
               "inside the first convolution")
 
+    # -- against timm itself, where it is installed ----------------------------- #
+    # The stubs above follow timm's contract. This checks the contract is what timm
+    # actually does — a stub can only ever confirm what I believed when I wrote it.
+    # Skipped rather than failed when timm is absent: no fitted package needs it, and
+    # the DINOv2 path must stay installable without it.
+    try:
+        import timm
+    except ImportError:
+        print("  skip  timm is not installed, so the real CoAtNet check did not run")
+    else:
+        real = TimmBackbone(
+            timm.create_model("coatnet_pico_rw_224", pretrained=False, num_classes=0))
+        check("timm: a real CoAtNet reports no class token",
+              (real.n_prefix, real.has_class_token) == (0, False))
+        check("timm: its stages flatten into a block list", len(real.blocks()) > 4,
+              f"{len(real.blocks())} blocks across its stages")
+        tok = real.tokens(torch.zeros(1, 3, 224, 224))
+        check("timm: forward_features returns a map, and it becomes tokens",
+              tok.ndim == 3 and tok.shape[-1] == real.dim, f"{tuple(tok.shape)}")
+        wide = TimmBackbone(timm.create_model("coatnet_pico_rw_224", pretrained=False,
+                                              num_classes=0, in_chans=12))
+        check("timm: in_chans is read back off the rebuilt convolution",
+              wide.in_channels == 12,
+              "read from the model, not from what config asked for — so a backbone "
+              "built for the wrong width is caught rather than agreed with")
+
 def test_encoder_unchanged() -> None:
     """The DINOv2 path, pinned before it is refactored.
 
