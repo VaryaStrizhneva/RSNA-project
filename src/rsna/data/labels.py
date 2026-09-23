@@ -79,6 +79,21 @@ LABEL_SOURCES = [
         contaminated=True,
         silence=0.246,  # 52%; a four-source mean, so less sharply defined
     ),
+    LabelSource(
+        "riad_hybrid",
+        EXTERNAL_ROOT / "riadmohamed42-jev-knee-labels" / "HYBRID_labels_scores.csv",
+        contaminated=False,
+        # No silence level: this table has no explicit "the report does not say" score,
+        # and its modal value covers only 10% of cells — nothing sharp enough to anchor
+        # `assertedness` on. `uniform` is what the seven-way screen chose anyway.
+        silence=None,
+    ),
+    LabelSource(
+        "flight_v4hybrid",
+        EXTERNAL_ROOT / "flight0234-rsna-knee-hybrid-report-labels" / "report_labels_v4hybrid.csv",
+        contaminated=False,
+        silence=None,  # same reasoning; it does carry __conf columns if needed
+    ),
 ]
 
 
