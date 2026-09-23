@@ -11,6 +11,7 @@ detecting a perturbation, and the loop learning a signal that is there.
 
 from __future__ import annotations
 
+import copy
 import json
 import sys
 from pathlib import Path
@@ -22,15 +23,16 @@ import numpy as np
 import pandas as pd
 import torch
 
-from rsna.config import Config, PixelRules, TARGETS
+from rsna.config import Config, PixelRules, TARGETS, pool_parts
 from rsna.dicom import (
     CacheMismatch, annotate, build_cache, hdr_vec, load_cache, order_slices,
     plan_cache, read_slot, sample_indices,
 )
-from rsna.model import build_model, check_fingerprint, fingerprint, find_encoder
+from rsna.model import (ENCODERS, HuggingFaceViT, TimmBackbone, build_model,
+                        check_fingerprint, fingerprint, find_encoder, spec_for)
 from rsna.model.fingerprint import WeightsError
 from rsna.train import assign_folds, augment, build_targets, fit, predict, take_window
-from stub_backbone import StubBackbone
+from stub_backbone import StubBackbone, StubTimmConv, StubTimmViT
 from synthetic_dicom import series_record, write_series
 
 PASSED, FAILED = [], []
@@ -467,6 +469,112 @@ def test_figures() -> None:
     check("every figure builds", len(built) == 6, ", ".join(sorted(set(built))))
 
 
+def test_encoders() -> None:
+    """The seam every architecture goes through.
+
+    `Model` and `build_model` ask a spec questions rather than testing the encoder's
+    name, so these are the questions — a new family that answers them is usable without
+    either of those functions changing. That is the whole claim of the design, and it
+    is only worth making if something checks it.
+
+    The timm specs run against stand-ins rather than timm itself, which is fair for the
+    plumbing — prefix counts, block flattening, a feature map becoming tokens — and not
+    fair for the loading, which `TimmBackbone.load` alone does and nothing here covers.
+    """
+
+    print("\nmodel.encoders")
+    check("the registry names dinov2", ENCODERS["dinov2"] is HuggingFaceViT)
+    check("and the timm families", ENCODERS["coatnet"] is TimmBackbone)
+    try:
+        spec_for(Config(encoder="not_an_encoder"))
+        check("refuses an unregistered encoder", False)
+    except ValueError:
+        check("refuses an unregistered encoder", True)
+
+    # The spec aliases the backbone instead of owning it. That is what keeps the state
+    # dict's keys where they were, and `load_member` refuses a single unexpected name —
+    # so nothing may quietly turn the spec into a module or break the alias.
+    pinned = build_model(Config(img=32, slices=3, group=3),
+                         backbone=StubBackbone(dim=64, patch=8))
+    check("the spec contributes nothing to the state dict",
+          not any(k.startswith("spec") for k in pinned.state_dict()),
+          "the thirteen packages fitted before it existed still load key for key")
+    clone = copy.deepcopy(pinned)
+    check("and the alias survives a copy",
+          pinned.spec.module is pinned.backbone
+          and clone.spec.module is clone.backbone,
+          "a spec left pointing at the original would run the wrong weights, silently")
+
+    hf = HuggingFaceViT(StubBackbone(dim=64, patch=8))
+    check("hf: one prefix token, and it is a class token",
+          (hf.n_prefix, hf.has_class_token, hf.dim) == (1, True, 64))
+    check("hf: blocks in depth order", len(hf.blocks()) == 12)
+    check("hf: takes three channels", hf.in_channels == 3)
+
+    vit = TimmBackbone(StubTimmViT(dim=64, n_layer=6, patch=8))
+    check("timm vit: width from num_features, prefix from num_prefix_tokens",
+          (vit.dim, vit.n_prefix, vit.has_class_token) == (64, 1, True))
+    check("timm vit: blocks in depth order", len(vit.blocks()) == 6)
+    check("timm vit: forward_features emits tokens",
+          tuple(vit.tokens(torch.zeros(2, 3, 32, 32)).shape) == (2, 1 + 16, 64))
+
+    conv = TimmBackbone(StubTimmConv(dim=64, stages=(2, 2)))
+    check("timm conv: no class token to read",
+          (conv.n_prefix, conv.has_class_token) == (0, False),
+          "so the head is told, rather than given a corner patch as a summary")
+    check("timm conv: stages flatten into blocks", len(conv.blocks()) == 4,
+          "unfreeze_last counts the same thing on a staged and on a flat model")
+    check("timm conv: the feature map becomes tokens",
+          tuple(conv.tokens(torch.zeros(2, 3, 32, 32)).shape) == (2, 16, 64))
+
+    check("a missing class token narrows the slot feature",
+          (pool_parts("cls_mean", True), pool_parts("cls_mean", False)) == (2, 1))
+    try:
+        pool_parts("nonsense")
+        check("refuses an unknown pooling", False)
+    except ValueError:
+        check("refuses an unknown pooling", True)
+
+    # -- a family the model has never seen, driven end to end ------------------- #
+    cfg = Config(img=32, slices=3, group=3, encoder="coatnet",
+                 encoder_variant="stub", unfreeze_last=3)
+    model = build_model(cfg, backbone=StubTimmConv(dim=64, stages=(2, 2))).eval()
+    check("a conv encoder sizes the head from what it actually emits",
+          model.head.proj[1].in_features == 64,
+          "one part, not two: there is no class token to concatenate")
+    frozen = [p.requires_grad for stage in model.backbone.stages
+              for p in stage.blocks[0].parameters()]
+    check("unfreeze_last counts from the end", frozen[0] is False and frozen[-1] is True)
+
+    imgs = torch.randint(0, 256, (2, cfg.n_slot, cfg.window_size, cfg.img, cfg.img),
+                         dtype=torch.uint8)
+    mask = torch.ones(2, cfg.n_slot)
+    out = model(imgs, mask, cfg.img)
+    check("and it produces one logit per target", tuple(out.shape) == (2, len(TARGETS)))
+
+    # -- stem "none": the encoder takes the window itself ----------------------- #
+    raw = Config(img=32, slices=12, group=12, stem="none", encoder="coatnet",
+                 encoder_variant="stub")
+    check("stem 'none' asks the encoder for the whole window",
+          (raw.encoder_channels, raw.window_size) == (12, 12))
+    native = build_model(raw, backbone=StubTimmConv(dim=64, in_chans=12)).eval()
+    check("no stem is built for it", native.stem is None)
+    check("and the normalisation is sized to the window",
+          tuple(native.mean.shape) == (1, 12, 1, 1),
+          "the grey equivalent of the ImageNet statistics, not the RGB spread")
+    wide = torch.randint(0, 256, (2, raw.n_slot, 12, raw.img, raw.img), dtype=torch.uint8)
+    check("a twelve-channel encoder runs",
+          tuple(native(wide, torch.ones(2, raw.n_slot), raw.img).shape)
+          == (2, len(TARGETS)))
+
+    try:
+        build_model(raw.replace(encoder="dinov2"), backbone=StubBackbone(dim=64, patch=8))
+        check("refuses a stem the encoder cannot take", False)
+    except ValueError:
+        check("refuses a stem the encoder cannot take", True,
+              "three-channel backbone, twelve-channel window — caught at build, not "
+              "inside the first convolution")
+
 def test_encoder_unchanged() -> None:
     """The DINOv2 path, pinned before it is refactored.
 
@@ -745,7 +853,8 @@ def test_eval() -> None:
 
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
-                 test_model, test_stems, test_encoder_unchanged, test_experiments,
+                 test_model, test_stems, test_encoders, test_encoder_unchanged,
+                 test_experiments,
                  test_augment, test_loop, test_windows,
                  test_submission, test_figures, test_eval):
         test()

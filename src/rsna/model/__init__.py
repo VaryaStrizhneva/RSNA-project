@@ -10,15 +10,18 @@ last set. Here they come from a `Config`, which is what lets a weights package s
 the architecture it needs.
 """
 
+from .encoders import (ENCODERS, EncoderSpec, HuggingFaceViT, TimmBackbone,
+                       find_encoder, register, spec_for)
 from .fingerprint import WeightsError, check_fingerprint, fingerprint
 from .heads import SlotHead
-from .network import Model, build_model, find_encoder
+from .network import Model, build_model
 from .stems import DepthCompress, build_stem
 from .package import (Member, find_package, load_member, read_manifest,
                       write_package)
 
 __all__ = [
     "Model", "SlotHead", "build_model", "find_encoder", "DepthCompress", "build_stem",
+    "EncoderSpec", "HuggingFaceViT", "TimmBackbone", "ENCODERS", "register", "spec_for",
     "fingerprint", "check_fingerprint", "WeightsError",
     "Member", "write_package", "find_package", "read_manifest", "load_member",
 ]
