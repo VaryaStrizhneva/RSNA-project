@@ -168,7 +168,14 @@ class Config:
     #: the head's input dimension follows from the encoder's hidden size.
     #: The public baseline uses DINOv2-small (12 blocks, hidden 384, patch 14), mounted
     #: on Kaggle as `metaresearch/dinov2/PyTorch/small/1`.
+    #:
+    #: The value is a key into `rsna.model.encoders.ENCODERS`, which says how that
+    #: family is loaded and driven. Anything not registered there is refused at build
+    #: rather than guessed at.
     encoder: str = "dinov2"
+    #: Which size within the family. For a `timm`-backed encoder this is the timm model
+    #: name in full (``coatnet_rmlp_1_rw_224``), because that is what identifies a
+    #: checkpoint there; for DINOv2 it is ``small`` or ``base``.
     encoder_variant: str = "small"
     #: How the token grid becomes one vector per slot. See POOL_PARTS.
     pool: str = "cls_mean"
