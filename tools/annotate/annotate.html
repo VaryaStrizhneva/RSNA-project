@@ -1,0 +1,281 @@
+<title>Landmark annotation — lateral meniscus</title>
+<style>
+:root{--bg:#0e1012;--panel:#16191d;--line:#252a30;--ink:#e6e8ea;--dim:#9aa3ad;
+      --accent:#6ea8fe;--warn:#f0a868;--bad:#e0716f;--good:#7fc98b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+     font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;
+     max-width:1320px;margin:0 auto;padding:18px}
+h1{font-size:1.05rem;margin:0 0 4px;letter-spacing:-.01em}
+.stage{position:relative;background:#000;border:1px solid var(--line);border-radius:8px;
+       overflow:hidden;cursor:crosshair;user-select:none}
+.stage img{display:block;width:100%;height:auto;-webkit-user-drag:none}
+.mark{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;pointer-events:none}
+.mark::before,.mark::after{content:"";position:absolute;background:currentColor}
+.mark::before{left:10px;top:0;width:2px;height:22px}
+.mark::after{top:10px;left:0;height:2px;width:22px}
+.mark i{position:absolute;inset:4px;border:2px solid currentColor;border-radius:50%}
+.mark.ghost{opacity:.28}
+.bar{position:absolute;left:14px;bottom:14px;height:4px;background:#fff;border-radius:2px;
+     box-shadow:0 0 3px #000}
+.barlab{position:absolute;left:14px;bottom:22px;font-size:11px;color:#fff;
+        text-shadow:0 0 4px #000;font-family:ui-monospace,monospace}
+.lat{position:absolute;top:10px;padding:4px 10px;border-radius:6px;font-size:.76rem;
+     font-weight:700;letter-spacing:.06em;background:#1d3557cc;color:#cfe1ff;
+     border:1px solid #6ea8fe}
+.axis{display:flex;justify-content:space-between;color:var(--dim);font-size:.76rem;
+      text-transform:uppercase;letter-spacing:.06em;margin:6px 2px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+      padding:12px 14px;margin-bottom:12px}
+.meta{font-family:ui-monospace,monospace;font-size:.78rem;color:var(--dim);line-height:1.7}
+.meta b{color:var(--ink)}
+.alert{background:#2a1513;border:1px solid #6b2f2c;color:var(--bad);border-radius:6px;
+       padding:7px 10px;margin-top:8px;font-size:.8rem}
+.lab{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;
+     margin:12px 0 3px}
+.lab:first-child{margin-top:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+button{background:#232a33;color:var(--ink);border:1px solid var(--line);border-radius:6px;
+       padding:7px 11px;font:inherit;font-size:.84rem;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:#1d3557;border-color:var(--accent)}
+.row{display:flex;gap:7px;flex-wrap:wrap}
+.prog{height:5px;background:#232a33;border-radius:3px;overflow:hidden;margin:9px 0}
+.prog i{display:block;height:100%;background:var(--accent)}
+.hint{color:var(--dim);font-size:.76rem;line-height:1.7}
+.count{font-family:ui-monospace,monospace;color:var(--accent)}
+.def{background:#12161b;border-left:3px solid var(--accent);border-radius:0 6px 6px 0;
+     padding:9px 12px;font-size:.82rem;line-height:1.6}
+.state{font-family:ui-monospace,monospace;font-size:.82rem}
+.state.set{color:var(--good)}
+.state.unset{color:var(--dim)}
+kbd{background:#242a31;border:1px solid var(--line);border-radius:4px;padding:0 5px;
+    font-family:ui-monospace,monospace;font-size:.72rem}
+</style>
+
+<div id="app">
+  <div>
+    <h1 id="title">loading…</h1>
+    <div class="meta" id="sub"></div>
+    <div class="stage" id="stage">
+      <img id="img" alt="">
+      <div class="bar" id="bar"></div><div class="barlab" id="barlab"></div>
+      <div class="lat" id="latflag"></div>
+    </div>
+    <div class="axis"><span id="endA">◀</span>
+      <span>slice <span class="count" id="sn"></span></span>
+      <span id="endB">▶</span></div>
+    <input type="range" id="sl" min="0" max="0" value="0">
+    <div id="alerts"></div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="meta" id="info"></div>
+      <div class="prog"><i id="prog"></i></div>
+      <div class="meta" id="progtext"></div>
+    </div>
+
+    <div class="card">
+      <div class="lab">the point</div>
+      <div class="def">
+        <b>Centre of the LATERAL meniscus.</b><br>
+        Scroll to where the two dark meniscal triangles are visible and separated.
+        Place the point <b>midway between their two tips</b>, at the level of the
+        joint line.
+      </div>
+      <div class="lab">status</div>
+      <div class="state unset" id="pstate">— not placed</div>
+    </div>
+
+    <div class="card">
+      <div class="lab">brightness</div>
+      <input type="range" id="br" min="0.4" max="2.2" step="0.05" value="1">
+      <div class="lab">contrast</div>
+      <input type="range" id="ct" min="0.5" max="2.6" step="0.05" value="1">
+      <div class="hint" style="margin-top:7px">The meniscus is a dark wedge inside a dark
+        joint line — raising contrast is usually what separates them.
+        <kbd>R</kbd> resets.</div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <button id="prev"><kbd>P</kbd> prev</button>
+        <button class="primary" id="next"><kbd>⏎</kbd> next</button>
+        <button id="undo"><kbd>U</kbd> undo</button>
+        <button id="skip"><kbd>S</kbd> can't tell</button>
+      </div>
+      <div class="row" style="margin-top:9px">
+        <button id="export">export JSON</button>
+        <button id="clear">clear this study</button>
+      </div>
+    </div>
+
+    <div class="card hint">
+      <kbd>←</kbd> <kbd>→</kbd> or the wheel scrolls slices.<br>
+      Work is saved in this browser as you go. <b>Export before you finish</b> — the
+      export is the file you keep.
+    </div>
+  </div>
+</div>
+
+<script>
+// One point for now: the medial compartment gets its own pass later, and the export is
+// keyed by name, so adding it changes nothing downstream.
+const TARGET = {id:"lat_centre", color:"#ff6b6b"};
+const KEY = "rsna-landmarks-v1";
+
+let M=null, studies=[], si=0, slice=0;
+let state = JSON.parse(localStorage.getItem(KEY) || "{}");
+
+const $ = id => document.getElementById(id);
+const cur = () => studies[si];
+const rec = () => (state[cur().study] ||= {points:{}, skipped:false, opened:Date.now()});
+const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+
+function loadStudy(){
+  const s = cur();
+  slice = Math.floor(s.n/2);
+  $("title").textContent = `study …${s.tail}`;
+  $("sub").innerHTML = `${s.sequence} · ${s.n} slices · `
+    + `${s.mm_per_px_shown.toFixed(3)} mm/px · ${s.slice_spacing_mm} mm between slices`;
+  $("sl").max = s.n-1; $("sl").value = slice;
+  $("endA").textContent = "◀ " + (s.first_end || "?");
+  $("endB").textContent = (s.last_end || "?") + " ▶";
+
+  // The lateral compartment is not at the same end on a left and a right knee, so the
+  // badge says which, on the image, for every study.
+  const high = s.last_end === "lateral";
+  $("latflag").textContent = high ? "LATERAL → high slice numbers"
+                                  : "LATERAL ← low slice numbers";
+  $("latflag").style.left  = high ? "auto" : "10px";
+  $("latflag").style.right = high ? "10px" : "auto";
+
+  let alerts = "";
+  if (!s.side) alerts += `<div class="alert">Side UNRESOLVED — ${s.side_from}.
+    Medial and lateral cannot be told apart. Skip it.</div>`;
+  if (!s.ordered) alerts += `<div class="alert">Slice geometry unusable; file order kept.
+    These slices may not be in anatomical order.</div>`;
+  $("alerts").innerHTML = alerts;
+
+  $("info").innerHTML = `study <b>…${s.tail}</b><br>side <b>${s.side||"—"}</b><br>`
+    + `series <b>${s.sequence}</b><br>“${s.description}”`;
+  rec();
+  show(); progress();
+}
+
+function levels(){
+  $("img").style.filter = `brightness(${$("br").value}) contrast(${$("ct").value})`;
+}
+
+function show(){
+  const s = cur();
+  $("sl").value = slice; $("sn").textContent = `${slice+1} / ${s.n}`;
+  $("img").src = s.slices[slice].file;
+  levels(); drawMarks(); sizeBar();
+}
+
+function drawMarks(){
+  document.querySelectorAll(".mark").forEach(e=>e.remove());
+  const s = cur(), p = rec().points[TARGET.id];
+  $("pstate").className = "state " + (p ? "set" : "unset");
+  $("pstate").textContent = p ? `placed on slice ${p.slice+1}` : "— not placed";
+  if (!p) return;
+  const d = Math.abs(p.slice - slice);
+  if (d > 2) return;
+  const k = $("img").clientWidth / s.out_px;
+  if (!k) return;
+  const el = document.createElement("div");
+  el.className = "mark" + (d ? " ghost" : "");
+  el.style.color = TARGET.color;
+  el.style.left = (p.col*k)+"px"; el.style.top = (p.row*k)+"px";
+  el.innerHTML = "<i></i>";
+  $("stage").appendChild(el);
+}
+
+function sizeBar(){
+  const s = cur(), px = (10/s.mm_per_px_shown) * ($("img").clientWidth/s.out_px);
+  if (isFinite(px) && px>0){ $("bar").style.width = px+"px"; $("barlab").textContent = "10 mm"; }
+}
+
+function progress(){
+  const n = studies.length;
+  const done = studies.filter(s=>{
+    const r = state[s.study];
+    return r && (r.skipped || r.points[TARGET.id]);
+  }).length;
+  $("prog").style.width = (100*done/n)+"%";
+  $("progtext").innerHTML = `study <b>${si+1}</b> of ${n} · <b>${done}</b> done`;
+}
+
+$("stage").onclick = e=>{
+  if (e.target.id !== "img") return;
+  const s = cur(), r = $("img").getBoundingClientRect();
+  rec().points[TARGET.id] = {
+    slice,
+    row: +((e.clientY-r.top)/r.height*s.out_px).toFixed(2),
+    col: +((e.clientX-r.left)/r.width*s.out_px).toFixed(2),
+    t: Date.now(),
+  };
+  rec().skipped = false; save(); drawMarks(); progress();
+};
+
+$("sl").oninput = ()=>{ slice = +$("sl").value; show(); };
+$("stage").onwheel = e=>{
+  e.preventDefault();
+  slice = Math.min(Math.max(slice+Math.sign(e.deltaY),0), cur().n-1); show();
+};
+$("br").oninput = levels;
+$("ct").oninput = levels;
+$("img").onload = ()=>{ drawMarks(); sizeBar(); };
+window.onresize = ()=>{ drawMarks(); sizeBar(); };
+
+const go = d=>{ si = Math.min(Math.max(si+d,0), studies.length-1); loadStudy(); };
+$("next").onclick = ()=>go(1);
+$("prev").onclick = ()=>go(-1);
+$("undo").onclick = ()=>{ delete rec().points[TARGET.id]; save(); drawMarks(); progress(); };
+$("skip").onclick = ()=>{ rec().skipped = true; save(); progress(); go(1); };
+$("clear").onclick = ()=>{ delete state[cur().study]; save(); loadStudy(); };
+
+$("export").onclick = ()=>{
+  const out = {tool:"rsna-landmarks-v1", exported:new Date().toISOString(),
+               bundle:{fov_mm:M.fov_mm, out_px:M.out_px, seed:M.seed, pool:M.pool},
+               annotations:[]};
+  for (const s of studies){
+    const r = state[s.study]; if (!r) continue;
+    out.annotations.push({
+      study:s.study, series:s.series, transform:s.transform, out_px:s.out_px,
+      mm_per_px_shown:s.mm_per_px_shown, side:s.side, side_from:s.side_from,
+      skipped:!!r.skipped,
+      points:Object.fromEntries(Object.entries(r.points).map(([k,p])=>[k,{
+        slice:p.slice, sop:s.slices[p.slice].sop, row:p.row, col:p.col,
+        ipp:s.slices[p.slice].ipp, iop:s.slices[p.slice].iop, ps:s.slices[p.slice].ps,
+      }])),
+    });
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],
+                                        {type:"application/json"}));
+  a.download = `landmarks-lateral-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+};
+
+addEventListener("keydown", e=>{
+  const k = e.key.toLowerCase();
+  if (e.key==="ArrowRight"||e.key==="ArrowDown"){ slice=Math.min(slice+1,cur().n-1); show(); e.preventDefault(); }
+  else if (e.key==="ArrowLeft"||e.key==="ArrowUp"){ slice=Math.max(slice-1,0); show(); e.preventDefault(); }
+  else if (e.key==="Enter") go(1);
+  else if (k==="p") go(-1);
+  else if (k==="u") $("undo").click();
+  else if (k==="s") $("skip").click();
+  else if (k==="r"){ $("br").value=1; $("ct").value=1; levels(); }
+});
+
+fetch("studies.json").then(r=>r.json()).then(m=>{
+  M=m; studies=m.studies;
+  const next = studies.findIndex(s=>!state[s.study]);
+  si = next<0 ? 0 : next;
+  loadStudy();
+});
+</script>
