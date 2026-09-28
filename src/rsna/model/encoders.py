@@ -21,7 +21,8 @@ Two specs live here:
 * `HuggingFaceViT` — what DINOv2 is loaded through today, `transformers.AutoModel`.
   Its behaviour is pinned by `tests/golden/encoder_dinov2.json` and must not move.
 * `TimmBackbone` — `timm`'s normalised contract, which is how everything that is not
-  on the HuggingFace hub as a bare `AutoModel` arrives: CoAtNet, DINOv3, ConvNeXt.
+  on the HuggingFace hub as a bare `AutoModel` arrives. Registered for `coatnet`
+  only: that is the one a real timm model has been run through here.
 """
 
 from __future__ import annotations
@@ -176,9 +177,15 @@ class HuggingFaceViT(EncoderSpec):
         return AutoModel.from_pretrained(str(path))
 
 
-@register("coatnet", "dinov3", "convnext")
+@register("coatnet")
 class TimmBackbone(EncoderSpec):
     """Anything reached through `timm`.
+
+    Only `coatnet` is registered, because it is the only family a real timm model
+    has been driven through here — see `tests.smoke.test_encoders`. DINOv3, ConvNeXt
+    and the rest are the same shape and would very likely work, but registering a
+    name is a claim that it does, and that claim has not been earned. One decorator
+    line adds one once someone checks.
 
     timm normalises what HuggingFace leaves to each model class: `num_features` is the
     feature width, `num_prefix_tokens` says how many leading tokens are not patches,
@@ -247,6 +254,15 @@ class TimmBackbone(EncoderSpec):
 
     @classmethod
     def load(cls, config, path: Path) -> nn.Module:
+        """Build the backbone from a checkpoint directory.
+
+        **Unverified.** Everything above runs against a real timm model in the test
+        suite; this does not, because no timm checkpoint is on disk here. The
+        `pretrained_cfg_overlay` route is what timm documents for loading from a file,
+        but nothing has confirmed it end to end — expect to debug it the first time a
+        CoAtNet is actually mounted.
+        """
+
         import timm
 
         return timm.create_model(config.encoder_variant, pretrained=True,
