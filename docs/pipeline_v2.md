@@ -353,14 +353,39 @@ Measured once, recorded here so they are not re-derived or mis-remembered.
 
 Recorded so they are fixed deliberately rather than rediscovered.
 
-1. **The sagittal stack is not reversed for right knees.** `preprocessing.ipynb`
-   Problem 3 states the intent — *"mirroring a sagittal stack is done by reversing slice
-   order"* — and no code does it. `normalise_laterality` mirrors coronal and axial and
-   returns sagittal untouched; `lat_map` is used in exactly one place.
-   *Invisible today* because the model averages over the stack, so a reversed depth axis
-   is equivalent to augmentation. **Fatal** for any depth-indexed ROI. Fix before §5 is
-   trained. `cache_tag` includes `rules`, so a new rule value will correctly refuse old
-   caches.
+1. **The sagittal stack is not reversed for right knees — the port dropped the line.**
+   The public baseline does it:
+
+   ```python
+   def normalise_laterality(img, plane, lat):          # baseline notebook
+       if lat != "R":                    return img
+       if plane in ("Coronal", "Axial"): return torch.flip(img, dims=[-1])
+       return torch.flip(img, dims=[0])                # <- the sagittal reversal
+   ```
+
+   Ours keeps the first two lines and returns `image` for sagittal. It has never held the
+   reversal (`git log -S "::-1"`, one commit, `9c7c2c7`), and the docstring was reworded
+   from *"the channel order is reversed instead"* into *"is handled by the slice order, not
+   here"*, which reads as a deferral rather than a description.
+
+   **What it costs.** The 2.5D triplet `[c-1, c, c+1]` becomes `[c+1, c, c-1]` on half the
+   corpus — a real transformation the encoder must spend capacity being invariant to, on a
+   nuisance axis we could simply remove. Five of twelve targets are side-defined.
+   Normalising takes the corpus from ~50/50 mixed to **~86 % consistent** (not 100 %:
+   geometry errs 9 % of the time and 10.5 % stay unresolved, hence unflipped).
+
+   **What it does not cost.** Nothing on the ROI path of §4: the landmark is learned from
+   appearance and returned in patient millimetres, and the stack-reversal augmentation makes
+   the model side-agnostic by construction. This is a defect of the *current* pipeline, not
+   a blocker for the next one.
+
+   **When.** Fold it into the cache rebuild the ROI branches require anyway — as a
+   standalone it invalidates 36 GB of cache and makes thirteen packages incomparable, for
+   an architecture we are replacing. `cache_tag` includes `rules`, so a new rule value will
+   correctly refuse the old cache rather than silently reuse it.
+
+   **Consequence for the record**: no run in `out/` reproduces the published baseline.
+   `experiments/RESULTS.md` has been corrected.
 2. **Slot weighting is chosen by slice count, not by sequence.** `pick_slots` sorts on
    `n_slices`, so when a study has both a sagittal PD and a sagittal T2 for the same
    slot it is a coin toss — **PD 9, T2 8** in the non-fat-sat sagittal slot **[m]**.
