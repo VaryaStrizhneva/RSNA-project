@@ -315,6 +315,40 @@ def test_pixels() -> None:
           "the presence mask can express absent; it cannot express black")
 
 
+def test_laterality() -> None:
+    """Mirroring a knee, and the one axis where it is not a pixel flip."""
+
+    from rsna.dicom import normalise_laterality
+
+    print("\ndicom.laterality")
+    img = np.arange(4 * 3 * 3, dtype=np.uint8).reshape(4, 3, 3)
+
+    check("a left knee is never touched",
+          np.array_equal(normalise_laterality(img, "Sagittal", "L", True), img)
+          and np.array_equal(normalise_laterality(img, "Coronal", "L", True), img))
+    check("coronal mirrors the pixels",
+          np.array_equal(normalise_laterality(img, "Coronal", "R"), img[..., ::-1]))
+    check("sagittal mirrors the SLICE ORDER, not the pixels",
+          np.array_equal(normalise_laterality(img, "Sagittal", "R", True), img[::-1]),
+          "its left-right axis is the through-plane one, so the mirror is a reversal")
+    check("and only when the rule asks",
+          np.array_equal(normalise_laterality(img, "Sagittal", "R", False), img),
+          "off by default: thirteen packages were fitted without it, and a manifest "
+          "written before the field existed reads back as the default")
+
+    # The cache tag is the only guard here — the fingerprint is computed on synthetic
+    # pixels that never pass through normalise_laterality, so it cannot see this change.
+    plain = Config()
+    flipped = plain.replace(rules=PixelRules(sagittal_flip=True))
+    check("turning it on changes the cache tag",
+          plain.cache_tag() != flipped.cache_tag(),
+          f"{plain.cache_tag()} vs {flipped.cache_tag()}")
+    check("and leaving it off does not",
+          plain.cache_tag() == Config().replace(
+              rules=PixelRules(sagittal_flip=False)).cache_tag(),
+          "so the thirteen existing caches stay valid")
+
+
 def test_cache() -> None:
     """Decode a two-study corpus, reload it, and refuse a stale one."""
 
@@ -879,7 +913,7 @@ def test_eval() -> None:
 
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
-                 test_model, test_stems, test_encoders, test_encoder_unchanged,
+                 test_laterality, test_model, test_stems, test_encoders, test_encoder_unchanged,
                  test_experiments,
                  test_augment, test_loop, test_windows,
                  test_submission, test_figures, test_eval):

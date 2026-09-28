@@ -125,6 +125,20 @@ class PixelRules:
     #: What a slice that will not decode becomes. `nearest` copies the closest slice
     #: that did; `zero` blacks it out, which propagates to the whole slot.
     decode_fill: DecodeFillRule = "nearest"
+    #: Whether a right knee's sagittal stack has its slice order reversed, which is how a
+    #: sagittal series is mirrored onto the left-knee convention — the pixels are not
+    #: flipped, the depth axis is. The public baseline does this
+    #: (`torch.flip(img, dims=[0])`); this port dropped the line, so every package fitted
+    #: so far was trained with the sagittal depth axis pointing one way on left knees and
+    #: the other on right ones.
+    #:
+    #: **Default False, which is the defect, on purpose.** A package's manifest is replayed
+    #: through `Config.from_dict`, and one written before this field existed reads back as
+    #: the default. Defaulting to True would silently mirror the input of all thirteen
+    #: existing packages at inference — and the fingerprint cannot catch it, because it is
+    #: computed on synthetic pixels that never pass through this function. A forgotten
+    #: `True` costs an improvement; a wrong `True` costs correctness.
+    sagittal_flip: bool = False
 
 
 @dataclass(frozen=True)

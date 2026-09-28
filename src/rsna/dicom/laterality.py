@@ -126,16 +126,26 @@ def laterality_of(headers: pd.DataFrame, config: Config) -> tuple[dict[str, str 
     return sides, stats
 
 
-def normalise_laterality(image: np.ndarray, plane: str, side: str | None) -> np.ndarray:
+def normalise_laterality(image: np.ndarray, plane: str, side: str | None,
+                         flip_sagittal: bool = False) -> np.ndarray:
     """Map every knee onto a left-knee convention.
 
-    Coronal and axial views mirror under a horizontal flip. Sagittal stacks do not:
-    their left-right image axis is the through-plane direction, so mirroring them is
-    handled by the slice order, not here.
+    Coronal and axial views mirror under a horizontal flip of the pixels. A sagittal
+    stack does not: its left-right axis is the *through-plane* direction, so the mirror
+    is a reversal of the **slice order**, which is what `flip_sagittal` asks for.
+
+    That reversal is in the public baseline and was dropped when this pipeline was
+    ported, so it is off by default — see `PixelRules.sagittal_flip` for why the default
+    has to be the defect rather than the fix.
+
+    What it costs to leave off: the three channels of a 2.5D window arrive as
+    `[c-1, c, c+1]` on a left knee and `[c+1, c, c-1]` on a right one, so the encoder
+    spends capacity being invariant to a nuisance axis instead of to anything anatomical.
+    Five of the twelve targets are named for a side.
     """
 
     if side != "R":
         return image
     if plane in ("Coronal", "Axial"):
         return image[..., ::-1]
-    return image
+    return image[::-1] if flip_sagittal else image

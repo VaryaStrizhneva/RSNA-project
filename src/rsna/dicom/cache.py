@@ -204,7 +204,8 @@ def build_cache(slot_map: dict, plane_map: dict, lat_map: dict, config: Config,
                 if image is None:
                     continue
                 cache[index[study], k] = normalise_laterality(
-                    image.numpy(), plane, lat_map.get(study))
+                    image.numpy(), plane, lat_map.get(study),
+                    flip_sagittal=config.rules.sagittal_flip)
                 mask[index[study], k] = 1.0
 
     log(f"{int(mask.sum())}/{len(jobs)} slots filled")

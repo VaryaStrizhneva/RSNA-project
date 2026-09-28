@@ -379,10 +379,21 @@ Recorded so they are fixed deliberately rather than rediscovered.
    the model side-agnostic by construction. This is a defect of the *current* pipeline, not
    a blocker for the next one.
 
-   **When.** Fold it into the cache rebuild the ROI branches require anyway — as a
-   standalone it invalidates 36 GB of cache and makes thirteen packages incomparable, for
-   an architecture we are replacing. `cache_tag` includes `rules`, so a new rule value will
-   correctly refuse the old cache rather than silently reuse it.
+   **Status: the code is fixed, the data is not.** `PixelRules.sagittal_flip` now exists
+   and `normalise_laterality` honours it. It defaults to **False — the defect — on
+   purpose**: a manifest written before the field existed replays through
+   `Config.from_dict` as the default, so defaulting to True would silently mirror the
+   input of all thirteen existing packages at inference, and the fingerprint cannot catch
+   it (it is computed on synthetic pixels that never pass through this function). A
+   forgotten `True` costs an improvement; a wrong `True` costs correctness.
+
+   Turning it on changes the cache tag — `336px_12sl_130mm_0.20-0.80` becomes
+   `…_44e6dd` — so the old cache is refused rather than silently reused. Verified: with
+   the rule off, the 36 GB cache still loads and all 31 members reproduce their
+   fingerprint distance exactly.
+
+   **When to turn it on.** With the cache rebuild the ROI branches require anyway. Set
+   `rules: {sagittal_flip: true}` in the first experiment that rebuilds.
 
    **Consequence for the record**: no run in `out/` reproduces the published baseline.
    `experiments/RESULTS.md` has been corrected.
