@@ -374,10 +374,17 @@ Recorded so they are fixed deliberately rather than rediscovered.
    Normalising takes the corpus from ~50/50 mixed to **~86 % consistent** (not 100 %:
    geometry errs 9 % of the time and 10.5 % stay unresolved, hence unflipped).
 
-   **What it does not cost.** Nothing on the ROI path of §4: the landmark is learned from
-   appearance and returned in patient millimetres, and the stack-reversal augmentation makes
-   the model side-agnostic by construction. This is a defect of the *current* pipeline, not
-   a blocker for the next one.
+   **Does the ROI path escape it? No — it pays the same cost.** Cropping around a landmark
+   in patient millimetres is orientation-independent, but the landmark model *takes the
+   stack as input*, and its 2.5D window inherits the reversed channel order just as the
+   wide view does. The stack-reversal augmentation makes it side-agnostic, but that is
+   capacity spent learning an invariance, on a model that will have ~170 annotations.
+
+   So the accurate statement is: **required nowhere, useful everywhere.** Nothing breaks
+   without it — a model can learn the invariance — and everything is slightly easier with
+   it. Normalising and augmenting are complements, not alternatives: normalisation removes
+   the axis for the ~86 % where the side is known, augmentation covers the ~14 % where it
+   is wrong or unresolved.
 
    **Status: the code is fixed, the data is not.** `PixelRules.sagittal_flip` now exists
    and `normalise_laterality` honours it. It defaults to **False — the defect — on
