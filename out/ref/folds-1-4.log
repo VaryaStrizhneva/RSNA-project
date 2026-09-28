@@ -1,0 +1,457 @@
+=== fold 1 — 10:41:12 ===
+[    0.0s] experiment: reference  (stem=window, 3 channels to the encoder, 10 pass(es) per slot at inference)
+[    0.0s] config: 336px, 12 slices, group 3, 6 slots, 10 epochs, batch 8
+[    0.0s] run: split=train_series, fold=1, encoder=models/dinov2-small
+[    0.0s]      labels=data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv
+[    0.0s] device: cuda
+[   61.9s] 24371 series across 4407 studies
+[   62.9s] laterality: 2203 tagged, 2132 from geometry, 72 unresolved, 25 disagree
+[   76.3s] slots: 20130/26442 filled
+[   76.3s] reusing the cache at /data/mgr/rsna-knee/cache-full.npy: (4407, 6, 12, 336, 336)
+[   77.8s] targets: 4407/4407 studies supervised from data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv with confidence weights, floor 0.25
+[   77.9s] gold holdout: 58 expert-labelled studies excluded from training, plus 1 same-report study/studies
+[   77.9s] train 3526 / holdout 822 studies
+Loading weights:   0%|          | 0/223 [00:00<?, ?it/s]Loading weights: 100%|██████████| 223/223 [00:00<00:00, 7201.55it/s]
+[   80.2s] model: 22.3M parameters, 10.9M trainable
+[  135.0s]   epoch 1/10  loss 0.4710  holdout 0.7107  gold 0.7234
+[  192.9s]   epoch 2/10  loss 0.4527  holdout 0.7535  gold 0.7461
+[  269.5s]   epoch 3/10  loss 0.4413  holdout 0.7690  gold 0.7887
+[  349.1s]   epoch 4/10  loss 0.4328  holdout 0.7856  gold 0.7856
+[  430.7s]   epoch 5/10  loss 0.4262  holdout 0.7976  gold 0.8054
+[  512.2s]   epoch 6/10  loss 0.4204  holdout 0.8021  gold 0.8053
+[  592.8s]   epoch 7/10  loss 0.4137  holdout 0.8090  gold 0.8154
+[  673.5s]   epoch 8/10  loss 0.4099  holdout 0.8132  gold 0.8252
+[  754.4s]   epoch 9/10  loss 0.4065  holdout 0.8148  gold 0.8198
+[  828.8s]   epoch 10/10  loss 0.4052  holdout 0.8153  gold 0.8208
+[  828.8s] best epoch 10, holdout AUC 0.8153
+[  828.9s] package written to out/ref/pkg-f1
+[  828.9s] history and predictions written to out/ref/pkg-f1 (including 58 expert-labelled studies)
+{
+ "id": "reference_fold1_336px",
+ "file": "reference_fold1_336px.pt",
+ "config": {
+  "img": 336,
+  "crop_mm": 130.0,
+  "group": 3,
+  "slices": 12,
+  "band": [
+   0.2,
+   0.8
+  ],
+  "slots": [
+   [
+    "SAG_FLUID_FS",
+    "Sagittal",
+    true,
+    true
+   ],
+   [
+    "COR_FLUID_FS",
+    "Coronal",
+    true,
+    true
+   ],
+   [
+    "AX_FLUID_FS",
+    "Axial",
+    true,
+    true
+   ],
+   [
+    "SAG_FLUID_NOFS",
+    "Sagittal",
+    true,
+    false
+   ],
+   [
+    "COR_T1",
+    "Coronal",
+    false,
+    false
+   ],
+   [
+    "SAG_T1",
+    "Sagittal",
+    false,
+    false
+   ]
+  ],
+  "rules": {
+   "order": "normal",
+   "laterality": "centre",
+   "slot_fallback": false,
+   "decode_fill": "nearest"
+  },
+  "encoder": "dinov2",
+  "encoder_variant": "small",
+  "pool": "cls_mean",
+  "prior": false,
+  "weights": "confidence",
+  "weight_floor": 0.25,
+  "stem": "window",
+  "stem_depth": 1,
+  "lat_min_offset_mm": 20.0,
+  "lat_legacy_offset_mm": 5.0,
+  "seed": 2026,
+  "epochs": 10,
+  "batch_studies": 8,
+  "lr_head": 0.001,
+  "lr_backbone": 8e-06,
+  "warmup_frac": 0.15,
+  "unfreeze_last": 6,
+  "weight_decay": 0.02,
+  "eval_batch": 8,
+  "aug_rot_deg": 8.0,
+  "aug_scale": 0.08,
+  "aug_shift": 0.05,
+  "aug_intensity": 0.1,
+  "gold_weight": 3.0,
+  "n_folds": 5
+ },
+ "fold": 1,
+ "holdout": 0.8152905104835146,
+ "epoch": 9
+}
+=== fold 2 — 10:55:06 ===
+[    0.0s] experiment: reference  (stem=window, 3 channels to the encoder, 10 pass(es) per slot at inference)
+[    0.0s] config: 336px, 12 slices, group 3, 6 slots, 10 epochs, batch 8
+[    0.0s] run: split=train_series, fold=2, encoder=models/dinov2-small
+[    0.0s]      labels=data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv
+[    0.0s] device: cuda
+[   36.6s] 24371 series across 4407 studies
+[   37.6s] laterality: 2203 tagged, 2132 from geometry, 72 unresolved, 25 disagree
+[   50.8s] slots: 20130/26442 filled
+[   50.8s] reusing the cache at /data/mgr/rsna-knee/cache-full.npy: (4407, 6, 12, 336, 336)
+[   52.5s] targets: 4407/4407 studies supervised from data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv with confidence weights, floor 0.25
+[   52.5s] gold holdout: 58 expert-labelled studies excluded from training, plus 1 same-report study/studies
+[   52.5s] train 3417 / holdout 931 studies
+Loading weights:   0%|          | 0/223 [00:00<?, ?it/s]Loading weights: 100%|██████████| 223/223 [00:00<00:00, 8119.11it/s]
+[   54.9s] model: 22.3M parameters, 10.9M trainable
+[  111.0s]   epoch 1/10  loss 0.4714  holdout 0.7572  gold 0.7122
+[  168.7s]   epoch 2/10  loss 0.4531  holdout 0.7879  gold 0.7471
+[  234.9s]   epoch 3/10  loss 0.4421  holdout 0.8150  gold 0.7892
+[  305.0s]   epoch 4/10  loss 0.4347  holdout 0.8324  gold 0.8069
+[  376.0s]   epoch 5/10  loss 0.4271  holdout 0.8334  gold 0.8090
+[  453.3s]   epoch 6/10  loss 0.4213  holdout 0.8406  gold 0.8175
+[  535.1s]   epoch 7/10  loss 0.4161  holdout 0.8462  gold 0.8154
+[  614.5s]   epoch 8/10  loss 0.4120  holdout 0.8501  gold 0.8198
+[  695.9s]   epoch 9/10  loss 0.4082  holdout 0.8521  gold 0.8218
+[  778.3s]   epoch 10/10  loss 0.4060  holdout 0.8529  gold 0.8219
+[  778.3s] best epoch 10, holdout AUC 0.8529
+[  778.4s] package written to out/ref/pkg-f2
+[  778.5s] history and predictions written to out/ref/pkg-f2 (including 58 expert-labelled studies)
+{
+ "id": "reference_fold2_336px",
+ "file": "reference_fold2_336px.pt",
+ "config": {
+  "img": 336,
+  "crop_mm": 130.0,
+  "group": 3,
+  "slices": 12,
+  "band": [
+   0.2,
+   0.8
+  ],
+  "slots": [
+   [
+    "SAG_FLUID_FS",
+    "Sagittal",
+    true,
+    true
+   ],
+   [
+    "COR_FLUID_FS",
+    "Coronal",
+    true,
+    true
+   ],
+   [
+    "AX_FLUID_FS",
+    "Axial",
+    true,
+    true
+   ],
+   [
+    "SAG_FLUID_NOFS",
+    "Sagittal",
+    true,
+    false
+   ],
+   [
+    "COR_T1",
+    "Coronal",
+    false,
+    false
+   ],
+   [
+    "SAG_T1",
+    "Sagittal",
+    false,
+    false
+   ]
+  ],
+  "rules": {
+   "order": "normal",
+   "laterality": "centre",
+   "slot_fallback": false,
+   "decode_fill": "nearest"
+  },
+  "encoder": "dinov2",
+  "encoder_variant": "small",
+  "pool": "cls_mean",
+  "prior": false,
+  "weights": "confidence",
+  "weight_floor": 0.25,
+  "stem": "window",
+  "stem_depth": 1,
+  "lat_min_offset_mm": 20.0,
+  "lat_legacy_offset_mm": 5.0,
+  "seed": 2026,
+  "epochs": 10,
+  "batch_studies": 8,
+  "lr_head": 0.001,
+  "lr_backbone": 8e-06,
+  "warmup_frac": 0.15,
+  "unfreeze_last": 6,
+  "weight_decay": 0.02,
+  "eval_batch": 8,
+  "aug_rot_deg": 8.0,
+  "aug_scale": 0.08,
+  "aug_shift": 0.05,
+  "aug_intensity": 0.1,
+  "gold_weight": 3.0,
+  "n_folds": 5
+ },
+ "fold": 2,
+ "holdout": 0.8528915706969071,
+ "epoch": 9
+}
+=== fold 3 — 11:08:10 ===
+[    0.0s] experiment: reference  (stem=window, 3 channels to the encoder, 10 pass(es) per slot at inference)
+[    0.0s] config: 336px, 12 slices, group 3, 6 slots, 10 epochs, batch 8
+[    0.0s] run: split=train_series, fold=3, encoder=models/dinov2-small
+[    0.0s]      labels=data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv
+[    0.0s] device: cuda
+[   62.3s] 24371 series across 4407 studies
+[   63.5s] laterality: 2203 tagged, 2132 from geometry, 72 unresolved, 25 disagree
+[   76.6s] slots: 20130/26442 filled
+[   76.6s] reusing the cache at /data/mgr/rsna-knee/cache-full.npy: (4407, 6, 12, 336, 336)
+[   78.2s] targets: 4407/4407 studies supervised from data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv with confidence weights, floor 0.25
+[   78.2s] gold holdout: 58 expert-labelled studies excluded from training, plus 1 same-report study/studies
+[   78.2s] train 3472 / holdout 876 studies
+Loading weights:   0%|          | 0/223 [00:00<?, ?it/s]Loading weights: 100%|██████████| 223/223 [00:00<00:00, 10106.54it/s]
+[   80.6s] model: 22.3M parameters, 10.9M trainable
+[  133.5s]   epoch 1/10  loss 0.4719  holdout 0.7368  gold 0.7001
+[  194.6s]   epoch 2/10  loss 0.4556  holdout 0.7537  gold 0.7363
+[  266.3s]   epoch 3/10  loss 0.4436  holdout 0.7919  gold 0.7603
+[  341.7s]   epoch 4/10  loss 0.4353  holdout 0.8083  gold 0.8025
+[  419.6s]   epoch 5/10  loss 0.4275  holdout 0.8148  gold 0.7982
+[  497.7s]   epoch 6/10  loss 0.4220  holdout 0.8221  gold 0.8109
+[  576.3s]   epoch 7/10  loss 0.4163  holdout 0.8256  gold 0.8099
+[  650.9s]   epoch 8/10  loss 0.4117  holdout 0.8295  gold 0.8158
+[  729.9s]   epoch 9/10  loss 0.4080  holdout 0.8314  gold 0.8156
+[  804.6s]   epoch 10/10  loss 0.4057  holdout 0.8304  gold 0.8156
+[  804.7s] best epoch 9, holdout AUC 0.8314
+[  804.8s] package written to out/ref/pkg-f3
+[  804.8s] history and predictions written to out/ref/pkg-f3 (including 58 expert-labelled studies)
+{
+ "id": "reference_fold3_336px",
+ "file": "reference_fold3_336px.pt",
+ "config": {
+  "img": 336,
+  "crop_mm": 130.0,
+  "group": 3,
+  "slices": 12,
+  "band": [
+   0.2,
+   0.8
+  ],
+  "slots": [
+   [
+    "SAG_FLUID_FS",
+    "Sagittal",
+    true,
+    true
+   ],
+   [
+    "COR_FLUID_FS",
+    "Coronal",
+    true,
+    true
+   ],
+   [
+    "AX_FLUID_FS",
+    "Axial",
+    true,
+    true
+   ],
+   [
+    "SAG_FLUID_NOFS",
+    "Sagittal",
+    true,
+    false
+   ],
+   [
+    "COR_T1",
+    "Coronal",
+    false,
+    false
+   ],
+   [
+    "SAG_T1",
+    "Sagittal",
+    false,
+    false
+   ]
+  ],
+  "rules": {
+   "order": "normal",
+   "laterality": "centre",
+   "slot_fallback": false,
+   "decode_fill": "nearest"
+  },
+  "encoder": "dinov2",
+  "encoder_variant": "small",
+  "pool": "cls_mean",
+  "prior": false,
+  "weights": "confidence",
+  "weight_floor": 0.25,
+  "stem": "window",
+  "stem_depth": 1,
+  "lat_min_offset_mm": 20.0,
+  "lat_legacy_offset_mm": 5.0,
+  "seed": 2026,
+  "epochs": 10,
+  "batch_studies": 8,
+  "lr_head": 0.001,
+  "lr_backbone": 8e-06,
+  "warmup_frac": 0.15,
+  "unfreeze_last": 6,
+  "weight_decay": 0.02,
+  "eval_batch": 8,
+  "aug_rot_deg": 8.0,
+  "aug_scale": 0.08,
+  "aug_shift": 0.05,
+  "aug_intensity": 0.1,
+  "gold_weight": 3.0,
+  "n_folds": 5
+ },
+ "fold": 3,
+ "holdout": 0.8313575178837342,
+ "epoch": 8
+}
+=== fold 4 — 11:21:38 ===
+[    0.0s] experiment: reference  (stem=window, 3 channels to the encoder, 10 pass(es) per slot at inference)
+[    0.0s] config: 336px, 12 slices, group 3, 6 slots, 10 epochs, batch 8
+[    0.0s] run: split=train_series, fold=4, encoder=models/dinov2-small
+[    0.0s]      labels=data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv
+[    0.0s] device: cuda
+[   49.6s] 24371 series across 4407 studies
+[   50.5s] laterality: 2203 tagged, 2132 from geometry, 72 unresolved, 25 disagree
+[   63.5s] slots: 20130/26442 filled
+[   63.5s] reusing the cache at /data/mgr/rsna-knee/cache-full.npy: (4407, 6, 12, 336, 336)
+[   65.2s] targets: 4407/4407 studies supervised from data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv with confidence weights, floor 0.25
+[   65.2s] gold holdout: 58 expert-labelled studies excluded from training, plus 1 same-report study/studies
+[   65.2s] train 3499 / holdout 849 studies
+Loading weights:   0%|          | 0/223 [00:00<?, ?it/s]Loading weights: 100%|██████████| 223/223 [00:00<00:00, 8112.56it/s]
+[   67.7s] model: 22.3M parameters, 10.9M trainable
+[  123.8s]   epoch 1/10  loss 0.4685  holdout 0.7379  gold 0.7120
+[  189.6s]   epoch 2/10  loss 0.4500  holdout 0.7730  gold 0.7524
+[  266.5s]   epoch 3/10  loss 0.4370  holdout 0.7947  gold 0.7921
+[  343.5s]   epoch 4/10  loss 0.4300  holdout 0.8177  gold 0.8039
+[  414.4s]   epoch 5/10  loss 0.4246  holdout 0.8200  gold 0.8109
+[  486.5s]   epoch 6/10  loss 0.4185  holdout 0.8264  gold 0.8250
+[  561.6s]   epoch 7/10  loss 0.4130  holdout 0.8319  gold 0.8319
+[  634.8s]   epoch 8/10  loss 0.4076  holdout 0.8370  gold 0.8333
+[  707.9s]   epoch 9/10  loss 0.4038  holdout 0.8364  gold 0.8374
+[  779.6s]   epoch 10/10  loss 0.4030  holdout 0.8368  gold 0.8378
+[  779.7s] best epoch 8, holdout AUC 0.8370
+[  779.8s] package written to out/ref/pkg-f4
+[  779.9s] history and predictions written to out/ref/pkg-f4 (including 58 expert-labelled studies)
+{
+ "id": "reference_fold4_336px",
+ "file": "reference_fold4_336px.pt",
+ "config": {
+  "img": 336,
+  "crop_mm": 130.0,
+  "group": 3,
+  "slices": 12,
+  "band": [
+   0.2,
+   0.8
+  ],
+  "slots": [
+   [
+    "SAG_FLUID_FS",
+    "Sagittal",
+    true,
+    true
+   ],
+   [
+    "COR_FLUID_FS",
+    "Coronal",
+    true,
+    true
+   ],
+   [
+    "AX_FLUID_FS",
+    "Axial",
+    true,
+    true
+   ],
+   [
+    "SAG_FLUID_NOFS",
+    "Sagittal",
+    true,
+    false
+   ],
+   [
+    "COR_T1",
+    "Coronal",
+    false,
+    false
+   ],
+   [
+    "SAG_T1",
+    "Sagittal",
+    false,
+    false
+   ]
+  ],
+  "rules": {
+   "order": "normal",
+   "laterality": "centre",
+   "slot_fallback": false,
+   "decode_fill": "nearest"
+  },
+  "encoder": "dinov2",
+  "encoder_variant": "small",
+  "pool": "cls_mean",
+  "prior": false,
+  "weights": "confidence",
+  "weight_floor": 0.25,
+  "stem": "window",
+  "stem_depth": 1,
+  "lat_min_offset_mm": 20.0,
+  "lat_legacy_offset_mm": 5.0,
+  "seed": 2026,
+  "epochs": 10,
+  "batch_studies": 8,
+  "lr_head": 0.001,
+  "lr_backbone": 8e-06,
+  "warmup_frac": 0.15,
+  "unfreeze_last": 6,
+  "weight_decay": 0.02,
+  "eval_batch": 8,
+  "aug_rot_deg": 8.0,
+  "aug_scale": 0.08,
+  "aug_shift": 0.05,
+  "aug_intensity": 0.1,
+  "gold_weight": 3.0,
+  "n_folds": 5
+ },
+ "fold": 4,
+ "holdout": 0.8369527575884367,
+ "epoch": 7
+}
+=== LES 4 FOLDS SONT FINIS — 11:34:43 ===

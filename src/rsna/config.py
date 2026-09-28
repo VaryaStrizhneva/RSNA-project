@@ -58,6 +58,22 @@ SLOTS_PUBLIC: list[Slot] = [
 #: vector per token; a slot feature is a fixed summary of that grid.
 POOL_PARTS = {"cls_mean": 2, "cls_mean_focal": 3}
 
+
+def pool_parts(pool: str, has_class_token: bool = True) -> int:
+    """How many parts `pool` actually produces on a given encoder.
+
+    A convolutional backbone emits no class token, so the ``cls`` part of every scheme
+    named here does not exist on it. Dropping the part is the honest answer — the
+    alternative, reading token 0 as a summary, silently feeds the head a corner of the
+    image. The head's input width follows from this, so a checkpoint cannot be read by
+    an encoder that disagrees.
+    """
+
+    if pool not in POOL_PARTS:
+        raise ValueError(f"unknown pooling {pool!r}; expected one of {sorted(POOL_PARTS)}")
+    return POOL_PARTS[pool] - (0 if has_class_token else 1)
+
+
 #: Which slots a diagnosis is read on, as a fixed tilt on the attention logits rather
 #: than a learned parameter. Indices are into `SLOTS_RECOVERED`. Because it is a
 #: buffer in the state dict, it is part of a member's definition and must be
@@ -152,7 +168,14 @@ class Config:
     #: the head's input dimension follows from the encoder's hidden size.
     #: The public baseline uses DINOv2-small (12 blocks, hidden 384, patch 14), mounted
     #: on Kaggle as `metaresearch/dinov2/PyTorch/small/1`.
+    #:
+    #: The value is a key into `rsna.model.encoders.ENCODERS`, which says how that
+    #: family is loaded and driven. Anything not registered there is refused at build
+    #: rather than guessed at.
     encoder: str = "dinov2"
+    #: Which size within the family. For a `timm`-backed encoder this is the timm model
+    #: name in full (``coatnet_rmlp_1_rw_224``), because that is what identifies a
+    #: checkpoint there; for DINOv2 it is ``small`` or ``base``.
     encoder_variant: str = "small"
     #: How the token grid becomes one vector per slot. See POOL_PARTS.
     pool: str = "cls_mean"
@@ -160,15 +183,6 @@ class Config:
     #: the baseline's own training; some published checkpoints were fitted with it.
     prior: bool = False
 
-    #: How the cached slices become the three channels a pretrained encoder expects.
-    #:
-    #: ``window``   take `group` contiguous slices. Training draws one window at
-    #:              random per step, inference slides across and averages — so the
-    #:              encoder runs once per window, ten times per slot at inference.
-    #: ``compress`` hand all `slices` to a learned 1x1 projection that mixes them
-    #:              into three channels. One encoder pass, and training sees exactly
-    #:              what inference sees. Costs the stack augmentation and the
-    #:              test-time averaging that ``window`` gets for free.
     #: Where a report-derived label's loss weight comes from.
     #:
     #: * ``"uniform"`` — every study weighs 1.0. The comparison the others are measured
@@ -197,6 +211,21 @@ class Config:
     #: package is written — so an experiment never repeats a property of a file, and a
     #: manifest still records the number the run actually used.
     silence: float | None = None
+    #: How the cached slices become the three channels a pretrained encoder expects.
+    #:
+    #: ``window``   take `group` contiguous slices. Training draws one window at
+    #:              random per step, inference slides across and averages — so the
+    #:              encoder runs once per window, ten times per slot at inference.
+    #: ``compress`` hand all `slices` to a learned 1x1 projection that mixes them
+    #:              into three channels. One encoder pass, and training sees exactly
+    #:              what inference sees. Costs the stack augmentation and the
+    #:              test-time averaging that ``window`` gets for free.
+    #: ``none``     no reduction: the encoder takes `window_size` channels itself.
+    #:              Only for a backbone that can be built for a channel count other
+    #:              than three — `timm`'s `in_chans` rebuilds the first convolution,
+    #:              averaging the pretrained RGB filters over the new inputs. Windowing
+    #:              is unchanged, so this is ``window`` without the three-channel
+    #:              bottleneck.
     stem: str = "window"
     #: Gated residual blocks before the projection, for ``stem="compress"``.
     stem_depth: int = 1
@@ -256,6 +285,17 @@ class Config:
         """How many slices the encoder's stem consumes at once."""
 
         return self.slices if self.stem == "compress" else self.group
+
+    @property
+    def encoder_channels(self) -> int:
+        """How many channels reach the backbone itself.
+
+        Three for anything pretrained on RGB, which is what the stem exists to produce.
+        ``stem = "none"`` is the case where nothing needs reconciling: the backbone is
+        built for the window directly.
+        """
+
+        return self.window_size if self.stem == "none" else 3
 
     def windows(self, overlap: bool = True, limit: int | None = None) -> list[int]:
         """Start index of each window of `group` slices over the cached `slices`.

@@ -1,0 +1,194 @@
+{
+ "experiment": "compress_30epochs_v4blend_goldin",
+ "fold": 3,
+ "split": "train_series",
+ "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+ "best_epoch": 12,
+ "best_holdout_auc": 0.8084299624573347,
+ "inference_windows": 1,
+ "selection_windows": 1,
+ "final_holdout_auc": 0.8084299624573347,
+ "final_gold_auc": null,
+ "epochs": [
+  {
+   "epoch": 0,
+   "loss": 0.4660110202702609,
+   "holdout_auc": 0.6988844551848756,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 1,
+   "loss": 0.43238006979227067,
+   "holdout_auc": 0.7344838469287281,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 2,
+   "loss": 0.41618035903031175,
+   "holdout_auc": 0.7624760693135219,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 3,
+   "loss": 0.4031034550883553,
+   "holdout_auc": 0.7766956337243601,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 4,
+   "loss": 0.387349466166713,
+   "holdout_auc": 0.7833695723808529,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 5,
+   "loss": 0.3726900650357658,
+   "holdout_auc": 0.7888679435924971,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 6,
+   "loss": 0.35955324802886357,
+   "holdout_auc": 0.7943318657893356,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 7,
+   "loss": 0.3462392608550462,
+   "holdout_auc": 0.7966775897530177,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 8,
+   "loss": 0.33388310762291606,
+   "holdout_auc": 0.8041327877732409,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 9,
+   "loss": 0.31592532894150777,
+   "holdout_auc": 0.7993636952609204,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 10,
+   "loss": 0.30124107927761296,
+   "holdout_auc": 0.8022363668328422,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 11,
+   "loss": 0.2876943731511181,
+   "holdout_auc": 0.8052233267371717,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 12,
+   "loss": 0.27086263041604647,
+   "holdout_auc": 0.8084299624573347,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 13,
+   "loss": 0.25770967551930385,
+   "holdout_auc": 0.8009346886700809,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 14,
+   "loss": 0.24570489041507243,
+   "holdout_auc": 0.8002099487018407,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 15,
+   "loss": 0.23263762525536796,
+   "holdout_auc": 0.8006825169728731,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 16,
+   "loss": 0.2210778334262696,
+   "holdout_auc": 0.8040991384206629,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 17,
+   "loss": 0.21134576560421423,
+   "holdout_auc": 0.7976322809313757,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 18,
+   "loss": 0.20463593629273502,
+   "holdout_auc": 0.7935403770255139,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 19,
+   "loss": 0.19872264926406472,
+   "holdout_auc": 0.7956331733118419,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 20,
+   "loss": 0.19340229674496434,
+   "holdout_auc": 0.7963287372342985,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 21,
+   "loss": 0.18897533443841066,
+   "holdout_auc": 0.7961212241502064,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 22,
+   "loss": 0.18591987514360384,
+   "holdout_auc": 0.7948027661481339,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 23,
+   "loss": 0.18337939892980185,
+   "holdout_auc": 0.7964102495366926,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 24,
+   "loss": 0.1811799517409368,
+   "holdout_auc": 0.7940229925286143,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 25,
+   "loss": 0.18030892353166234,
+   "holdout_auc": 0.7963072918754802,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 26,
+   "loss": 0.17860145761885426,
+   "holdout_auc": 0.7955314774353696,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 27,
+   "loss": 0.17778019241311332,
+   "holdout_auc": 0.7953513624911318,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 28,
+   "loss": 0.17719881978224625,
+   "holdout_auc": 0.7954068606669523,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 29,
+   "loss": 0.1771418665281751,
+   "holdout_auc": 0.7953834059951969,
+   "annotation_auc": null
+  }
+ ]
+}

@@ -1,0 +1,135 @@
+[    0.0s] experiment: labels_blend_rank_50_50_uniform  (stem=window, 3 channels to the encoder, 10 pass(es) per slot at inference)
+[    0.0s] config: 336px, 12 slices, group 3, 6 slots, 30 epochs, batch 8
+[    0.0s] run: split=train_series, fold=0, encoder=models/dinov2-small
+[    0.0s]      labels=data/processed/labels/pilkwang_steven_rank_50_50.csv
+[    0.0s] device: cuda
+[   45.6s] 24371 series across 4407 studies
+[   46.7s] laterality: 2203 tagged, 2132 from geometry, 72 unresolved, 25 disagree
+[   58.6s] slots: 20130/26442 filled
+[   58.6s] reusing the cache at /data/mgr/rsna-knee/cache-full.npy: (4407, 6, 12, 336, 336)
+[   59.3s] targets: 4407/4407 studies supervised from data/processed/labels/pilkwang_steven_rank_50_50.csv uniformly weighted
+[   59.3s] gold holdout: 58 expert-labelled studies excluded from training, plus 1 same-report study/studies
+[   59.3s] train 3478 / holdout 870 studies
+Loading weights:   0%|          | 0/223 [00:00<?, ?it/s]Loading weights: 100%|██████████| 223/223 [00:00<00:00, 8357.20it/s]
+[   61.8s] model: 22.3M parameters, 10.9M trainable
+[  114.5s]   epoch 1/30  loss 0.6874  holdout 0.6981  gold 0.6860
+[  168.6s]   epoch 2/30  loss 0.6727  holdout 0.7465  gold 0.7096
+[  230.2s]   epoch 3/30  loss 0.6681  holdout 0.7686  gold 0.7397
+[  307.3s]   epoch 4/30  loss 0.6618  holdout 0.7767  gold 0.7738
+[  387.4s]   epoch 5/30  loss 0.6567  holdout 0.7982  gold 0.7968
+[  470.4s]   epoch 6/30  loss 0.6521  holdout 0.8018  gold 0.7968
+[  552.2s]   epoch 7/30  loss 0.6503  holdout 0.8108  gold 0.8046
+[  634.9s]   epoch 8/30  loss 0.6466  holdout 0.8139  gold 0.8102
+[  716.8s]   epoch 9/30  loss 0.6440  holdout 0.8057  gold 0.7945
+[  798.2s]   epoch 10/30  loss 0.6418  holdout 0.8232  gold 0.8096
+[  881.4s]   epoch 11/30  loss 0.6391  holdout 0.8236  gold 0.8104
+[  963.6s]   epoch 12/30  loss 0.6370  holdout 0.8262  gold 0.8213
+[ 1044.1s]   epoch 13/30  loss 0.6337  holdout 0.8282  gold 0.8277
+[ 1126.2s]   epoch 14/30  loss 0.6324  holdout 0.8268  gold 0.8158
+[ 1208.9s]   epoch 15/30  loss 0.6299  holdout 0.8330  gold 0.8220
+[ 1295.0s]   epoch 16/30  loss 0.6275  holdout 0.8310  gold 0.8309
+[ 1410.5s]   epoch 17/30  loss 0.6252  holdout 0.8335  gold 0.8255
+[ 1672.9s]   epoch 18/30  loss 0.6227  holdout 0.8317  gold 0.8375
+[ 1907.0s]   epoch 19/30  loss 0.6203  holdout 0.8362  gold 0.8374
+[ 2098.9s]   epoch 20/30  loss 0.6188  holdout 0.8329  gold 0.8407
+[ 2293.9s]   epoch 21/30  loss 0.6158  holdout 0.8365  gold 0.8296
+[ 2516.3s]   epoch 22/30  loss 0.6138  holdout 0.8346  gold 0.8350
+[ 2746.7s]   epoch 23/30  loss 0.6126  holdout 0.8368  gold 0.8394
+[ 2978.8s]   epoch 24/30  loss 0.6112  holdout 0.8367  gold 0.8406
+[ 3211.8s]   epoch 25/30  loss 0.6095  holdout 0.8379  gold 0.8405
+[ 3432.1s]   epoch 26/30  loss 0.6088  holdout 0.8374  gold 0.8380
+[ 3645.3s]   epoch 27/30  loss 0.6076  holdout 0.8371  gold 0.8389
+[ 3843.9s]   epoch 28/30  loss 0.6072  holdout 0.8371  gold 0.8404
+[ 4081.9s]   epoch 29/30  loss 0.6068  holdout 0.8375  gold 0.8394
+[ 4284.5s]   epoch 30/30  loss 0.6070  holdout 0.8375  gold 0.8400
+[ 4284.6s] best epoch 25, holdout AUC 0.8379
+[ 4320.2s] final pass over 10 sliding window(s), selection read 4: holdout 0.8401, gold 0.8449  (selection saw holdout 0.8379)
+[ 4320.3s] package written to out/labels_blend_rank_50_50_uniform/pkg-f0
+[ 4320.3s] history and predictions written to out/labels_blend_rank_50_50_uniform/pkg-f0 (including 58 expert-labelled studies)
+{
+ "id": "labels_blend_rank_50_50_uniform_fold0_336px",
+ "file": "labels_blend_rank_50_50_uniform_fold0_336px.pt",
+ "config": {
+  "img": 336,
+  "crop_mm": 130.0,
+  "group": 3,
+  "slices": 12,
+  "band": [
+   0.2,
+   0.8
+  ],
+  "slots": [
+   [
+    "SAG_FLUID_FS",
+    "Sagittal",
+    true,
+    true
+   ],
+   [
+    "COR_FLUID_FS",
+    "Coronal",
+    true,
+    true
+   ],
+   [
+    "AX_FLUID_FS",
+    "Axial",
+    true,
+    true
+   ],
+   [
+    "SAG_FLUID_NOFS",
+    "Sagittal",
+    true,
+    false
+   ],
+   [
+    "COR_T1",
+    "Coronal",
+    false,
+    false
+   ],
+   [
+    "SAG_T1",
+    "Sagittal",
+    false,
+    false
+   ]
+  ],
+  "rules": {
+   "order": "normal",
+   "laterality": "centre",
+   "slot_fallback": false,
+   "decode_fill": "nearest"
+  },
+  "encoder": "dinov2",
+  "encoder_variant": "small",
+  "pool": "cls_mean",
+  "prior": false,
+  "weights": "uniform",
+  "weight_floor": 0.25,
+  "silence": null,
+  "stem": "window",
+  "stem_depth": 1,
+  "lat_min_offset_mm": 20.0,
+  "lat_legacy_offset_mm": 5.0,
+  "seed": 2026,
+  "epochs": 30,
+  "batch_studies": 8,
+  "lr_head": 0.001,
+  "lr_backbone": 8e-06,
+  "warmup_frac": 0.15,
+  "unfreeze_last": 6,
+  "weight_decay": 0.02,
+  "eval_batch": 8,
+  "aug_rot_deg": 8.0,
+  "aug_scale": 0.08,
+  "aug_shift": 0.05,
+  "aug_intensity": 0.1,
+  "gold_weight": 3.0,
+  "n_folds": 5
+ },
+ "fold": 0,
+ "holdout": 0.8378702191166045,
+ "epoch": 24
+}

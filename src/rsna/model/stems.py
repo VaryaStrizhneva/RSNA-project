@@ -83,10 +83,16 @@ class DepthCompress(nn.Module):
 
 
 def build_stem(config) -> nn.Module | None:
-    """The stem `config.stem` asks for, or None when the encoder is fed raw slices."""
+    """The stem `config.stem` asks for, or None when the encoder is fed raw slices.
 
-    if config.stem == "window":
+    ``window`` and ``none`` both return None — they differ in how many channels reach
+    the backbone, which is `config.encoder_channels`, not in anything that happens
+    here. The model normalises those channels itself.
+    """
+
+    if config.stem in ("window", "none"):
         return None
     if config.stem == "compress":
         return DepthCompress(config.slices, 3, depth=config.stem_depth)
-    raise ValueError(f"unknown stem {config.stem!r}; expected 'window' or 'compress'")
+    raise ValueError(
+        f"unknown stem {config.stem!r}; expected 'window', 'compress' or 'none'")

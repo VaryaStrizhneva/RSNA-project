@@ -20,5 +20,13 @@ ftfy
 kaggle
 scipy
 torch
-# Loads the encoder checkpoint in `model/network.py`.
+# Loads the DINOv2 checkpoint, through `model/encoders.py`.
 transformers
+# Loads everything that is not a bare `AutoModel` — CoAtNet, DINOv3, ConvNeXt.
+# timm pulls torchvision, and torchvision must come from the *same* build as torch or
+# it imports against a different ABI and dies on `operator torchvision::nms does not
+# exist`. PyPI's default wheel is built against PyPI's torch; this machine's torch is
+# +cu126 from the PyTorch index, so torchvision has to be too:
+#   pip install --index-url https://download.pytorch.org/whl/cu126 \
+#       --no-deps "torchvision==<matching version>+cu126"
+timm

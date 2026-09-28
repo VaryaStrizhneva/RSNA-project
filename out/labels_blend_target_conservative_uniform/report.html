@@ -1,0 +1,170 @@
+<title>labels_blend_target_conservative_uniform — evaluation</title>
+<style>
+/* Dark by design, not by preference: this page is read beside a terminal. Every
+   colour a chart uses is declared here and referenced from the SVG, so the palette
+   exists once rather than in two files that drift apart. */
+:root{
+ --bg:#12151c; --panel:#181d26; --line:#29303d; --raise:#1f2632;
+ --ink:#e9ebf1; --dim:#9aa4b8; --faint:#697285;
+ --accent:#6aa8ff; --danger:#ff7d74; --warn:#ffb454; --ok:#5fd6a0;
+ --f0:#6aa8ff; --f1:#ffb454; --f2:#5fd6a0; --f3:#ff7d74; --f4:#c69bff;
+ --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+ text-rendering:optimizeLegibility;
+ font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:56px 24px 96px}
+
+h1{font-size:27px;letter-spacing:-.015em;margin:0 0 6px;font-weight:650}
+h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--faint);
+ margin:54px 0 18px;font-weight:700}
+.sub{color:var(--dim);font-size:13.5px;margin-bottom:32px}
+.sub b{color:var(--ink);font-weight:500}
+
+.head{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+ gap:14px;margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+ padding:18px 20px}
+.card .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;
+ color:var(--faint);font-weight:700}
+.card .v{font-size:31px;font-family:var(--mono);font-variant-numeric:tabular-nums;
+ margin-top:7px;letter-spacing:-.03em;line-height:1.1}
+.card .n{font-size:12.5px;color:var(--dim);margin-top:5px}
+
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+ padding:16px 18px}
+
+/* ---- charts: inline SVG, crisp at any width and any pixel density ---- */
+svg.chart{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font-family:inherit;fill:var(--dim)}
+.chart .ct{fill:var(--ink);font-size:11.5px;font-weight:600}
+.chart .tk{font-size:10px;font-variant-numeric:tabular-nums}
+.chart .fl{font-size:10px;font-weight:600;fill:var(--dim);font-family:var(--mono)}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{stroke:var(--line);stroke-width:1}
+.chart .chance{stroke:var(--faint);stroke-width:1;stroke-dasharray:3 3}
+.chart .pooled{stroke:var(--accent);stroke-width:2}
+.chart .band{fill:var(--accent);opacity:.14}
+.chart .ln{fill:none;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.chart .dot{stroke:var(--bg);stroke-width:1.5}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+ gap:20px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:12px;
+ color:var(--dim)}
+.key{display:inline-flex;align-items:center;gap:6px}
+.key i{width:12px;height:3px;border-radius:2px;display:inline-block}
+.key i.ring{width:9px;height:9px;border-radius:50%;background:var(--dim)}
+
+/* ---- the per-target table, with the bar living inside it ---- */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;
+ background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:620px}
+th,td{padding:9px 14px;text-align:right;border-bottom:1px solid var(--line);
+ font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;font-family:inherit}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);
+ font-weight:700;background:var(--raise)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--raise)}
+tr.thin td{color:var(--dim)}
+td.neg{color:var(--danger)}
+td.pos{color:var(--dim)}
+td.flat{color:var(--warn)}
+td.bar{width:42%;padding:9px 16px}
+
+.track{position:relative;height:16px;background:#171c25;border-radius:4px}
+.track .fill{position:absolute;left:0;top:0;height:100%;border-radius:4px;display:block}
+.fill.good{background:linear-gradient(90deg,#3d76c4,var(--accent))}
+.fill.thin{background:#4d586e}
+.fill.flat{background:#5a5060}
+.fill.bad{background:linear-gradient(90deg,#a94f48,var(--danger))}
+.track .span{position:absolute;top:0;height:100%;border-radius:4px;
+ background:var(--line);border:1px solid #38414f}
+.track .chance-mark{position:absolute;top:-3px;width:1px;height:22px;
+ background:var(--faint)}
+.track .none{font-size:11px;color:var(--faint);font-family:var(--mono)}
+
+.flag{display:flex;gap:13px;align-items:baseline;background:var(--panel);
+ border:1px solid var(--line);border-left:3px solid;padding:13px 16px;margin:9px 0;
+ border-radius:0 10px 10px 0;font-size:14px;line-height:1.55}
+.error{border-left-color:var(--danger)}
+.warn{border-left-color:var(--warn)}
+.info{border-left-color:var(--accent)}
+.tag{flex:0 0 auto;font-size:9.5px;text-transform:uppercase;letter-spacing:.11em;
+ font-weight:700;font-family:var(--mono);padding-top:2px}
+.error .tag{color:var(--danger)}
+.warn .tag{color:var(--warn)}
+.info .tag{color:var(--accent)}
+
+.note{color:var(--dim);font-size:13px;margin-top:12px}
+.d{color:var(--dim);font-size:12.5px}
+code{background:var(--raise);border:1px solid var(--line);padding:1px 6px;
+ border-radius:5px;font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+</style>
+<main>
+<h1>labels_blend_target_conservative_uniform</h1>
+<div class="sub"><b>1 folds</b> &middot;
+ <b>30 epochs</b> &middot;
+ split <code>train_series</code> &middot;
+ labels <code>pilkwang_steven_target_conservative.csv</code><br>
+ generated 2026-09-23T00:17:22+00:00</div>
+
+<div class="head"><div class="card"><div class="k">out-of-fold macro AUC</div><div class="v">0.8399</div><div class="n">95% interval 0.830 – 0.850</div></div><div class="card"><div class="k">spread across folds</div><div class="v">± nan</div><div class="n">mean 0.838 over 1 folds</div></div><div class="card"><div class="k">studies judged</div><div class="v">870</div><div class="n">each predicted once, unseen</div></div></div>
+<div class="box"><svg class="chart" viewBox="0 0 720 96" role="img" aria-label="fold spread"><rect class="band" x="534.8" y="40.0" width="19.1" height="52" rx="4"/><line class="axis" x1="34" y1="66" x2="696" y2="66"/><line class="chance" x1="223.1" y1="36.0" x2="223.1" y2="72.0"/><line class="pooled" x1="544.6" y1="34.0" x2="544.6" y2="72.0"/><text class="tk" x="34.0" y="86.0" text-anchor="middle">0.3</text><text class="tk" x="128.6" y="86.0" text-anchor="middle">0.4</text><text class="tk" x="223.1" y="86.0" text-anchor="middle">0.5</text><text class="tk" x="317.7" y="86.0" text-anchor="middle">0.6</text><text class="tk" x="412.3" y="86.0" text-anchor="middle">0.7</text><text class="tk" x="506.9" y="86.0" text-anchor="middle">0.8</text><text class="tk" x="601.4" y="86.0" text-anchor="middle">0.9</text><circle class="dot" cx="542.9" cy="57.0" r="5.5" fill="var(--f0)"/><text class="fl" x="551.9" y="60.5">f0</text></svg></div>
+
+<h2>Per pathology</h2>
+<div class="scroll"><table>
+<thead><tr><th>target</th><th>pos.</th><th></th><th>AUC</th>
+<th>95% interval</th></tr></thead>
+<tbody><tr class=""><td>Medial OA</td><td>495</td><td class="bar"><div class="track"><i class="span" style="left:82.15%;width:5.95%"></i><i class="fill good" style="width:85.13%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.896</td><td class="pos">0.875 – 0.917</td></tr><tr class=""><td>Synovitis</td><td>414</td><td class="bar"><div class="track"><i class="span" style="left:80.46%;width:6.56%"></i><i class="fill good" style="width:83.74%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.886</td><td class="pos">0.863 – 0.909</td></tr><tr class=""><td>Lateral OA</td><td>453</td><td class="bar"><div class="track"><i class="span" style="left:78.93%;width:6.65%"></i><i class="fill good" style="width:82.26%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.876</td><td class="pos">0.853 – 0.899</td></tr><tr class=""><td>Effusion</td><td>506</td><td class="bar"><div class="track"><i class="span" style="left:75.66%;width:7.02%"></i><i class="fill good" style="width:79.17%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.854</td><td class="pos">0.830 – 0.879</td></tr><tr class=""><td>Contusion</td><td>462</td><td class="bar"><div class="track"><i class="span" style="left:75.28%;width:7.20%"></i><i class="fill good" style="width:78.88%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.852</td><td class="pos">0.827 – 0.877</td></tr><tr class=""><td>Medial Meniscus</td><td>446</td><td class="bar"><div class="track"><i class="span" style="left:74.54%;width:7.38%"></i><i class="fill good" style="width:78.22%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.848</td><td class="pos">0.822 – 0.873</td></tr><tr class=""><td>ACL</td><td>300</td><td class="bar"><div class="track"><i class="span" style="left:73.32%;width:8.56%"></i><i class="fill good" style="width:77.59%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.843</td><td class="pos">0.813 – 0.873</td></tr><tr class=""><td>Baker&#x27;s</td><td>624</td><td class="bar"><div class="track"><i class="span" style="left:73.42%;width:7.39%"></i><i class="fill good" style="width:77.11%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.840</td><td class="pos">0.814 – 0.866</td></tr><tr class=""><td>Lateral Meniscus</td><td>305</td><td class="bar"><div class="track"><i class="span" style="left:72.12%;width:8.68%"></i><i class="fill good" style="width:76.46%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.835</td><td class="pos">0.805 – 0.866</td></tr><tr class=""><td>MCL</td><td>258</td><td class="bar"><div class="track"><i class="span" style="left:69.55%;width:9.61%"></i><i class="fill good" style="width:74.35%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.820</td><td class="pos">0.787 – 0.854</td></tr><tr class=""><td>PF OA</td><td>417</td><td class="bar"><div class="track"><i class="span" style="left:66.34%;width:8.59%"></i><i class="fill good" style="width:70.64%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.794</td><td class="pos">0.764 – 0.825</td></tr><tr class=""><td>Fracture</td><td>564</td><td class="bar"><div class="track"><i class="span" style="left:57.25%;width:9.39%"></i><i class="fill good" style="width:61.95%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.734</td><td class="pos">0.701 – 0.767</td></tr></tbody>
+</table></div>
+<p class="note">The pale span behind each bar is where the true value plausibly sits (Hanley–McNeil, 95%). A span crossing the chance mark means the run measured nothing on that target, whichever side of it the bar ends. The label table's own per-target AUC is not shown: it is a property of the labels rather than of a run, and it lives in <code>docs/data.md</code>.</p>
+
+<h2>Against the expert labels</h2>
+<div class="head">
+<div class="card"><div class="k">expert-label macro AUC</div>
+<div class="v">0.8398</div>
+<div class="n">95% interval 0.804 – 0.873</div></div>
+<div class="card"><div class="k">studies</div>
+<div class="v">58</div>
+<div class="n">held out of all 1 folds, then averaged</div></div>
+</div>
+<div class="scroll"><table>
+<thead><tr><th>target</th><th>pos.</th><th></th><th>AUC</th>
+<th>95% interval</th></tr></thead>
+<tbody><tr class=""><td>Effusion</td><td>35</td><td class="bar"><div class="track"><i class="span" style="left:87.64%;width:12.36%"></i><i class="fill good" style="width:94.50%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.961</td><td class="pos">0.913 – 1.000</td></tr><tr class=""><td>Baker&#x27;s</td><td>12</td><td class="bar"><div class="track"><i class="span" style="left:80.09%;width:19.91%"></i><i class="fill good" style="width:92.75%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.949</td><td class="pos">0.861 – 1.000</td></tr><tr class=""><td>Medial OA</td><td>15</td><td class="bar"><div class="track"><i class="span" style="left:77.53%;width:22.47%"></i><i class="fill good" style="width:90.48%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.933</td><td class="pos">0.843 – 1.000</td></tr><tr class=""><td>ACL</td><td>24</td><td class="bar"><div class="track"><i class="span" style="left:67.55%;width:28.48%"></i><i class="fill good" style="width:81.79%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.873</td><td class="pos">0.773 – 0.972</td></tr><tr class=""><td>Fracture</td><td>18</td><td class="bar"><div class="track"><i class="span" style="left:59.60%;width:35.16%"></i><i class="fill good" style="width:77.18%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.840</td><td class="pos">0.717 – 0.963</td></tr><tr class=""><td>Medial Meniscus</td><td>26</td><td class="bar"><div class="track"><i class="span" style="left:61.38%;width:30.89%"></i><i class="fill good" style="width:76.82%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.838</td><td class="pos">0.730 – 0.946</td></tr><tr class=""><td>Contusion</td><td>19</td><td class="bar"><div class="track"><i class="span" style="left:57.57%;width:35.51%"></i><i class="fill good" style="width:75.32%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.827</td><td class="pos">0.703 – 0.952</td></tr><tr class=""><td>PF OA</td><td>21</td><td class="bar"><div class="track"><i class="span" style="left:57.35%;width:34.56%"></i><i class="fill good" style="width:74.63%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.822</td><td class="pos">0.701 – 0.943</td></tr><tr class=""><td>MCL</td><td>9</td><td class="bar"><div class="track"><i class="span" style="left:45.99%;width:51.65%"></i><i class="fill good" style="width:71.82%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.803</td><td class="pos">0.622 – 0.984</td></tr><tr class=""><td>Synovitis</td><td>27</td><td class="bar"><div class="track"><i class="span" style="left:51.20%;width:34.79%"></i><i class="fill good" style="width:68.60%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.780</td><td class="pos">0.658 – 0.902</td></tr><tr class=""><td>Lateral OA</td><td>11</td><td class="bar"><div class="track"><i class="span" style="left:36.65%;width:51.55%"></i><i class="fill good" style="width:62.42%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.737</td><td class="pos">0.557 – 0.917</td></tr><tr class=""><td>Lateral Meniscus</td><td>23</td><td class="bar"><div class="track"><i class="span" style="left:39.01%;width:39.98%"></i><i class="fill good" style="width:59.01%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.713</td><td class="pos">0.573 – 0.853</td></tr></tbody>
+</table></div>
+<p class="note">This is the only number here measured against a radiologist reading
+the <em>images</em> rather than a language model reading the reports — and the only one
+that is not capped by the label table's own 0.867. It is also the noisiest: 58
+studies, some targets with nine positives. It ranks; it does not separate.</p>
+
+<h2>Under the inference it will run</h2>
+<div class="head">
+<div class="card"><div class="k">windows per slot</div>
+<div class="v">10</div>
+<div class="n">sliding, as <code>rsna.infer</code> runs them</div></div>
+</div>
+<div class="scroll"><table>
+<thead><tr><th></th><th colspan=3>holdout</th><th colspan=3>expert</th></tr>
+<tr><th></th><th>4 disjoint</th><th>10 sliding</th><th></th>
+<th>4 disjoint</th><th>10 sliding</th><th></th></tr></thead>
+<tbody><tr><td>fold 0</td><td>0.8381</td><td>0.8399</td><td><span class="d">+0.0018</span></td><td>0.8334</td><td>0.8398</td><td><span class="d">+0.0063</span></td></tr></tbody>
+</table></div>
+
+<p class="note">The first column of each pair is what the run measured while it was
+training, once an epoch, to decide which epoch to keep: disjoint windows, fewer encoder
+passes, cheap enough to afford thirty times. The second is that chosen model measured
+again the way it will be used — sliding windows, averaged — which is the only one that
+answers what it is worth. <strong>Every other number in this report is the second
+column.</strong> The gap between them is small and steady on the holdout, and erratic
+on the expert studies, which is what 58 studies buy you.</p>
+
+<h2>Training</h2>
+<div class="box"><div class="panels"><svg class="chart" viewBox="0 0 520 250" role="img" aria-label="training loss"><text class="ct" x="44" y="16">training loss</text><line class="grid" x1="44" y1="209.9" x2="510" y2="209.9"/><text class="tk" x="37" y="213.4" text-anchor="end">0.6</text><line class="grid" x1="44" y1="163.1" x2="510" y2="163.1"/><text class="tk" x="37" y="166.6" text-anchor="end">0.625</text><line class="grid" x1="44" y1="116.3" x2="510" y2="116.3"/><text class="tk" x="37" y="119.8" text-anchor="end">0.65</text><line class="grid" x1="44" y1="69.4" x2="510" y2="69.4"/><text class="tk" x="37" y="72.9" text-anchor="end">0.675</text><text class="tk" x="108.3" y="236.0" text-anchor="middle">5</text><text class="tk" x="188.6" y="236.0" text-anchor="middle">10</text><text class="tk" x="269.0" y="236.0" text-anchor="middle">15</text><text class="tk" x="349.3" y="236.0" text-anchor="middle">20</text><text class="tk" x="429.7" y="236.0" text-anchor="middle">25</text><text class="tk" x="510.0" y="236.0" text-anchor="middle">30</text><text class="tk" x="277" y="246" text-anchor="middle">epoch</text><polyline class="ln" points="44.0,46.6 60.1,76.6 76.1,84.2 92.2,96.4 108.3,105.8 124.3,115.1 140.4,118.5 156.5,125.4 172.6,130.3 188.6,134.5 204.7,139.8 220.8,144.3 236.8,150.0 252.9,153.6 269.0,158.4 285.0,161.7 301.1,166.9 317.2,172.5 333.2,175.5 349.3,179.1 365.4,184.0 381.4,187.8 397.5,190.8 413.6,194.2 429.7,195.6 445.7,197.7 461.8,199.0 477.9,200.4 493.9,201.4 510.0,201.2" stroke="var(--f0)"/></svg><svg class="chart" viewBox="0 0 520 250" role="img" aria-label="holdout macro AUC"><text class="ct" x="44" y="16">holdout macro AUC</text><line class="grid" x1="44" y1="211.1" x2="510" y2="211.1"/><text class="tk" x="37" y="214.6" text-anchor="end">0.5</text><line class="grid" x1="44" y1="159.6" x2="510" y2="159.6"/><text class="tk" x="37" y="163.1" text-anchor="end">0.6</text><line class="grid" x1="44" y1="108.1" x2="510" y2="108.1"/><text class="tk" x="37" y="111.6" text-anchor="end">0.7</text><line class="grid" x1="44" y1="56.5" x2="510" y2="56.5"/><text class="tk" x="37" y="60.0" text-anchor="end">0.8</text><text class="tk" x="108.3" y="236.0" text-anchor="middle">5</text><text class="tk" x="188.6" y="236.0" text-anchor="middle">10</text><text class="tk" x="269.0" y="236.0" text-anchor="middle">15</text><text class="tk" x="349.3" y="236.0" text-anchor="middle">20</text><text class="tk" x="429.7" y="236.0" text-anchor="middle">25</text><text class="tk" x="510.0" y="236.0" text-anchor="middle">30</text><text class="tk" x="277" y="246" text-anchor="middle">epoch</text><line class="chance" x1="44" y1="211.1" x2="510" y2="211.1"/><polyline class="ln" points="44.0,111.2 60.1,85.6 76.1,76.8 92.2,64.8 108.3,65.6 124.3,54.5 140.4,51.5 156.5,50.1 172.6,54.7 188.6,47.0 204.7,47.7 220.8,45.1 236.8,43.2 252.9,43.9 269.0,41.0 285.0,42.9 301.1,40.5 317.2,40.0 333.2,38.8 349.3,39.8 365.4,38.5 381.4,37.6 397.5,37.5 413.6,37.8 429.7,37.1 445.7,36.9 461.8,37.2 477.9,37.1 493.9,37.1 510.0,37.1" stroke="var(--f0)"/><circle class="dot" cx="445.7" cy="36.9" r="4" fill="var(--f0)"/></svg><svg class="chart" viewBox="0 0 520 250" role="img" aria-label="expert-label macro AUC"><text class="ct" x="44" y="16">expert-label macro AUC</text><line class="grid" x1="44" y1="210.8" x2="510" y2="210.8"/><text class="tk" x="37" y="214.3" text-anchor="end">0.5</text><line class="grid" x1="44" y1="159.0" x2="510" y2="159.0"/><text class="tk" x="37" y="162.5" text-anchor="end">0.6</text><line class="grid" x1="44" y1="107.2" x2="510" y2="107.2"/><text class="tk" x="37" y="110.7" text-anchor="end">0.7</text><line class="grid" x1="44" y1="55.3" x2="510" y2="55.3"/><text class="tk" x="37" y="58.8" text-anchor="end">0.8</text><text class="tk" x="108.3" y="236.0" text-anchor="middle">5</text><text class="tk" x="188.6" y="236.0" text-anchor="middle">10</text><text class="tk" x="269.0" y="236.0" text-anchor="middle">15</text><text class="tk" x="349.3" y="236.0" text-anchor="middle">20</text><text class="tk" x="429.7" y="236.0" text-anchor="middle">25</text><text class="tk" x="510.0" y="236.0" text-anchor="middle">30</text><text class="tk" x="277" y="246" text-anchor="middle">epoch</text><line class="chance" x1="44" y1="210.8" x2="510" y2="210.8"/><polyline class="ln" points="44.0,113.4 60.1,98.9 76.1,86.7 92.2,76.6 108.3,54.8 124.3,55.1 140.4,57.1 156.5,50.2 172.6,59.9 188.6,48.4 204.7,47.6 220.8,51.2 236.8,46.4 252.9,50.5 269.0,45.6 285.0,42.8 301.1,44.1 317.2,42.6 333.2,41.3 349.3,40.8 365.4,41.7 381.4,39.8 397.5,39.1 413.6,38.4 429.7,38.0 445.7,38.0 461.8,38.6 477.9,37.4 493.9,37.2 510.0,37.2" stroke="var(--f0)"/></svg></div><div class="legend"><span class="key"><i style="background:var(--f0)"></i>fold 0</span><span class="key"><i class="ring"></i>epoch kept</span></div></div>
+
+<h2>What does not look right</h2>
+<p class="note">Nothing tripped a check.</p>
+</main>

@@ -1,0 +1,73 @@
+{
+ "experiment": "reference",
+ "fold": 1,
+ "split": "train_series",
+ "labels": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
+ "best_epoch": 9,
+ "best_holdout_auc": 0.8152905104835146,
+ "epochs": [
+  {
+   "epoch": 0,
+   "loss": 0.4709807830778035,
+   "holdout_auc": 0.7106962703101942,
+   "annotation_auc": 0.7233727132833901
+  },
+  {
+   "epoch": 1,
+   "loss": 0.4527387860823761,
+   "holdout_auc": 0.7535018165110672,
+   "annotation_auc": 0.7461119564090101
+  },
+  {
+   "epoch": 2,
+   "loss": 0.4412982540374452,
+   "holdout_auc": 0.7690040096407587,
+   "annotation_auc": 0.7887275045649852
+  },
+  {
+   "epoch": 3,
+   "loss": 0.4328382112085819,
+   "holdout_auc": 0.7856371785982489,
+   "annotation_auc": 0.7856379347584812
+  },
+  {
+   "epoch": 4,
+   "loss": 0.42623595188964497,
+   "holdout_auc": 0.7976356286824288,
+   "annotation_auc": 0.8054059268875227
+  },
+  {
+   "epoch": 5,
+   "loss": 0.42043314840305934,
+   "holdout_auc": 0.802102350756919,
+   "annotation_auc": 0.8052520407020164
+  },
+  {
+   "epoch": 6,
+   "loss": 0.41366574493321506,
+   "holdout_auc": 0.8090366544833124,
+   "annotation_auc": 0.8154167077617359
+  },
+  {
+   "epoch": 7,
+   "loss": 0.40985881449146705,
+   "holdout_auc": 0.8131614896408266,
+   "annotation_auc": 0.8251618791956102
+  },
+  {
+   "epoch": 8,
+   "loss": 0.406499145179987,
+   "holdout_auc": 0.8148386009213348,
+   "annotation_auc": 0.8198381440395126
+  },
+  {
+   "epoch": 9,
+   "loss": 0.40523648925802924,
+   "holdout_auc": 0.8152905104835146,
+   "annotation_auc": 0.8207830123370184
+  }
+ ],
+ "inference_windows": 10,
+ "final_holdout_auc": 0.8168211763591376,
+ "final_gold_auc": 0.8237484018821942
+}

@@ -1,0 +1,30 @@
+[    0.0s] experiment: labels_flight_v4hybrid_uniform  (stem=window, 3 channels to the encoder, 10 pass(es) per slot at inference)
+[    0.0s] config: 336px, 12 slices, group 3, 6 slots, 30 epochs, batch 8
+[    0.0s] run: split=train_series, fold=0, encoder=models/dinov2-small
+[    0.0s]      labels=data/external/flight0234-rsna-knee-hybrid-report-labels/report_labels_v4hybrid.csv
+[    0.0s] device: cuda
+[   41.7s] 24371 series across 4407 studies
+[   42.8s] laterality: 2203 tagged, 2132 from geometry, 72 unresolved, 25 disagree
+[   56.9s] slots: 20130/26442 filled
+[   56.9s] reusing the cache at /data/mgr/rsna-knee/cache-full.npy: (4407, 6, 12, 336, 336)
+[   57.7s] targets: 4407/4407 studies supervised from data/external/flight0234-rsna-knee-hybrid-report-labels/report_labels_v4hybrid.csv uniformly weighted
+[   57.7s] gold holdout: 58 expert-labelled studies excluded from training, plus 1 same-report study/studies
+[   57.8s] train 3478 / holdout 870 studies
+Loading weights:   0%|          | 0/223 [00:00<?, ?it/s]Loading weights: 100%|██████████| 223/223 [00:00<00:00, 7841.73it/s]
+[   60.7s] model: 22.3M parameters, 10.9M trainable
+[  113.6s]   epoch 1/30  loss 0.6057  holdout 0.6878  gold 0.6678
+[  165.7s]   epoch 2/30  loss 0.5762  holdout 0.7411  gold 0.7227
+[  221.1s]   epoch 3/30  loss 0.5673  holdout 0.7556  gold 0.7353
+[  286.3s]   epoch 4/30  loss 0.5552  holdout 0.7747  gold 0.7847
+[  354.4s]   epoch 5/30  loss 0.5457  holdout 0.8030  gold 0.8099
+[  428.0s]   epoch 6/30  loss 0.5330  holdout 0.8141  gold 0.8129
+[  500.0s]   epoch 7/30  loss 0.5301  holdout 0.8162  gold 0.8088
+[  567.3s]   epoch 8/30  loss 0.5224  holdout 0.8215  gold 0.8181
+[  639.2s]   epoch 9/30  loss 0.5179  holdout 0.8090  gold 0.8072
+[  718.4s]   epoch 10/30  loss 0.5111  holdout 0.8306  gold 0.8238
+[  791.3s]   epoch 11/30  loss 0.5057  holdout 0.8267  gold 0.8212
+[  863.7s]   epoch 12/30  loss 0.5003  holdout 0.8410  gold 0.8398
+[ 1005.9s]   epoch 13/30  loss 0.4928  holdout 0.8352  gold 0.8416
+[ 1150.9s]   epoch 14/30  loss 0.4895  holdout 0.8347  gold 0.8327
+[ 1294.8s]   epoch 15/30  loss 0.4844  holdout 0.8413  gold 0.8379
+[ 1434.2s]   epoch 16/30  loss 0.4786  holdout 0.8426  gold 0.8449

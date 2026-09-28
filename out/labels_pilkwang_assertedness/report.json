@@ -1,0 +1,288 @@
+{
+ "experiment": "labels_pilkwang_assertedness",
+ "labels": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
+ "split": "train_series",
+ "written": "2026-09-22T21:56:39+00:00",
+ "n_folds": 1,
+ "n_studies": 870,
+ "epochs": 30,
+ "fold_aucs": [
+  0.8413438076205993
+ ],
+ "fold_mean": 0.8413438076205993,
+ "fold_std": NaN,
+ "pooled_auc": 0.8453470710495982,
+ "interval": [
+  0.8347601324484171,
+  0.8554903910009334
+ ],
+ "targets": [
+  {
+   "target": "ACL",
+   "positives": 229,
+   "n": 870,
+   "auc": 0.83004176062239,
+   "lo": 0.7954340824032216,
+   "hi": 0.8646494388415584,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "MCL",
+   "positives": 169,
+   "n": 870,
+   "auc": 0.8118748364551064,
+   "lo": 0.7707631991580968,
+   "hi": 0.852986473752116,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Medial Meniscus",
+   "positives": 459,
+   "n": 870,
+   "auc": 0.8536170348106801,
+   "lo": 0.8284814959474576,
+   "hi": 0.8787525736739026,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Lateral Meniscus",
+   "positives": 200,
+   "n": 870,
+   "auc": 0.8229925373134328,
+   "lo": 0.7857031104904068,
+   "hi": 0.8602819641364589,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Medial OA",
+   "positives": 313,
+   "n": 870,
+   "auc": 0.8712121646657986,
+   "lo": 0.8441845471416625,
+   "hi": 0.8982397821899348,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Lateral OA",
+   "positives": 212,
+   "n": 870,
+   "auc": 0.833995240006882,
+   "lo": 0.7985346093947125,
+   "hi": 0.8694558706190514,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "PF OA",
+   "positives": 416,
+   "n": 870,
+   "auc": 0.8021751101321586,
+   "lo": 0.7725894022893613,
+   "hi": 0.8317608179749558,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Effusion",
+   "positives": 529,
+   "n": 870,
+   "auc": 0.8495196492025567,
+   "lo": 0.8247024645402379,
+   "hi": 0.8743368338648756,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Synovitis",
+   "positives": 117,
+   "n": 870,
+   "auc": 0.8864825597893325,
+   "lo": 0.8463966913193256,
+   "hi": 0.9265684282593395,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Baker's",
+   "positives": 232,
+   "n": 870,
+   "auc": 0.8651091773862285,
+   "lo": 0.8337872769934436,
+   "hi": 0.8964310777790134,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Contusion",
+   "positives": 281,
+   "n": 870,
+   "auc": 0.8289821097342138,
+   "lo": 0.7971256986580874,
+   "hi": 0.8608385208103403,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Fracture",
+   "positives": 54,
+   "n": 870,
+   "auc": 0.8881626724763979,
+   "lo": 0.8300707211926371,
+   "hi": 0.9462546237601587,
+   "flat": false,
+   "thin": false
+  }
+ ],
+ "gold": {
+  "n": 58,
+  "folds": 1,
+  "auc": 0.8562011907075896,
+  "interval": [
+   0.819656112085383,
+   0.8882678460764619
+  ],
+  "targets": [
+   {
+    "target": "ACL",
+    "positives": 24,
+    "n": 58,
+    "auc": 0.8909313725490196,
+    "lo": 0.7981674085681243,
+    "hi": 0.9836953365299148,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "MCL",
+    "positives": 9,
+    "n": 58,
+    "auc": 0.8979591836734694,
+    "lo": 0.7582595772745508,
+    "hi": 1.0,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "Medial Meniscus",
+    "positives": 26,
+    "n": 58,
+    "auc": 0.8353365384615384,
+    "lo": 0.7265205841310955,
+    "hi": 0.9441524927919813,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "Lateral Meniscus",
+    "positives": 23,
+    "n": 58,
+    "auc": 0.6683229813664595,
+    "lo": 0.52250733091022,
+    "hi": 0.8141386318226991,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "Medial OA",
+    "positives": 15,
+    "n": 58,
+    "auc": 0.9612403100775193,
+    "lo": 0.8911995465607585,
+    "hi": 1.0,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "Lateral OA",
+    "positives": 11,
+    "n": 58,
+    "auc": 0.7891682785299807,
+    "lo": 0.6204277306429979,
+    "hi": 0.9579088264169635,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "PF OA",
+    "positives": 21,
+    "n": 58,
+    "auc": 0.8352638352638353,
+    "lo": 0.7179990830924502,
+    "hi": 0.9525285874352204,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "Effusion",
+    "positives": 35,
+    "n": 58,
+    "auc": 0.9664596273291925,
+    "lo": 0.9217610505772931,
+    "hi": 1.0,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "Synovitis",
+    "positives": 27,
+    "n": 58,
+    "auc": 0.7873357228195937,
+    "lo": 0.667217529637754,
+    "hi": 0.9074539160014334,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "Baker's",
+    "positives": 12,
+    "n": 58,
+    "auc": 0.9456521739130435,
+    "lo": 0.8540916194308209,
+    "hi": 1.0,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "Contusion",
+    "positives": 19,
+    "n": 58,
+    "auc": 0.8259109311740891,
+    "lo": 0.7012214605561916,
+    "hi": 0.9506004017919866,
+    "flat": false,
+    "thin": false
+   },
+   {
+    "target": "Fracture",
+    "positives": 18,
+    "n": 58,
+    "auc": 0.8708333333333333,
+    "lo": 0.7583063819562483,
+    "hi": 0.9833602847104184,
+    "flat": false,
+    "thin": false
+   }
+  ]
+ },
+ "inference": {
+  "windows": 10,
+  "selection_windows": 4,
+  "aligned": false,
+  "folds": [
+   {
+    "fold": 0,
+    "selected": 0.8413438076205993,
+    "final": 0.8453470710495982,
+    "gold_selected": 0.8514935506034843,
+    "gold_final": 0.8562011907075896
+   }
+  ],
+  "mixed": false
+ },
+ "flags": []
+}

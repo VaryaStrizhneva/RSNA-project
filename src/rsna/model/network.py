@@ -2,16 +2,35 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..config import POOL_PARTS, TARGETS, Config
+from ..config import TARGETS, Config, pool_parts
+from .encoders import EncoderSpec, find_encoder, spec_for
 from .heads import SlotHead
-from .stems import build_stem
+from .stems import IMAGENET_MEAN, IMAGENET_STD, build_stem
+
+__all__ = ["Model", "build_model", "find_encoder"]
+
+
+def _channel_stats(n_channels: int) -> tuple[list[float], list[float]]:
+    """The normalisation for `n_channels` inputs.
+
+    Three channels get the ImageNet statistics unchanged, which is what every weights
+    package fitted so far carries. More than three means the backbone's first
+    convolution was rebuilt by averaging the pretrained RGB filters, so the matching
+    input is the grey equivalent: the mean of the three. The spread between the RGB
+    statistics is a property of colour photographs and means nothing on a slice.
+    """
+
+    if n_channels == 3:
+        return list(IMAGENET_MEAN), list(IMAGENET_STD)
+    grey_mean = sum(IMAGENET_MEAN) / 3
+    grey_std = sum(IMAGENET_STD) / 3
+    return [grey_mean] * n_channels, [grey_std] * n_channels
 
 
 class Model(nn.Module):
@@ -19,21 +38,27 @@ class Model(nn.Module):
 
     The bag is flattened for the encoder and folded back before the head, so the
     encoder never sees the study structure and the head never sees pixels.
+
+    What the encoder *is* reaches this class only through an `EncoderSpec`, which is a
+    plain object rather than a module: the backbone is registered here under its own
+    name, so a checkpoint fitted before the spec existed still loads key for key.
     """
 
-    def __init__(self, backbone: nn.Module, dim: int, config: Config,
+    def __init__(self, backbone: nn.Module, spec: EncoderSpec, config: Config,
                  pool: str = "cls_mean", prior: bool = False):
         super().__init__()
-        if pool not in POOL_PARTS:
-            raise ValueError(f"unknown pooling {pool!r}; expected one of {sorted(POOL_PARTS)}")
         self.backbone = backbone
+        self.spec = spec  # plain attribute: owns no parameters, so invisible to nn
         self.pool = pool
-        # None for stem="window": the slices already are the three channels.
+        self.n_prefix = spec.n_prefix
+        self.has_class_token = spec.has_class_token
+        # None for stem="window" and stem="none": the slices already are the channels.
         self.stem = build_stem(config)
-        self.head = SlotHead(dim * POOL_PARTS[pool], config.n_slot, len(TARGETS),
-                             prior=prior, config=config)
-        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
-        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+        self.head = SlotHead(spec.dim * pool_parts(pool, spec.has_class_token),
+                             config.n_slot, len(TARGETS), prior=prior, config=config)
+        mean, std = _channel_stats(spec.in_channels)
+        self.register_buffer("mean", torch.tensor(mean).view(1, -1, 1, 1))
+        self.register_buffer("std", torch.tensor(std).view(1, -1, 1, 1))
 
     def forward(self, imgs: torch.Tensor, mask: torch.Tensor,
                 img_size: int | None = None) -> torch.Tensor:
@@ -58,9 +83,10 @@ class Model(nn.Module):
         else:
             x = (x - self.mean) / self.std
 
-        out = self.backbone(pixel_values=x).last_hidden_state
-        patch = out[:, 1:]
-        parts = [out[:, 0], patch.mean(1)]
+        out = self.spec.tokens(x)
+        patch = out[:, self.n_prefix:]
+        parts = [out[:, 0]] if self.has_class_token else []
+        parts.append(patch.mean(1))
 
         if self.pool == "cls_mean_focal":
             # The upper tail of each channel over the patch grid, taken per channel
@@ -74,30 +100,6 @@ class Model(nn.Module):
         return self.head(feat, mask)
 
 
-def find_encoder(config: Config, root: str | Path = "/kaggle/input") -> Path | None:
-    """Locate a mounted encoder checkpoint, or None.
-
-    Matched on the directory holding a `config.json` whose path names the encoder,
-    preferring one that also names the variant. Searching by content rather than by an
-    expected path means the notebook keeps working whatever Kaggle calls the mount.
-    """
-
-    root = Path(root)
-    if not root.is_dir():
-        return None
-
-    hits = []
-    for current, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in ("train_series", "test_series")]
-        if "config.json" in files and config.encoder in current.lower():
-            hits.append(Path(current))
-
-    for hit in hits:
-        if config.encoder_variant in str(hit).lower():
-            return hit
-    return hits[0] if hits else None
-
-
 def build_model(config: Config, backbone: nn.Module | None = None,
                 source: str | Path | None = None) -> Model:
     """Load the encoder and open the last `config.unfreeze_last` blocks for training.
@@ -109,30 +111,37 @@ def build_model(config: Config, backbone: nn.Module | None = None,
 
     Which encoder, which pooling and whether the head carries the anatomical prior all
     come from `config`, so a weights package states them rather than the call site
-    guessing.
+    guessing. Which *family* the encoder belongs to is a registry lookup on
+    `config.encoder`; see `rsna.model.encoders`.
 
     `backbone` is injectable so this can be exercised without the real encoder present:
     the tests build a stub with the same interface. `source` overrides the search.
     """
 
-    if backbone is None:
-        from transformers import AutoModel
+    kind = spec_for(config)
 
+    if backbone is None:
         path = Path(source) if source is not None else find_encoder(config)
         if path is None:
             raise FileNotFoundError(
                 f"{config.encoder}/{config.encoder_variant} is not mounted and no "
                 f"source was given")
-        backbone = AutoModel.from_pretrained(str(path))
+        backbone = kind.load(config, path)
 
-    n_layer = len(backbone.encoder.layer)
+    spec = kind(backbone)
+
+    if spec.in_channels != config.encoder_channels:
+        raise ValueError(
+            f"{config.encoder} takes {spec.in_channels} channels but stem "
+            f"{config.stem!r} delivers {config.encoder_channels}")
+
+    blocks = spec.blocks()
     for param in backbone.parameters():
         param.requires_grad = False
-    for block in backbone.encoder.layer[max(0, n_layer - config.unfreeze_last):]:
+    for block in blocks[max(0, len(blocks) - config.unfreeze_last):]:
         for param in block.parameters():
             param.requires_grad = True
-    for param in backbone.layernorm.parameters():
+    for param in spec.always_trainable():
         param.requires_grad = True
 
-    dim = backbone.config.hidden_size
-    return Model(backbone, dim, config, pool=config.pool, prior=config.prior)
+    return Model(backbone, spec, config, pool=config.pool, prior=config.prior)

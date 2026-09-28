@@ -1,0 +1,11 @@
+1 fold(s) under out/labels_blend_target_conservative_uniform: 0
+
+labels_blend_target_conservative_uniform  —  1 folds, 870 out-of-fold studies, 30 epochs
+  out-of-fold macro AUC   0.8399   (95% 0.830-0.850)
+  measured over            10 sliding windows, +0.0018 on the pass that chose
+  per fold                0.8381 +/- nan   f0:0.838
+  best    Medial OA 0.896, Synovitis 0.886, Lateral OA 0.876
+  worst   Fracture 0.734, PF OA 0.794, MCL 0.820
+  flags   0 error, 0 warning
+
+written to out/labels_blend_target_conservative_uniform/report.html
