@@ -21,3 +21,7 @@ out/
 
 # Third-party encoder weights: refetched with one line, not versioned.
 models/
+
+# Pathology atlas pages. The builder is in git; its output is not — each page embeds
+# a few hundred patient MRI slices as data URIs, and this repo has a GitHub remote.
+docs/atlas/*.html
