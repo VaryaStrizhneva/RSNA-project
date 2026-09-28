@@ -1,0 +1,11 @@
+1 fold(s) under out/labels_riad_hybrid_uniform: 0
+
+labels_riad_hybrid_uniform  —  1 folds, 870 out-of-fold studies, 30 epochs
+  out-of-fold macro AUC   0.8514   (95% 0.841-0.861)
+  measured over            10 sliding windows, +0.0031 on the pass that chose
+  per fold                0.8484 +/- nan   f0:0.848
+  best    Baker's 0.900, Synovitis 0.894, Medial OA 0.893
+  worst   Lateral Meniscus 0.790, MCL 0.805, Contusion 0.815
+  flags   0 error, 0 warning
+
+written to out/labels_riad_hybrid_uniform/report.html

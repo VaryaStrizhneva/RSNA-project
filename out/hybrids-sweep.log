@@ -1,0 +1,179 @@
+=== labels_riad_hybrid_uniform — début 13:54:49 ===
+[    0.0s] experiment: labels_riad_hybrid_uniform  (stem=window, 3 channels to the encoder, 10 pass(es) per slot at inference)
+[    0.0s] config: 336px, 12 slices, group 3, 6 slots, 30 epochs, batch 8
+[    0.0s] run: split=train_series, fold=0, encoder=models/dinov2-small
+[    0.0s]      labels=data/external/riadmohamed42-jev-knee-labels/HYBRID_labels_scores.csv
+[    0.0s] device: cuda
+[   40.5s] 24371 series across 4407 studies
+[   41.2s] laterality: 2203 tagged, 2132 from geometry, 72 unresolved, 25 disagree
+[   56.4s] slots: 20130/26442 filled
+[   56.4s] reusing the cache at /data/mgr/rsna-knee/cache-full.npy: (4407, 6, 12, 336, 336)
+[   57.3s] targets: 4407/4407 studies supervised from data/external/riadmohamed42-jev-knee-labels/HYBRID_labels_scores.csv uniformly weighted
+[   57.3s] gold holdout: 58 expert-labelled studies excluded from training, plus 1 same-report study/studies
+[   57.3s] train 3478 / holdout 870 studies
+Loading weights:   0%|          | 0/223 [00:00<?, ?it/s]Loading weights: 100%|██████████| 223/223 [00:00<00:00, 7329.94it/s]
+[   60.4s] model: 22.3M parameters, 10.9M trainable
+[  117.1s]   epoch 1/30  loss 0.6101  holdout 0.6981  gold 0.6682
+[  168.9s]   epoch 2/30  loss 0.5811  holdout 0.7488  gold 0.7324
+[  221.3s]   epoch 3/30  loss 0.5731  holdout 0.7622  gold 0.7467
+[  275.2s]   epoch 4/30  loss 0.5616  holdout 0.7843  gold 0.7759
+[  332.3s]   epoch 5/30  loss 0.5514  holdout 0.8048  gold 0.8037
+[  393.6s]   epoch 6/30  loss 0.5425  holdout 0.8139  gold 0.8119
+[  456.5s]   epoch 7/30  loss 0.5394  holdout 0.8190  gold 0.8074
+[  519.8s]   epoch 8/30  loss 0.5335  holdout 0.8224  gold 0.8111
+[  583.9s]   epoch 9/30  loss 0.5291  holdout 0.8124  gold 0.8031
+[  647.6s]   epoch 10/30  loss 0.5234  holdout 0.8310  gold 0.8195
+[  712.2s]   epoch 11/30  loss 0.5183  holdout 0.8265  gold 0.8196
+[  776.3s]   epoch 12/30  loss 0.5147  holdout 0.8352  gold 0.8295
+[  840.2s]   epoch 13/30  loss 0.5072  holdout 0.8355  gold 0.8361
+[  903.5s]   epoch 14/30  loss 0.5033  holdout 0.8333  gold 0.8266
+[  973.6s]   epoch 15/30  loss 0.4981  holdout 0.8400  gold 0.8259
+[ 1045.4s]   epoch 16/30  loss 0.4940  holdout 0.8396  gold 0.8336
+[ 1118.2s]   epoch 17/30  loss 0.4883  holdout 0.8377  gold 0.8372
+[ 1189.1s]   epoch 18/30  loss 0.4841  holdout 0.8428  gold 0.8513
+[ 1258.3s]   epoch 19/30  loss 0.4797  holdout 0.8419  gold 0.8368
+[ 1330.9s]   epoch 20/30  loss 0.4758  holdout 0.8444  gold 0.8478
+[ 1400.6s]   epoch 21/30  loss 0.4715  holdout 0.8457  gold 0.8475
+[ 1471.5s]   epoch 22/30  loss 0.4674  holdout 0.8469  gold 0.8466
+[ 1543.0s]   epoch 23/30  loss 0.4641  holdout 0.8458  gold 0.8479
+[ 1613.8s]   epoch 24/30  loss 0.4603  holdout 0.8484  gold 0.8460
+[ 1684.1s]   epoch 25/30  loss 0.4570  holdout 0.8467  gold 0.8500
+[ 1753.9s]   epoch 26/30  loss 0.4557  holdout 0.8448  gold 0.8486
+[ 1825.0s]   epoch 27/30  loss 0.4538  holdout 0.8458  gold 0.8495
+[ 1895.8s]   epoch 28/30  loss 0.4518  holdout 0.8462  gold 0.8490
+[ 1964.8s]   epoch 29/30  loss 0.4503  holdout 0.8461  gold 0.8488
+[ 2034.7s]   epoch 30/30  loss 0.4522  holdout 0.8461  gold 0.8485
+[ 2034.8s] best epoch 24, holdout AUC 0.8484
+[ 2093.5s] final pass over 10 sliding window(s), selection read 4: holdout 0.8514, gold 0.8488  (selection saw holdout 0.8484)
+[ 2093.6s] package written to out/labels_riad_hybrid_uniform/pkg-f0
+[ 2093.6s] history and predictions written to out/labels_riad_hybrid_uniform/pkg-f0 (including 58 expert-labelled studies)
+{
+ "id": "labels_riad_hybrid_uniform_fold0_336px",
+ "file": "labels_riad_hybrid_uniform_fold0_336px.pt",
+ "config": {
+  "img": 336,
+  "crop_mm": 130.0,
+  "group": 3,
+  "slices": 12,
+  "band": [
+   0.2,
+   0.8
+  ],
+  "slots": [
+   [
+    "SAG_FLUID_FS",
+    "Sagittal",
+    true,
+    true
+   ],
+   [
+    "COR_FLUID_FS",
+    "Coronal",
+    true,
+    true
+   ],
+   [
+    "AX_FLUID_FS",
+    "Axial",
+    true,
+    true
+   ],
+   [
+    "SAG_FLUID_NOFS",
+    "Sagittal",
+    true,
+    false
+   ],
+   [
+    "COR_T1",
+    "Coronal",
+    false,
+    false
+   ],
+   [
+    "SAG_T1",
+    "Sagittal",
+    false,
+    false
+   ]
+  ],
+  "rules": {
+   "order": "normal",
+   "laterality": "centre",
+   "slot_fallback": false,
+   "decode_fill": "nearest"
+  },
+  "encoder": "dinov2",
+  "encoder_variant": "small",
+  "pool": "cls_mean",
+  "prior": false,
+  "weights": "uniform",
+  "weight_floor": 0.25,
+  "silence": null,
+  "stem": "window",
+  "stem_depth": 1,
+  "lat_min_offset_mm": 20.0,
+  "lat_legacy_offset_mm": 5.0,
+  "seed": 2026,
+  "epochs": 30,
+  "batch_studies": 8,
+  "lr_head": 0.001,
+  "lr_backbone": 8e-06,
+  "warmup_frac": 0.15,
+  "unfreeze_last": 6,
+  "weight_decay": 0.02,
+  "eval_batch": 8,
+  "aug_rot_deg": 8.0,
+  "aug_scale": 0.08,
+  "aug_shift": 0.05,
+  "aug_intensity": 0.1,
+  "gold_weight": 3.0,
+  "n_folds": 5
+ },
+ "fold": 0,
+ "holdout": 0.8483912422156287,
+ "epoch": 23
+}
+1 fold(s) under out/labels_riad_hybrid_uniform: 0
+
+labels_riad_hybrid_uniform  —  1 folds, 870 out-of-fold studies, 30 epochs
+  out-of-fold macro AUC   0.8514   (95% 0.841-0.861)
+  measured over            10 sliding windows, +0.0031 on the pass that chose
+  per fold                0.8484 +/- nan   f0:0.848
+  best    Baker's 0.900, Synovitis 0.894, Medial OA 0.893
+  worst   Lateral Meniscus 0.790, MCL 0.805, Contusion 0.815
+  flags   0 error, 0 warning
+
+written to out/labels_riad_hybrid_uniform/report.html
+=== labels_riad_hybrid_uniform — fin 14:30:32 ===
+=== labels_flight_v4hybrid_uniform — début 14:30:32 ===
+[    0.0s] experiment: labels_flight_v4hybrid_uniform  (stem=window, 3 channels to the encoder, 10 pass(es) per slot at inference)
+[    0.0s] config: 336px, 12 slices, group 3, 6 slots, 30 epochs, batch 8
+[    0.0s] run: split=train_series, fold=0, encoder=models/dinov2-small
+[    0.0s]      labels=data/external/flight0234-rsna-knee-hybrid-report-labels/report_labels_v4hybrid.csv
+[    0.0s] device: cuda
+[   41.7s] 24371 series across 4407 studies
+[   42.8s] laterality: 2203 tagged, 2132 from geometry, 72 unresolved, 25 disagree
+[   56.9s] slots: 20130/26442 filled
+[   56.9s] reusing the cache at /data/mgr/rsna-knee/cache-full.npy: (4407, 6, 12, 336, 336)
+[   57.7s] targets: 4407/4407 studies supervised from data/external/flight0234-rsna-knee-hybrid-report-labels/report_labels_v4hybrid.csv uniformly weighted
+[   57.7s] gold holdout: 58 expert-labelled studies excluded from training, plus 1 same-report study/studies
+[   57.8s] train 3478 / holdout 870 studies
+Loading weights:   0%|          | 0/223 [00:00<?, ?it/s]Loading weights: 100%|██████████| 223/223 [00:00<00:00, 7841.73it/s]
+[   60.7s] model: 22.3M parameters, 10.9M trainable
+[  113.6s]   epoch 1/30  loss 0.6057  holdout 0.6878  gold 0.6678
+[  165.7s]   epoch 2/30  loss 0.5762  holdout 0.7411  gold 0.7227
+[  221.1s]   epoch 3/30  loss 0.5673  holdout 0.7556  gold 0.7353
+[  286.3s]   epoch 4/30  loss 0.5552  holdout 0.7747  gold 0.7847
+[  354.4s]   epoch 5/30  loss 0.5457  holdout 0.8030  gold 0.8099
+[  428.0s]   epoch 6/30  loss 0.5330  holdout 0.8141  gold 0.8129
+[  500.0s]   epoch 7/30  loss 0.5301  holdout 0.8162  gold 0.8088
+[  567.3s]   epoch 8/30  loss 0.5224  holdout 0.8215  gold 0.8181
+[  639.2s]   epoch 9/30  loss 0.5179  holdout 0.8090  gold 0.8072
+[  718.4s]   epoch 10/30  loss 0.5111  holdout 0.8306  gold 0.8238
+[  791.3s]   epoch 11/30  loss 0.5057  holdout 0.8267  gold 0.8212
+[  863.7s]   epoch 12/30  loss 0.5003  holdout 0.8410  gold 0.8398
+[ 1005.9s]   epoch 13/30  loss 0.4928  holdout 0.8352  gold 0.8416
+[ 1150.9s]   epoch 14/30  loss 0.4895  holdout 0.8347  gold 0.8327
+[ 1294.8s]   epoch 15/30  loss 0.4844  holdout 0.8413  gold 0.8379
+[ 1434.2s]   epoch 16/30  loss 0.4786  holdout 0.8426  gold 0.8449

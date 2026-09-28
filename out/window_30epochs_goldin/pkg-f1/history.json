@@ -1,0 +1,194 @@
+{
+ "experiment": "window_30epochs_goldin",
+ "fold": 1,
+ "split": "train_series",
+ "labels": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
+ "best_epoch": 28,
+ "best_holdout_auc": 0.8337187732646313,
+ "inference_windows": 10,
+ "selection_windows": 4,
+ "final_holdout_auc": 0.8362506771761269,
+ "final_gold_auc": null,
+ "epochs": [
+  {
+   "epoch": 0,
+   "loss": 0.49212767598073043,
+   "holdout_auc": 0.6911882182855575,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 1,
+   "loss": 0.4738778433190333,
+   "holdout_auc": 0.7221629507809816,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 2,
+   "loss": 0.46735113765626746,
+   "holdout_auc": 0.741182313789779,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 3,
+   "loss": 0.4608317068339463,
+   "holdout_auc": 0.7690628632202346,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 4,
+   "loss": 0.4517927590774314,
+   "holdout_auc": 0.7825255659800242,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 5,
+   "loss": 0.4471464264018653,
+   "holdout_auc": 0.7940388245342541,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 6,
+   "loss": 0.44140117698988035,
+   "holdout_auc": 0.7981907138789511,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 7,
+   "loss": 0.43848891288977565,
+   "holdout_auc": 0.7933674097655811,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 8,
+   "loss": 0.4340555047775063,
+   "holdout_auc": 0.8039270167203783,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 9,
+   "loss": 0.4313443891136101,
+   "holdout_auc": 0.8099439344593143,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 10,
+   "loss": 0.4269066268553114,
+   "holdout_auc": 0.8059128606937641,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 11,
+   "loss": 0.42314105377336253,
+   "holdout_auc": 0.8146076713201919,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 12,
+   "loss": 0.42039323494573344,
+   "holdout_auc": 0.8183032721404936,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 13,
+   "loss": 0.4164916540876098,
+   "holdout_auc": 0.8148771466161465,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 14,
+   "loss": 0.41294439230531854,
+   "holdout_auc": 0.81715144756978,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 15,
+   "loss": 0.40926261032376055,
+   "holdout_auc": 0.8275963350897714,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 16,
+   "loss": 0.40540766689274876,
+   "holdout_auc": 0.8244638924033717,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 17,
+   "loss": 0.4008989613419691,
+   "holdout_auc": 0.829298662417049,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 18,
+   "loss": 0.3986600808498571,
+   "holdout_auc": 0.8297283082713526,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 19,
+   "loss": 0.3944181640185583,
+   "holdout_auc": 0.8285979831214995,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 20,
+   "loss": 0.3910848227717951,
+   "holdout_auc": 0.8310284615378402,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 21,
+   "loss": 0.3875058712312459,
+   "holdout_auc": 0.8323762424031474,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 22,
+   "loss": 0.3854759493884484,
+   "holdout_auc": 0.8334327039368676,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 23,
+   "loss": 0.38215858185237833,
+   "holdout_auc": 0.8324328836408713,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 24,
+   "loss": 0.3808214158621604,
+   "holdout_auc": 0.8336866093341881,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 25,
+   "loss": 0.38008432250653684,
+   "holdout_auc": 0.832678527649684,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 26,
+   "loss": 0.3785429725197933,
+   "holdout_auc": 0.8329326080784937,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 27,
+   "loss": 0.37779616140196676,
+   "holdout_auc": 0.8336598478106906,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 28,
+   "loss": 0.3775402556754014,
+   "holdout_auc": 0.8337187732646313,
+   "annotation_auc": null
+  },
+  {
+   "epoch": 29,
+   "loss": 0.37689345894640336,
+   "holdout_auc": 0.833684571120071,
+   "annotation_auc": null
+  }
+ ]
+}

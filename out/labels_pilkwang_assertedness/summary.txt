@@ -1,0 +1,11 @@
+1 fold(s) under out/labels_pilkwang_assertedness: 0
+
+labels_pilkwang_assertedness  —  1 folds, 870 out-of-fold studies, 30 epochs
+  out-of-fold macro AUC   0.8453   (95% 0.835-0.855)
+  measured over            10 sliding windows, +0.0040 on the pass that chose
+  per fold                0.8413 +/- nan   f0:0.841
+  best    Fracture 0.888, Synovitis 0.886, Medial OA 0.871
+  worst   PF OA 0.802, MCL 0.812, Lateral Meniscus 0.823
+  flags   0 error, 0 warning
+
+written to out/labels_pilkwang_assertedness/report.html

@@ -1,0 +1,145 @@
+<title>compress_30epochs_v4blend_goldin — evaluation</title>
+<style>
+/* Dark by design, not by preference: this page is read beside a terminal. Every
+   colour a chart uses is declared here and referenced from the SVG, so the palette
+   exists once rather than in two files that drift apart. */
+:root{
+ --bg:#12151c; --panel:#181d26; --line:#29303d; --raise:#1f2632;
+ --ink:#e9ebf1; --dim:#9aa4b8; --faint:#697285;
+ --accent:#6aa8ff; --danger:#ff7d74; --warn:#ffb454; --ok:#5fd6a0;
+ --f0:#6aa8ff; --f1:#ffb454; --f2:#5fd6a0; --f3:#ff7d74; --f4:#c69bff;
+ --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+ text-rendering:optimizeLegibility;
+ font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:56px 24px 96px}
+
+h1{font-size:27px;letter-spacing:-.015em;margin:0 0 6px;font-weight:650}
+h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--faint);
+ margin:54px 0 18px;font-weight:700}
+.sub{color:var(--dim);font-size:13.5px;margin-bottom:32px}
+.sub b{color:var(--ink);font-weight:500}
+
+.head{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+ gap:14px;margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+ padding:18px 20px}
+.card .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;
+ color:var(--faint);font-weight:700}
+.card .v{font-size:31px;font-family:var(--mono);font-variant-numeric:tabular-nums;
+ margin-top:7px;letter-spacing:-.03em;line-height:1.1}
+.card .n{font-size:12.5px;color:var(--dim);margin-top:5px}
+
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+ padding:16px 18px}
+
+/* ---- charts: inline SVG, crisp at any width and any pixel density ---- */
+svg.chart{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font-family:inherit;fill:var(--dim)}
+.chart .ct{fill:var(--ink);font-size:11.5px;font-weight:600}
+.chart .tk{font-size:10px;font-variant-numeric:tabular-nums}
+.chart .fl{font-size:10px;font-weight:600;fill:var(--dim);font-family:var(--mono)}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{stroke:var(--line);stroke-width:1}
+.chart .chance{stroke:var(--faint);stroke-width:1;stroke-dasharray:3 3}
+.chart .pooled{stroke:var(--accent);stroke-width:2}
+.chart .band{fill:var(--accent);opacity:.14}
+.chart .ln{fill:none;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.chart .dot{stroke:var(--bg);stroke-width:1.5}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+ gap:20px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:12px;
+ color:var(--dim)}
+.key{display:inline-flex;align-items:center;gap:6px}
+.key i{width:12px;height:3px;border-radius:2px;display:inline-block}
+.key i.ring{width:9px;height:9px;border-radius:50%;background:var(--dim)}
+
+/* ---- the per-target table, with the bar living inside it ---- */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;
+ background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:620px}
+th,td{padding:9px 14px;text-align:right;border-bottom:1px solid var(--line);
+ font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;font-family:inherit}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);
+ font-weight:700;background:var(--raise)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--raise)}
+tr.thin td{color:var(--dim)}
+td.neg{color:var(--danger)}
+td.pos{color:var(--dim)}
+td.flat{color:var(--warn)}
+td.bar{width:42%;padding:9px 16px}
+
+.track{position:relative;height:16px;background:#171c25;border-radius:4px}
+.track .fill{position:absolute;left:0;top:0;height:100%;border-radius:4px;display:block}
+.fill.good{background:linear-gradient(90deg,#3d76c4,var(--accent))}
+.fill.thin{background:#4d586e}
+.fill.flat{background:#5a5060}
+.fill.bad{background:linear-gradient(90deg,#a94f48,var(--danger))}
+.track .span{position:absolute;top:0;height:100%;border-radius:4px;
+ background:var(--line);border:1px solid #38414f}
+.track .chance-mark{position:absolute;top:-3px;width:1px;height:22px;
+ background:var(--faint)}
+.track .none{font-size:11px;color:var(--faint);font-family:var(--mono)}
+
+.flag{display:flex;gap:13px;align-items:baseline;background:var(--panel);
+ border:1px solid var(--line);border-left:3px solid;padding:13px 16px;margin:9px 0;
+ border-radius:0 10px 10px 0;font-size:14px;line-height:1.55}
+.error{border-left-color:var(--danger)}
+.warn{border-left-color:var(--warn)}
+.info{border-left-color:var(--accent)}
+.tag{flex:0 0 auto;font-size:9.5px;text-transform:uppercase;letter-spacing:.11em;
+ font-weight:700;font-family:var(--mono);padding-top:2px}
+.error .tag{color:var(--danger)}
+.warn .tag{color:var(--warn)}
+.info .tag{color:var(--accent)}
+
+.note{color:var(--dim);font-size:13px;margin-top:12px}
+.d{color:var(--dim);font-size:12.5px}
+code{background:var(--raise);border:1px solid var(--line);padding:1px 6px;
+ border-radius:5px;font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+</style>
+<main>
+<h1>compress_30epochs_v4blend_goldin</h1>
+<div class="sub"><b>5 folds</b> &middot;
+ <b>30 epochs</b> &middot;
+ split <code>train_series</code> &middot;
+ labels <code>llm_labels_v4_blend.csv</code><br>
+ generated 2026-09-17T13:14:47+00:00</div>
+
+<div class="head"><div class="card"><div class="k">out-of-fold macro AUC</div><div class="v">0.8147</div><div class="n">95% interval 0.809 – 0.820</div></div><div class="card"><div class="k">spread across folds</div><div class="v">± 0.008</div><div class="n">mean 0.815 over 5 folds</div></div><div class="card"><div class="k">studies judged</div><div class="v">4407</div><div class="n">each predicted once, unseen</div></div></div>
+<div class="box"><svg class="chart" viewBox="0 0 720 96" role="img" aria-label="fold spread"><rect class="band" x="515.6" y="40.0" width="10.0" height="52" rx="4"/><line class="axis" x1="34" y1="66" x2="696" y2="66"/><line class="chance" x1="223.1" y1="36.0" x2="223.1" y2="72.0"/><line class="pooled" x1="520.8" y1="34.0" x2="520.8" y2="72.0"/><text class="tk" x="34.0" y="86.0" text-anchor="middle">0.3</text><text class="tk" x="128.6" y="86.0" text-anchor="middle">0.4</text><text class="tk" x="223.1" y="86.0" text-anchor="middle">0.5</text><text class="tk" x="317.7" y="86.0" text-anchor="middle">0.6</text><text class="tk" x="412.3" y="86.0" text-anchor="middle">0.7</text><text class="tk" x="506.9" y="86.0" text-anchor="middle">0.8</text><text class="tk" x="601.4" y="86.0" text-anchor="middle">0.9</text><circle class="dot" cx="516.2" cy="57.0" r="5.5" fill="var(--f0)"/><text class="fl" x="525.2" y="60.5">f0</text><circle class="dot" cx="515.4" cy="42.0" r="5.5" fill="var(--f1)"/><text class="fl" x="524.4" y="45.5">f1</text><circle class="dot" cx="524.1" cy="27.0" r="5.5" fill="var(--f2)"/><text class="fl" x="533.1" y="30.5">f2</text><circle class="dot" cx="514.8" cy="12.0" r="5.5" fill="var(--f3)"/><text class="fl" x="523.8" y="15.5">f3</text><circle class="dot" cx="535.2" cy="-3.0" r="5.5" fill="var(--f4)"/><text class="fl" x="544.2" y="0.5">f4</text></svg></div>
+
+<h2>Per pathology</h2>
+<div class="scroll"><table>
+<thead><tr><th>target</th><th>pos.</th><th></th><th>AUC</th>
+<th>95% interval</th></tr></thead>
+<tbody><tr class=""><td>Baker&#x27;s</td><td>1085</td><td class="bar"><div class="track"><i class="span" style="left:80.47%;width:3.96%"></i><i class="fill good" style="width:82.45%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.877</td><td class="pos">0.863 – 0.891</td></tr><tr class=""><td>Synovitis</td><td>567</td><td class="bar"><div class="track"><i class="span" style="left:78.00%;width:5.57%"></i><i class="fill good" style="width:80.78%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.865</td><td class="pos">0.846 – 0.885</td></tr><tr class=""><td>Medial OA</td><td>1632</td><td class="bar"><div class="track"><i class="span" style="left:76.35%;width:3.65%"></i><i class="fill good" style="width:78.18%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.847</td><td class="pos">0.834 – 0.860</td></tr><tr class=""><td>Fracture</td><td>314</td><td class="bar"><div class="track"><i class="span" style="left:73.92%;width:7.83%"></i><i class="fill good" style="width:77.83%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.845</td><td class="pos">0.817 – 0.872</td></tr><tr class=""><td>Effusion</td><td>2618</td><td class="bar"><div class="track"><i class="span" style="left:74.21%;width:3.34%"></i><i class="fill good" style="width:75.89%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.831</td><td class="pos">0.819 – 0.843</td></tr><tr class=""><td>ACL</td><td>913</td><td class="bar"><div class="track"><i class="span" style="left:72.64%;width:4.93%"></i><i class="fill good" style="width:75.10%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.826</td><td class="pos">0.808 – 0.843</td></tr><tr class=""><td>Medial Meniscus</td><td>1778</td><td class="bar"><div class="track"><i class="span" style="left:70.47%;width:3.91%"></i><i class="fill good" style="width:72.42%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.807</td><td class="pos">0.793 – 0.821</td></tr><tr class=""><td>Lateral OA</td><td>1195</td><td class="bar"><div class="track"><i class="span" style="left:70.01%;width:4.56%"></i><i class="fill good" style="width:72.29%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.806</td><td class="pos">0.790 – 0.822</td></tr><tr class=""><td>Contusion</td><td>763</td><td class="bar"><div class="track"><i class="span" style="left:66.53%;width:5.74%"></i><i class="fill good" style="width:69.40%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.786</td><td class="pos">0.766 – 0.806</td></tr><tr class=""><td>PF OA</td><td>2012</td><td class="bar"><div class="track"><i class="span" style="left:66.57%;width:3.97%"></i><i class="fill good" style="width:68.56%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.780</td><td class="pos">0.766 – 0.794</td></tr><tr class=""><td>MCL</td><td>669</td><td class="bar"><div class="track"><i class="span" style="left:62.57%;width:6.32%"></i><i class="fill good" style="width:65.73%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.760</td><td class="pos">0.738 – 0.782</td></tr><tr class=""><td>Lateral Meniscus</td><td>691</td><td class="bar"><div class="track"><i class="span" style="left:60.62%;width:6.32%"></i><i class="fill good" style="width:63.78%"></i><i class="chance-mark" style="left:28.57%"></i></div></td><td>0.746</td><td class="pos">0.724 – 0.769</td></tr></tbody>
+</table></div>
+<p class="note">The pale span behind each bar is where the true value plausibly sits (Hanley–McNeil, 95%). A span crossing the chance mark means the run measured nothing on that target, whichever side of it the bar ends. The label table's own per-target AUC is not shown: it is a property of the labels rather than of a run, and it lives in <code>docs/data.md</code>.</p>
+
+<h2>Against the expert labels</h2>
+<p class="note">This run did not set the expert-labelled studies aside, so there is nothing here to compare against the truth. Pass <code>--holdout-gold</code> to <code>scripts.train</code> and they are held out of every fold.</p>
+
+<h2>Under the inference it will run</h2>
+<div class="head">
+<div class="card"><div class="k">windows per slot</div>
+<div class="v">1</div>
+<div class="n">the same at selection and at inference</div></div>
+</div>
+<p class="note">This configuration hands the encoder the whole cached stack, so there
+is one window and nothing to slide: the pass that ranked the epochs is the pass that
+will run at submission, and every number in this report is already the one the model
+will produce. The final pass was run anyway, over weights reloaded from the package
+rather than the live model, and it reproduced the score that selected them.</p>
+
+<h2>Training</h2>
+<div class="box"><div class="panels"><svg class="chart" viewBox="0 0 520 250" role="img" aria-label="training loss"><text class="ct" x="44" y="16">training loss</text><line class="grid" x1="44" y1="186.8" x2="510" y2="186.8"/><text class="tk" x="37" y="190.3" text-anchor="end">0.2</text><line class="grid" x1="44" y1="134.1" x2="510" y2="134.1"/><text class="tk" x="37" y="137.6" text-anchor="end">0.3</text><line class="grid" x1="44" y1="81.5" x2="510" y2="81.5"/><text class="tk" x="37" y="85.0" text-anchor="end">0.4</text><line class="grid" x1="44" y1="28.8" x2="510" y2="28.8"/><text class="tk" x="37" y="32.3" text-anchor="end">0.5</text><text class="tk" x="108.3" y="236.0" text-anchor="middle">5</text><text class="tk" x="188.6" y="236.0" text-anchor="middle">10</text><text class="tk" x="269.0" y="236.0" text-anchor="middle">15</text><text class="tk" x="349.3" y="236.0" text-anchor="middle">20</text><text class="tk" x="429.7" y="236.0" text-anchor="middle">25</text><text class="tk" x="510.0" y="236.0" text-anchor="middle">30</text><text class="tk" x="277" y="246" text-anchor="middle">epoch</text><polyline class="ln" points="44.0,47.2 60.1,64.3 76.1,71.4 92.2,80.0 108.3,88.9 124.3,98.7 140.4,105.5 156.5,114.4 172.6,121.0 188.6,128.2 204.7,136.1 220.8,144.1 236.8,151.8 252.9,159.3 269.0,166.9 285.0,172.7 301.1,178.4 317.2,182.9 333.2,186.5 349.3,189.6 365.4,192.6 381.4,194.4 397.5,196.2 413.6,197.0 429.7,198.1 445.7,199.0 461.8,199.5 477.9,200.3 493.9,200.3 510.0,200.6" stroke="var(--f0)"/><polyline class="ln" points="44.0,48.5 60.1,67.0 76.1,75.0 92.2,86.1 108.3,92.7 124.3,101.0 140.4,109.3 156.5,115.5 172.6,124.3 188.6,130.1 204.7,138.4 220.8,146.8 236.8,153.9 252.9,161.8 269.0,167.5 285.0,173.5 301.1,178.4 317.2,183.3 333.2,186.9 349.3,189.4 365.4,192.1 381.4,194.2 397.5,195.7 413.6,197.0 429.7,197.9 445.7,198.9 461.8,199.3 477.9,199.5 493.9,199.9 510.0,200.1" stroke="var(--f1)"/><polyline class="ln" points="44.0,46.6 60.1,57.8 76.1,65.4 92.2,71.8 108.3,80.7 124.3,87.3 140.4,93.9 156.5,101.1 172.6,108.4 188.6,116.2 204.7,123.8 220.8,133.2 236.8,141.1 252.9,149.1 269.0,157.4 285.0,164.9 301.1,171.5 317.2,176.2 333.2,180.4 349.3,184.4 365.4,187.8 381.4,189.8 397.5,192.0 413.6,193.2 429.7,194.6 445.7,195.4 461.8,195.9 477.9,196.7 493.9,196.9 510.0,197.0" stroke="var(--f2)"/><polyline class="ln" points="44.0,46.7 60.1,64.4 76.1,73.0 92.2,79.8 108.3,88.1 124.3,95.9 140.4,102.8 156.5,109.8 172.6,116.3 188.6,125.8 204.7,133.5 220.8,140.6 236.8,149.5 252.9,156.4 269.0,162.7 285.0,169.6 301.1,175.7 317.2,180.8 333.2,184.4 349.3,187.5 365.4,190.3 381.4,192.6 397.5,194.2 413.6,195.6 429.7,196.7 445.7,197.2 461.8,198.1 477.9,198.5 493.9,198.8 510.0,198.8" stroke="var(--f3)"/><polyline class="ln" points="44.0,51.9 60.1,66.9 76.1,75.3 92.2,81.6 108.3,90.6 124.3,100.1 140.4,108.7 156.5,115.5 172.6,123.5 188.6,130.9 204.7,140.0 220.8,148.6 236.8,156.5 252.9,163.7 269.0,171.3 285.0,176.8 301.1,181.8 317.2,185.5 333.2,188.8 349.3,191.7 365.4,194.1 381.4,196.1 397.5,197.5 413.6,198.7 429.7,199.5 445.7,200.1 461.8,200.6 477.9,201.0 493.9,201.2 510.0,201.4" stroke="var(--f4)"/></svg><svg class="chart" viewBox="0 0 520 250" role="img" aria-label="holdout macro AUC"><text class="ct" x="44" y="16">holdout macro AUC</text><line class="grid" x1="44" y1="209.9" x2="510" y2="209.9"/><text class="tk" x="37" y="213.4" text-anchor="end">0.5</text><line class="grid" x1="44" y1="157.8" x2="510" y2="157.8"/><text class="tk" x="37" y="161.3" text-anchor="end">0.6</text><line class="grid" x1="44" y1="105.8" x2="510" y2="105.8"/><text class="tk" x="37" y="109.3" text-anchor="end">0.7</text><line class="grid" x1="44" y1="53.7" x2="510" y2="53.7"/><text class="tk" x="37" y="57.2" text-anchor="end">0.8</text><text class="tk" x="108.3" y="236.0" text-anchor="middle">5</text><text class="tk" x="188.6" y="236.0" text-anchor="middle">10</text><text class="tk" x="269.0" y="236.0" text-anchor="middle">15</text><text class="tk" x="349.3" y="236.0" text-anchor="middle">20</text><text class="tk" x="429.7" y="236.0" text-anchor="middle">25</text><text class="tk" x="510.0" y="236.0" text-anchor="middle">30</text><text class="tk" x="277" y="246" text-anchor="middle">epoch</text><line class="chance" x1="44" y1="209.9" x2="510" y2="209.9"/><polyline class="ln" points="44.0,117.9 60.1,90.1 76.1,84.0 92.2,68.5 108.3,60.5 124.3,57.3 140.4,53.8 156.5,53.6 172.6,54.6 188.6,48.6 204.7,53.1 220.8,50.6 236.8,50.2 252.9,51.8 269.0,53.0 285.0,54.0 301.1,53.0 317.2,56.7 333.2,55.3 349.3,56.4 365.4,56.3 381.4,56.6 397.5,56.0 413.6,56.8 429.7,56.8 445.7,56.6 461.8,56.5 477.9,56.8 493.9,56.9 510.0,56.9" stroke="var(--f0)"/><circle class="dot" cx="188.6" cy="48.6" r="4" fill="var(--f0)"/><polyline class="ln" points="44.0,122.4 60.1,94.1 76.1,81.3 92.2,66.2 108.3,69.1 124.3,57.4 140.4,51.4 156.5,51.7 172.6,49.0 188.6,53.1 204.7,51.3 220.8,53.2 236.8,52.0 252.9,50.1 269.0,53.0 285.0,54.0 301.1,55.4 317.2,55.3 333.2,54.0 349.3,57.5 365.4,54.7 381.4,55.8 397.5,55.1 413.6,55.4 429.7,56.0 445.7,55.7 461.8,56.5 477.9,56.2 493.9,56.2 510.0,56.2" stroke="var(--f1)"/><circle class="dot" cx="172.6" cy="49.0" r="4" fill="var(--f1)"/><polyline class="ln" points="44.0,99.0 60.1,85.5 76.1,72.0 92.2,65.4 108.3,55.9 124.3,53.1 140.4,47.2 156.5,46.7 172.6,46.1 188.6,47.9 204.7,47.3 220.8,44.2 236.8,48.0 252.9,46.2 269.0,50.6 285.0,47.4 301.1,51.6 317.2,50.1 333.2,52.0 349.3,51.0 365.4,51.6 381.4,52.6 397.5,52.7 413.6,54.7 429.7,55.0 445.7,54.3 461.8,53.9 477.9,54.7 493.9,54.4 510.0,54.4" stroke="var(--f2)"/><circle class="dot" cx="220.8" cy="44.2" r="4" fill="var(--f2)"/><polyline class="ln" points="44.0,106.3 60.1,87.8 76.1,73.2 92.2,65.8 108.3,62.4 124.3,59.5 140.4,56.7 156.5,55.4 172.6,51.6 188.6,54.0 204.7,52.5 220.8,51.0 236.8,49.3 252.9,53.2 269.0,53.6 285.0,53.4 301.1,51.6 317.2,54.9 333.2,57.1 349.3,56.0 365.4,55.6 381.4,55.7 397.5,56.4 413.6,55.6 429.7,56.8 445.7,55.6 461.8,56.0 477.9,56.1 493.9,56.1 510.0,56.1" stroke="var(--f3)"/><circle class="dot" cx="236.8" cy="49.3" r="4" fill="var(--f3)"/><polyline class="ln" points="44.0,107.0 60.1,87.0 76.1,70.2 92.2,57.9 108.3,46.1 124.3,44.8 140.4,38.1 156.5,39.7 172.6,39.5 188.6,39.0 204.7,39.9 220.8,40.9 236.8,41.9 252.9,41.9 269.0,40.5 285.0,43.1 301.1,45.2 317.2,44.8 333.2,48.4 349.3,45.6 365.4,45.5 381.4,46.9 397.5,47.7 413.6,47.8 429.7,47.8 445.7,48.2 461.8,48.5 477.9,48.0 493.9,48.2 510.0,48.3" stroke="var(--f4)"/><circle class="dot" cx="140.4" cy="38.1" r="4" fill="var(--f4)"/></svg></div><div class="legend"><span class="key"><i style="background:var(--f0)"></i>fold 0</span><span class="key"><i style="background:var(--f1)"></i>fold 1</span><span class="key"><i style="background:var(--f2)"></i>fold 2</span><span class="key"><i style="background:var(--f3)"></i>fold 3</span><span class="key"><i style="background:var(--f4)"></i>fold 4</span><span class="key"><i class="ring"></i>epoch kept</span></div></div>
+
+<h2>What does not look right</h2>
+<div class="flag warn"><span class="tag">warn</span><span>Fold 0 peaked at epoch 10 of 30 and got worse after: overfitting, or a holdout too small for the peak to be real.</span></div><div class="flag warn"><span class="tag">warn</span><span>Fold 1 peaked at epoch 9 of 30 and got worse after: overfitting, or a holdout too small for the peak to be real.</span></div><div class="flag warn"><span class="tag">warn</span><span>Fold 4 peaked at epoch 7 of 30 and got worse after: overfitting, or a holdout too small for the peak to be real.</span></div>
+</main>

@@ -1,0 +1,203 @@
+{
+ "experiment": "compress_30epochs_v4blend_goldin",
+ "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+ "split": "train_series",
+ "written": "2026-09-17T13:14:47+00:00",
+ "n_folds": 5,
+ "n_studies": 4407,
+ "epochs": 30,
+ "fold_aucs": [
+  0.8098966545638318,
+  0.8089911493432146,
+  0.8182286047984295,
+  0.8084299624573347,
+  0.829952394667646
+ ],
+ "fold_mean": 0.8150997531660913,
+ "fold_std": 0.008237281783928567,
+ "pooled_auc": 0.8147438106401657,
+ "interval": [
+  0.8092334525362483,
+  0.8198252766154657
+ ],
+ "targets": [
+  {
+   "target": "ACL",
+   "positives": 913,
+   "n": 4407,
+   "auc": 0.8257030829254469,
+   "lo": 0.8084569760809188,
+   "hi": 0.842949189769975,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "MCL",
+   "positives": 669,
+   "n": 4407,
+   "auc": 0.7600756901406874,
+   "lo": 0.7379717961996201,
+   "hi": 0.7821795840817548,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Medial Meniscus",
+   "positives": 1778,
+   "n": 4407,
+   "auc": 0.8069709834197694,
+   "lo": 0.7932895817121077,
+   "hi": 0.820652385127431,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Lateral Meniscus",
+   "positives": 691,
+   "n": 4407,
+   "auc": 0.7464819476616937,
+   "lo": 0.724360302799002,
+   "hi": 0.7686035925243855,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Medial OA",
+   "positives": 1632,
+   "n": 4407,
+   "auc": 0.8472332626744391,
+   "lo": 0.8344455879174273,
+   "hi": 0.8600209374314509,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Lateral OA",
+   "positives": 1195,
+   "n": 4407,
+   "auc": 0.8060638192551989,
+   "lo": 0.7901038534572484,
+   "hi": 0.8220237850531493,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "PF OA",
+   "positives": 2012,
+   "n": 4407,
+   "auc": 0.7799034602406438,
+   "lo": 0.7659991491901738,
+   "hi": 0.7938077712911139,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Effusion",
+   "positives": 2618,
+   "n": 4407,
+   "auc": 0.8311994699805834,
+   "lo": 0.8194942873151438,
+   "hi": 0.8429046526460229,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Synovitis",
+   "positives": 567,
+   "n": 4407,
+   "auc": 0.8654695307907114,
+   "lo": 0.8459789080995481,
+   "hi": 0.8849601534818747,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Baker's",
+   "positives": 1085,
+   "n": 4407,
+   "auc": 0.8771777037318589,
+   "lo": 0.8633239349634729,
+   "hi": 0.8910314725002448,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Contusion",
+   "positives": 763,
+   "n": 4407,
+   "auc": 0.7858149916629862,
+   "lo": 0.7657082888946991,
+   "hi": 0.8059216944312733,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Fracture",
+   "positives": 314,
+   "n": 4407,
+   "auc": 0.844831785197969,
+   "lo": 0.8174246979965156,
+   "hi": 0.8722388723994223,
+   "flat": false,
+   "thin": false
+  }
+ ],
+ "gold": null,
+ "inference": {
+  "windows": 1,
+  "selection_windows": 1,
+  "aligned": true,
+  "folds": [
+   {
+    "fold": 0,
+    "selected": 0.8098966545638318,
+    "final": 0.8098966545638318,
+    "gold_selected": NaN,
+    "gold_final": NaN
+   },
+   {
+    "fold": 1,
+    "selected": 0.8089911493432146,
+    "final": 0.8089911493432146,
+    "gold_selected": NaN,
+    "gold_final": NaN
+   },
+   {
+    "fold": 2,
+    "selected": 0.8182286047984295,
+    "final": 0.8182286047984295,
+    "gold_selected": NaN,
+    "gold_final": NaN
+   },
+   {
+    "fold": 3,
+    "selected": 0.8084299624573347,
+    "final": 0.8084299624573347,
+    "gold_selected": NaN,
+    "gold_final": NaN
+   },
+   {
+    "fold": 4,
+    "selected": 0.829952394667646,
+    "final": 0.829952394667646,
+    "gold_selected": NaN,
+    "gold_final": NaN
+   }
+  ],
+  "mixed": false
+ },
+ "flags": [
+  {
+   "level": "warn",
+   "text": "Fold 0 peaked at epoch 10 of 30 and got worse after: overfitting, or a holdout too small for the peak to be real."
+  },
+  {
+   "level": "warn",
+   "text": "Fold 1 peaked at epoch 9 of 30 and got worse after: overfitting, or a holdout too small for the peak to be real."
+  },
+  {
+   "level": "warn",
+   "text": "Fold 4 peaked at epoch 7 of 30 and got worse after: overfitting, or a holdout too small for the peak to be real."
+  }
+ ]
+}

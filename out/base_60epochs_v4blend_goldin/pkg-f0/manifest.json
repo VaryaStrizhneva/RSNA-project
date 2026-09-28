@@ -1,0 +1,94 @@
+{
+ "format": 1,
+ "written": "2026-09-17T02:51:48+00:00",
+ "note": "base_60epochs_v4blend_goldin; train_series, 4407 studies, data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+ "members": [
+  {
+   "id": "base_60epochs_v4blend_goldin_fold0_336px",
+   "file": "base_60epochs_v4blend_goldin_fold0_336px.pt",
+   "config": {
+    "img": 336,
+    "crop_mm": 130.0,
+    "group": 3,
+    "slices": 12,
+    "band": [
+     0.2,
+     0.8
+    ],
+    "slots": [
+     [
+      "SAG_FLUID_FS",
+      "Sagittal",
+      true,
+      true
+     ],
+     [
+      "COR_FLUID_FS",
+      "Coronal",
+      true,
+      true
+     ],
+     [
+      "AX_FLUID_FS",
+      "Axial",
+      true,
+      true
+     ],
+     [
+      "SAG_FLUID_NOFS",
+      "Sagittal",
+      true,
+      false
+     ],
+     [
+      "COR_T1",
+      "Coronal",
+      false,
+      false
+     ],
+     [
+      "SAG_T1",
+      "Sagittal",
+      false,
+      false
+     ]
+    ],
+    "rules": {
+     "order": "normal",
+     "laterality": "centre",
+     "slot_fallback": false,
+     "decode_fill": "nearest"
+    },
+    "encoder": "dinov2",
+    "encoder_variant": "base",
+    "pool": "cls_mean",
+    "prior": false,
+    "weights": "assertedness",
+    "weight_floor": 0.25,
+    "silence": 0.25,
+    "stem": "window",
+    "stem_depth": 1,
+    "lat_min_offset_mm": 20.0,
+    "lat_legacy_offset_mm": 5.0,
+    "seed": 2026,
+    "epochs": 60,
+    "batch_studies": 8,
+    "lr_head": 0.001,
+    "lr_backbone": 8e-06,
+    "warmup_frac": 0.15,
+    "unfreeze_last": 6,
+    "weight_decay": 0.02,
+    "eval_batch": 8,
+    "aug_rot_deg": 8.0,
+    "aug_scale": 0.08,
+    "aug_shift": 0.05,
+    "aug_intensity": 0.1,
+    "gold_weight": 3.0,
+    "n_folds": 5
+   },
+   "fold": 0,
+   "holdout": 0.8528459736388211,
+   "epoch": 27
+  }
+ ]
+}

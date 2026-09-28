@@ -1,0 +1,11 @@
+1 fold(s) under out/labels_blend_rank_50_50_uniform: 0
+
+labels_blend_rank_50_50_uniform  —  1 folds, 870 out-of-fold studies, 30 epochs
+  out-of-fold macro AUC   0.8401   (95% 0.830-0.850)
+  measured over            10 sliding windows, +0.0022 on the pass that chose
+  per fold                0.8379 +/- nan   f0:0.838
+  best    Medial OA 0.894, Synovitis 0.887, Lateral OA 0.873
+  worst   Fracture 0.754, PF OA 0.792, MCL 0.817
+  flags   0 error, 0 warning
+
+written to out/labels_blend_rank_50_50_uniform/report.html

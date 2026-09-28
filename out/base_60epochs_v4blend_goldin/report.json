@@ -1,0 +1,166 @@
+{
+ "experiment": "base_60epochs_v4blend_goldin",
+ "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+ "split": "train_series",
+ "written": "2026-09-17T09:07:33+00:00",
+ "n_folds": 2,
+ "n_studies": 1715,
+ "epochs": 60,
+ "fold_aucs": [
+  0.8528459736388211,
+  0.8388427325065474
+ ],
+ "fold_mean": 0.8458443530726842,
+ "fold_std": 0.007001620566136846,
+ "pooled_auc": 0.8487247114022116,
+ "interval": [
+  0.8411084154249103,
+  0.8559404997349601
+ ],
+ "targets": [
+  {
+   "target": "ACL",
+   "positives": 349,
+   "n": 1715,
+   "auc": 0.8241388279417873,
+   "lo": 0.7961709821982859,
+   "hi": 0.8521066736852887,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "MCL",
+   "positives": 282,
+   "n": 1715,
+   "auc": 0.8080144813489529,
+   "lo": 0.7762027705877583,
+   "hi": 0.8398261921101475,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Medial Meniscus",
+   "positives": 704,
+   "n": 1715,
+   "auc": 0.8784970438809461,
+   "lo": 0.8607043756083348,
+   "hi": 0.8962897121535573,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Lateral Meniscus",
+   "positives": 254,
+   "n": 1715,
+   "auc": 0.8205656787768059,
+   "lo": 0.7879588420680281,
+   "hi": 0.8531725154855836,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Medial OA",
+   "positives": 631,
+   "n": 1715,
+   "auc": 0.8821468880298946,
+   "lo": 0.8638234676163701,
+   "hi": 0.9004703084434191,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Lateral OA",
+   "positives": 465,
+   "n": 1715,
+   "auc": 0.8470606451612904,
+   "lo": 0.8237370840217721,
+   "hi": 0.8703842063008087,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "PF OA",
+   "positives": 810,
+   "n": 1715,
+   "auc": 0.8093336061660188,
+   "lo": 0.7885350411066295,
+   "hi": 0.830132171225408,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Effusion",
+   "positives": 1022,
+   "n": 1715,
+   "auc": 0.8438395698669671,
+   "lo": 0.8257939556558603,
+   "hi": 0.8618851840780738,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Synovitis",
+   "positives": 215,
+   "n": 1715,
+   "auc": 0.871337984496124,
+   "lo": 0.8402574768502005,
+   "hi": 0.9024184921420475,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Baker's",
+   "positives": 447,
+   "n": 1715,
+   "auc": 0.8749655960874811,
+   "lo": 0.8531503449446495,
+   "hi": 0.8967808472303128,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Contusion",
+   "positives": 312,
+   "n": 1715,
+   "auc": 0.8404266498528794,
+   "lo": 0.8120530917724104,
+   "hi": 0.8688002079333484,
+   "flat": false,
+   "thin": false
+  },
+  {
+   "target": "Fracture",
+   "positives": 115,
+   "n": 1715,
+   "auc": 0.8843695652173913,
+   "lo": 0.8440017508396978,
+   "hi": 0.9247373795950848,
+   "flat": false,
+   "thin": false
+  }
+ ],
+ "gold": null,
+ "inference": {
+  "windows": 10,
+  "selection_windows": 4,
+  "aligned": false,
+  "folds": [
+   {
+    "fold": 0,
+    "selected": 0.8528459736388211,
+    "final": 0.8558272744830413,
+    "gold_selected": NaN,
+    "gold_final": NaN
+   },
+   {
+    "fold": 1,
+    "selected": 0.8388427325065474,
+    "final": 0.8413749060778498,
+    "gold_selected": NaN,
+    "gold_final": NaN
+   }
+  ],
+  "mixed": false
+ },
+ "flags": []
+}

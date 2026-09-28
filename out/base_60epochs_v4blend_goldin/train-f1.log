@@ -1,0 +1,165 @@
+[    0.0s] silence for llm_labels_v4_blend.csv: 0.25 (from the label registry)
+[    0.0s] experiment: base_60epochs_v4blend_goldin  (stem=window, 3 channels to the encoder, 10 pass(es) per slot at inference)
+[    0.0s] config: 336px, 12 slices, group 3, 6 slots, 60 epochs, batch 8
+[    0.0s] run: split=train_series, fold=1, encoder=models/dinov2-base
+[    0.0s]      labels=data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv
+[    0.0s] device: cuda
+[   37.1s] 24371 series across 4407 studies
+[   37.7s] laterality: 2203 tagged, 2132 from geometry, 72 unresolved, 25 disagree
+[   52.2s] slots: 20130/26442 filled
+[   52.2s] reusing the cache at /data/mgr/rsna-knee/cache-full.npy: (4407, 6, 12, 336, 336)
+[   53.0s] targets: 4407/4407 studies supervised from data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv weighted by assertedness, silence 0.25, floor 0.25
+[   53.0s] train 3573 / holdout 834 studies
+Loading weights:   0%|          | 0/223 [00:00<?, ?it/s]Loading weights: 100%|██████████| 223/223 [00:00<00:00, 8229.19it/s]
+[   55.3s] model: 87.0M parameters, 42.9M trainable
+[  211.1s]   epoch 1/60  loss 0.4599  holdout 0.6830
+[  412.8s]   epoch 2/60  loss 0.4289  holdout 0.7186
+[  625.1s]   epoch 3/60  loss 0.4153  holdout 0.7463
+[  818.5s]   epoch 4/60  loss 0.4052  holdout 0.7657
+[ 1018.6s]   epoch 5/60  loss 0.3969  holdout 0.7762
+[ 1215.9s]   epoch 6/60  loss 0.3913  holdout 0.7846
+[ 1413.8s]   epoch 7/60  loss 0.3797  holdout 0.8036
+[ 1618.5s]   epoch 8/60  loss 0.3785  holdout 0.7945
+[ 1833.1s]   epoch 9/60  loss 0.3703  holdout 0.8192
+[ 2036.3s]   epoch 10/60  loss 0.3661  holdout 0.8141
+[ 2238.9s]   epoch 11/60  loss 0.3582  holdout 0.8143
+[ 2439.9s]   epoch 12/60  loss 0.3507  holdout 0.8226
+[ 2642.1s]   epoch 13/60  loss 0.3466  holdout 0.8242
+[ 2853.2s]   epoch 14/60  loss 0.3418  holdout 0.8231
+[ 3061.9s]   epoch 15/60  loss 0.3349  holdout 0.8243
+[ 3266.4s]   epoch 16/60  loss 0.3284  holdout 0.8305
+[ 3471.3s]   epoch 17/60  loss 0.3235  holdout 0.8307
+[ 3676.3s]   epoch 18/60  loss 0.3190  holdout 0.8317
+[ 3884.8s]   epoch 19/60  loss 0.3128  holdout 0.8330
+[ 4105.2s]   epoch 20/60  loss 0.3058  holdout 0.8318
+[ 4315.8s]   epoch 21/60  loss 0.3016  holdout 0.8337
+[ 4520.1s]   epoch 22/60  loss 0.2920  holdout 0.8356
+[ 4722.2s]   epoch 23/60  loss 0.2859  holdout 0.8329
+[ 4925.0s]   epoch 24/60  loss 0.2813  holdout 0.8358
+[ 5130.7s]   epoch 25/60  loss 0.2750  holdout 0.8363
+[ 5351.8s]   epoch 26/60  loss 0.2696  holdout 0.8388
+[ 5553.9s]   epoch 27/60  loss 0.2621  holdout 0.8369
+[ 5757.8s]   epoch 28/60  loss 0.2541  holdout 0.8365
+[ 5962.6s]   epoch 29/60  loss 0.2506  holdout 0.8368
+[ 6169.7s]   epoch 30/60  loss 0.2457  holdout 0.8334
+[ 6387.8s]   epoch 31/60  loss 0.2384  holdout 0.8336
+[ 6599.5s]   epoch 32/60  loss 0.2346  holdout 0.8373
+[ 6803.9s]   epoch 33/60  loss 0.2291  holdout 0.8304
+[ 7005.7s]   epoch 34/60  loss 0.2251  holdout 0.8369
+[ 7208.7s]   epoch 35/60  loss 0.2201  holdout 0.8311
+[ 7414.7s]   epoch 36/60  loss 0.2164  holdout 0.8338
+[ 7632.8s]   epoch 37/60  loss 0.2099  holdout 0.8329
+[ 7840.3s]   epoch 38/60  loss 0.2074  holdout 0.8329
+[ 8040.6s]   epoch 39/60  loss 0.2050  holdout 0.8320
+[ 8242.2s]   epoch 40/60  loss 0.2010  holdout 0.8319
+[ 8442.9s]   epoch 41/60  loss 0.1989  holdout 0.8295
+[ 8644.3s]   epoch 42/60  loss 0.1959  holdout 0.8311
+[ 8876.2s]   epoch 43/60  loss 0.1941  holdout 0.8293
+[ 9119.1s]   epoch 44/60  loss 0.1911  holdout 0.8293
+[ 9358.6s]   epoch 45/60  loss 0.1883  holdout 0.8294
+[ 9596.1s]   epoch 46/60  loss 0.1877  holdout 0.8319
+[ 9842.0s]   epoch 47/60  loss 0.1861  holdout 0.8289
+[10081.5s]   epoch 48/60  loss 0.1842  holdout 0.8302
+[10326.2s]   epoch 49/60  loss 0.1829  holdout 0.8299
+[10570.8s]   epoch 50/60  loss 0.1828  holdout 0.8298
+[10812.5s]   epoch 51/60  loss 0.1814  holdout 0.8305
+[11056.9s]   epoch 52/60  loss 0.1801  holdout 0.8296
+[11300.7s]   epoch 53/60  loss 0.1792  holdout 0.8292
+[11548.5s]   epoch 54/60  loss 0.1787  holdout 0.8295
+[11793.8s]   epoch 55/60  loss 0.1787  holdout 0.8296
+[12032.6s]   epoch 56/60  loss 0.1787  holdout 0.8293
+[12274.7s]   epoch 57/60  loss 0.1776  holdout 0.8293
+[12515.5s]   epoch 58/60  loss 0.1773  holdout 0.8293
+[12752.8s]   epoch 59/60  loss 0.1775  holdout 0.8294
+[12993.7s]   epoch 60/60  loss 0.1776  holdout 0.8294
+[12993.8s] best epoch 26, holdout AUC 0.8388
+[13183.4s] final pass over 10 sliding window(s), selection read 4: holdout 0.8414  (selection saw holdout 0.8388)
+[13183.7s] package written to out/base_60epochs_v4blend_goldin/pkg-f1
+[13183.8s] history and predictions written to out/base_60epochs_v4blend_goldin/pkg-f1
+{
+ "id": "base_60epochs_v4blend_goldin_fold1_336px",
+ "file": "base_60epochs_v4blend_goldin_fold1_336px.pt",
+ "config": {
+  "img": 336,
+  "crop_mm": 130.0,
+  "group": 3,
+  "slices": 12,
+  "band": [
+   0.2,
+   0.8
+  ],
+  "slots": [
+   [
+    "SAG_FLUID_FS",
+    "Sagittal",
+    true,
+    true
+   ],
+   [
+    "COR_FLUID_FS",
+    "Coronal",
+    true,
+    true
+   ],
+   [
+    "AX_FLUID_FS",
+    "Axial",
+    true,
+    true
+   ],
+   [
+    "SAG_FLUID_NOFS",
+    "Sagittal",
+    true,
+    false
+   ],
+   [
+    "COR_T1",
+    "Coronal",
+    false,
+    false
+   ],
+   [
+    "SAG_T1",
+    "Sagittal",
+    false,
+    false
+   ]
+  ],
+  "rules": {
+   "order": "normal",
+   "laterality": "centre",
+   "slot_fallback": false,
+   "decode_fill": "nearest"
+  },
+  "encoder": "dinov2",
+  "encoder_variant": "base",
+  "pool": "cls_mean",
+  "prior": false,
+  "weights": "assertedness",
+  "weight_floor": 0.25,
+  "silence": 0.25,
+  "stem": "window",
+  "stem_depth": 1,
+  "lat_min_offset_mm": 20.0,
+  "lat_legacy_offset_mm": 5.0,
+  "seed": 2026,
+  "epochs": 60,
+  "batch_studies": 8,
+  "lr_head": 0.001,
+  "lr_backbone": 8e-06,
+  "warmup_frac": 0.15,
+  "unfreeze_last": 6,
+  "weight_decay": 0.02,
+  "eval_batch": 8,
+  "aug_rot_deg": 8.0,
+  "aug_scale": 0.08,
+  "aug_shift": 0.05,
+  "aug_intensity": 0.1,
+  "gold_weight": 3.0,
+  "n_folds": 5
+ },
+ "fold": 1,
+ "holdout": 0.8388427325065474,
+ "epoch": 25
+}
