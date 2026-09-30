@@ -164,7 +164,15 @@ def _through_plane(ds) -> float:
 
 
 def patient_x(ds_or_row) -> float | None:
-    """The patient's left-right coordinate, which is what decides medial from lateral."""
+    """The x of the image's top-left **corner**, not of the knee.
+
+    Kept because it is what an imported member may have been fitted under, and because
+    `rsna.dicom.laterality.side_from_corner_x` names the same quantity. It is the wrong
+    thing to threshold: the corner sits half a field of view from the centre, which is
+    about 90 mm here, and that is more than enough to put a knee on the wrong side of
+    zero. Measured on one study of this corpus, the corner gives -24 mm and the centre
+    +66 mm — a left knee called right. `side_of` uses the centre.
+    """
 
     try:
         return float(str(ds_or_row["ImagePositionPatient"]).split("|")[0])
@@ -221,19 +229,29 @@ def stack_orientation(plane: str, side: str | None) -> tuple[str, str]:
 
 
 def side_of(headers: pd.DataFrame) -> tuple[str | None, str]:
-    """Which knee, and where that was established from."""
+    """Which knee, and where that was established from.
+
+    Delegates the geometry to `rsna.dicom.laterality.side_from_geometry` rather than
+    thresholding an x of its own. It did the latter once, on the image **corner**, and
+    the corpus contains a study where that reads -24 mm while the centre reads +66 mm
+    and the tibia measures +84 mm on the axial: a left knee shown as right, annotated on
+    the strength of the badge, and landing on the opposite meniscus. One rule, the one
+    that was measured.
+    """
 
     tagged = [str(x).strip().upper()[:1] for x in headers["Laterality"].dropna()]
     tagged = [x for x in tagged if x in ("L", "R")]
     if tagged:
         return tagged[0], "DICOM Laterality tag"
 
-    xs = [x for x in (patient_x(r) for _, r in headers.iterrows()) if x is not None]
-    if not xs:
-        return None, "unresolved"
-    median = float(np.median(xs))
-    if abs(median) < 20.0:
-        # Inside 20 mm of the midline the rule is no better than chance; see
-        # rsna.dicom.laterality, which measured it against the tagged half.
-        return None, f"too near the midline (x={median:.0f} mm)"
-    return ("L" if median > 0 else "R"), f"geometry (median x = {median:.0f} mm)"
+    from rsna.config import Config
+    from rsna.dicom.laterality import side_from_geometry
+
+    study = str(headers["StudyInstanceUID"].iloc[0]) if "StudyInstanceUID" in headers \
+        else "_"
+    frame = headers if "StudyInstanceUID" in headers \
+        else headers.assign(StudyInstanceUID=study)
+    side = side_from_geometry(frame, Config()).get(study)
+    if side is None:
+        return None, "geometry gives no answer away from the midline"
+    return side, "geometry (centre of the image)"
