@@ -1,0 +1,11 @@
+{
+  "config": {},
+  "run": {
+    "epochs": 60,
+    "batch": 8,
+    "lr": 3e-4,
+    "weight": 200.0,
+    "folds": 5,
+    "seed": 0
+  }
+}
