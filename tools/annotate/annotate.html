@@ -24,6 +24,7 @@ h1{font-size:1.05rem;margin:0 0 4px;letter-spacing:-.01em}
 .lat{position:absolute;top:10px;padding:4px 10px;border-radius:6px;font-size:.76rem;
      font-weight:700;letter-spacing:.06em;background:#1d3557cc;color:#cfe1ff;
      border:1px solid #6ea8fe}
+.lat.guess{background:#3a2d12cc;color:#ffd98a;border-color:#6b5420}
 .axis{display:flex;justify-content:space-between;color:var(--dim);font-size:.76rem;
       text-transform:uppercase;letter-spacing:.06em;margin:6px 2px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;
@@ -47,9 +48,25 @@ button.primary{background:#1d3557;border-color:var(--accent)}
 .count{font-family:ui-monospace,monospace;color:var(--accent)}
 .def{background:#12161b;border-left:3px solid var(--accent);border-radius:0 6px 6px 0;
      padding:9px 12px;font-size:.82rem;line-height:1.6}
+.declare{background:#2a2113;border:1px solid #6b5420;border-radius:8px;padding:12px 14px;
+         margin-bottom:12px}
+.declare h4{margin:0 0 6px;color:var(--warn);font-size:.8rem;text-transform:uppercase;
+            letter-spacing:.06em}
+.declare p{margin:0 0 10px;font-size:.82rem;line-height:1.55;color:#ddd6c4}
+.declare button{width:100%;margin-bottom:6px;text-align:left}
+.declare button.on{background:#1d3557;border-color:var(--accent);color:#cfe1ff}
+.declared{color:var(--good);font-size:.8rem;font-family:ui-monospace,monospace}
 .state{font-family:ui-monospace,monospace;font-size:.82rem}
 .state.set{color:var(--good)}
 .state.unset{color:var(--dim)}
+.scrim{position:fixed;inset:0;background:#000000cc;z-index:9;overflow:auto;padding:28px}
+.help{max-width:780px;margin:0 auto;background:var(--panel);border:1px solid var(--line);
+      border-radius:10px;padding:22px 26px}
+.help h2{font-size:1rem;margin:0 0 2px}
+.help h3{font-size:.86rem;margin:18px 0 4px;color:var(--accent)}
+.help p{margin:5px 0;font-size:.85rem;line-height:1.65;color:#cdd3d9}
+.help img{width:100%;border-radius:6px;margin:12px 0;border:1px solid var(--line)}
+.help em{color:var(--warn);font-style:normal}
 kbd{background:#242a31;border:1px solid var(--line);border-radius:4px;padding:0 5px;
     font-family:ui-monospace,monospace;font-size:.72rem}
 </style>
@@ -77,13 +94,32 @@ kbd{background:#242a31;border:1px solid var(--line);border-radius:4px;padding:0 
       <div class="meta" id="progtext"></div>
     </div>
 
+    <div class="declare" id="declare" hidden>
+      <h4 id="dechead">Pas de repère automatique sur cette étude</h4>
+      <p>Le côté ne vient pas du tag <code>Laterality</code> : soit il est absent, soit il
+        est <b>déduit de la position dans le scanner</b>, une règle juste ~91 % du temps.
+        Ne te fie pas au badge orange. Repère-toi à la <b>tête du péroné</b> — l'os isolé
+        sous le tibia, qui n'existe que du côté latéral — et clique normalement.
+        <b>Ton clic suffit</b> : le bout de la pile dont il est le plus proche est le
+        latéral, et c'est retrouvé après coup.</p>
+      <p style="opacity:.75;margin-bottom:8px">Optionnel, si tu veux que le badge et les
+        libellés d'axe s'affichent quand même :</p>
+      <button id="lat0">◀ le LATÉRAL est au début (coupes basses)</button>
+      <button id="lat1">le LATÉRAL est à la fin (coupes hautes) ▶</button>
+      <div class="declared" id="declared"></div>
+    </div>
+
     <div class="card">
       <div class="lab">the point</div>
       <div class="def">
         <b>Centre of the LATERAL meniscus.</b><br>
         Scroll to where the two dark meniscal triangles are visible and separated.
         Place the point <b>midway between their two tips</b>, at the level of the
-        joint line.
+        joint line. Place it the same way when the meniscus is <b>torn or missing</b> &mdash;
+        where the geometry says, not where the tissue is.
+      </div>
+      <div class="row" style="margin-top:9px">
+        <button id="help"><kbd>H</kbd> full definition</button>
       </div>
       <div class="lab">status</div>
       <div class="state unset" id="pstate">— not placed</div>
@@ -120,6 +156,74 @@ kbd{background:#242a31;border:1px solid var(--line);border-radius:4px;padding:0 
   </div>
 </div>
 
+<div class="scrim" id="scrim" hidden>
+  <div class="help">
+    <h2>lat_centre &mdash; what the point means</h2>
+    <p class="hint">One point per study: the centre of the <b>lateral</b> meniscus, on one
+      sagittal slice. Two people who each annotate sensibly but differently produce two
+      datasets, not one. <kbd>H</kbd> closes this.</p>
+
+    <img src="figures/lat_centre.jpg" alt="the three landmarks considered; the point is the middle one">
+
+    <h3>Which end of the stack is lateral</h3>
+    <p>The badge on the image says so, per study. It is not the same end on a left and a
+      right knee, and the bundle shows the acquisition unmirrored &mdash; so the badge is
+      the only thing to trust. Every study here carries the DICOM <code>Laterality</code>
+      tag, so it comes from the scanner's own record.</p>
+
+    <h3>1. The slice &mdash; where the two triangles are clearest</h3>
+    <p>Scroll from the lateral edge inward. The meniscus first appears as a continuous
+      dark band across the joint line &mdash; the <i>bowtie</i>, the plane cutting the
+      C-shaped body lengthwise. Keep going and it separates into <b>two dark triangles</b>
+      facing each other, the anterior and posterior horns.</p>
+    <p>Take a slice from that second range, where both triangles are present and well
+      formed. If several qualify, take the middle one. Not the bowtie slices; not so far
+      toward the notch that the horns have thinned to slivers.</p>
+
+    <h3>2. The point &mdash; midway between the two apexes, on the joint line</h3>
+    <p>Each triangle has an apex, the tip aimed at the centre of the joint. The point goes
+      <b>halfway between the two apexes</b>, vertically <b>on the joint line</b>: the dark
+      line between the femoral condyle above and the tibial plateau below.</p>
+    <p>It lands in the gap between the horns, on almost nothing. That is deliberate &mdash;
+      the two apexes are features every knee has, and their midpoint does not move when one
+      horn is damaged.</p>
+
+    <h3>3. Click even when the meniscus is abnormal &mdash; <em>especially then</em></h3>
+    <p>A torn, macerated, extruded or post-operative meniscus still gets a point, placed
+      where the geometry says it goes, not where the surviving tissue is. If the posterior
+      horn is gone, use where its apex would be; the tibial plateau and the femoral condyle
+      are still there to tell you.</p>
+    <p>This is the rule that matters most. If the point drifts toward the damage on
+      positives, the ROI drifts too, and the crop starts encoding the label through its own
+      position &mdash; a signal that exists in the training set and nowhere else.</p>
+
+    <h3>Quand le badge est absent</h3>
+    <p>Certaines études n'ont ni tag <code>Laterality</code> ni géométrie exploitable, donc
+      pas de badge. Repère-toi alors à la <b>tête du péroné</b> : un second os, détaché du
+      tibia, en bas et en arrière, qui n'existe que du côté latéral. Sur la pile il
+      apparaît à une extrémité et jamais à l'autre.</p>
+    <p>Puis clique normalement &mdash; <b>rien d'autre à saisir</b>. Le ménisque latéral
+      est à ~25&nbsp;mm du bord latéral du genou, donc le bout de la pile dont ton point est
+      le plus proche <i>est</i> le latéral. Vérifié sur les 161 premières annotations :
+      161 fois sur 161, et le clic le plus central était encore à 31&nbsp;% du milieu.</p>
+    <p>Si tu ne trouves pas le péroné, passe l'étude (<kbd>S</kbd>) plutôt que de deviner.</p>
+
+    <h3>When to skip</h3>
+    <p>A red banner (side unresolved, or slice order unusable), or no findable joint line.
+      Skipping is cheap and honest: the model does not need all 170, it needs the ones it
+      gets to be right.</p>
+
+    <h3>If you are unsure</h3>
+    <p><b>Consistency beats correctness.</b> Pick a reading and hold it for all 170. A
+      systematic 3&nbsp;mm offset costs nothing &mdash; the ROI is 40&nbsp;mm and absorbs
+      it. One that varies study to study is noise the model never fully averages away.</p>
+    <p>When two readings of this text are both defensible, that is a defect in the text.
+      Say so, and we fix the wording, not the clicks.</p>
+
+    <div class="row" style="margin-top:18px"><button class="primary" id="closehelp">back to annotating</button></div>
+  </div>
+</div>
+
 <script>
 // One point for now: the medial compartment gets its own pass later, and the export is
 // keyed by name, so adding it changes nothing downstream.
@@ -141,28 +245,74 @@ function loadStudy(){
   $("sub").innerHTML = `${s.sequence} · ${s.n} slices · `
     + `${s.mm_per_px_shown.toFixed(3)} mm/px · ${s.slice_spacing_mm} mm between slices`;
   $("sl").max = s.n-1; $("sl").value = slice;
-  $("endA").textContent = "◀ " + (s.first_end || "?");
-  $("endB").textContent = (s.last_end || "?") + " ▶";
-
-  // The lateral compartment is not at the same end on a left and a right knee, so the
-  // badge says which, on the image, for every study.
-  const high = s.last_end === "lateral";
-  $("latflag").textContent = high ? "LATERAL → high slice numbers"
-                                  : "LATERAL ← low slice numbers";
-  $("latflag").style.left  = high ? "auto" : "10px";
-  $("latflag").style.right = high ? "10px" : "auto";
+  ends();
 
   let alerts = "";
-  if (!s.side) alerts += `<div class="alert">Side UNRESOLVED — ${s.side_from}.
-    Medial and lateral cannot be told apart. Skip it.</div>`;
   if (!s.ordered) alerts += `<div class="alert">Slice geometry unusable; file order kept.
     These slices may not be in anatomical order.</div>`;
   $("alerts").innerHTML = alerts;
 
-  $("info").innerHTML = `study <b>…${s.tail}</b><br>side <b>${s.side||"—"}</b><br>`
+  $("info").innerHTML = `study <b>…${s.tail}</b><br>side <b>${sideOf()||"—"}</b><br>`
     + `series <b>${s.sequence}</b><br>“${s.description}”`;
   rec();
   show(); progress();
+}
+
+// Which end of the stack is lateral: the header where it is known, the annotator's own
+// declaration where it is not. Everything the annotator sees about laterality — the badge,
+// the two axis labels — reads this one function, so a declaration cannot half-apply.
+function latEnd(){
+  const s = cur();
+  if (s.side) return s.last_end === "lateral" ? "last" : "first";
+  return (state[s.study] || {}).lat_end || null;
+}
+
+// A declaration gives the side for free. Lateral is away from the midline, and DICOM
+// patient coordinates put the patient's left at positive x — so the sign of x at the
+// declared lateral end is the side, whichever way the stack happens to be sorted, and it
+// holds for a knee near the midline where the median-x rule gives up.
+function sideOf(){
+  const s = cur(), e = latEnd();
+  if (s.side) return s.side;
+  if (!e) return null;
+  const x = e === "first" ? s.x_first : s.x_last;
+  return (x === null || x === undefined) ? null : (x > 0 ? "L" : "R");
+}
+
+function ends(){
+  const s = cur(), e = latEnd();
+  const a = e === null ? "?" : (e === "first" ? "lateral" : "medial");
+  const b = e === null ? "?" : (e === "first" ? "medial" : "lateral");
+  $("endA").textContent = "◀ " + a;
+  $("endB").textContent = b + " ▶";
+  $("latflag").style.display = e === null ? "none" : "block";
+  const high = e === "last";
+  // A side read off the DICOM tag is the scanner's own record; one inferred from the
+  // median patient x is right about 91 % of the time. Both produce a badge, so the badge
+  // has to say which it is — otherwise the weaker one borrows the stronger one's
+  // authority, and an annotator trusts a coin flip on roughly three studies here.
+  const guessed = !s.side_from || s.side_from.indexOf("tag") < 0;
+  $("latflag").className = "lat" + (guessed && !(state[s.study]||{}).lat_end ? " guess" : "");
+  const arrow = high ? "LATERAL → high slice numbers" : "LATERAL ← low slice numbers";
+  $("latflag").textContent = (guessed && !(state[s.study]||{}).lat_end)
+      ? arrow + "  (déduit — vérifie le péroné)" : arrow;
+  $("latflag").style.left  = high ? "auto" : "10px";
+  $("latflag").style.right = high ? "10px" : "auto";
+
+  const guess = !s.side_from || s.side_from.indexOf("tag") < 0;
+  $("declare").hidden = !guess;
+  $("dechead").textContent = s.side ? "Badge déduit, pas lu dans le DICOM"
+                                    : "Pas de repère automatique sur cette étude";
+  $("lat0").className = e === "first" ? "on" : "";
+  $("lat1").className = e === "last"  ? "on" : "";
+  $("declared").textContent = e === null ? "" : `→ genou ${sideOf() || "?"}`;
+}
+
+function declare(end){
+  rec().lat_end = end;
+  save(); ends();
+  $("info").innerHTML = $("info").innerHTML.replace(/side <b>[^<]*<\/b>/,
+                                                    `side <b>${sideOf()||"—"}</b>`);
 }
 
 function levels(){
@@ -236,6 +386,11 @@ $("next").onclick = ()=>go(1);
 $("prev").onclick = ()=>go(-1);
 $("undo").onclick = ()=>{ delete rec().points[TARGET.id]; save(); drawMarks(); progress(); };
 $("skip").onclick = ()=>{ rec().skipped = true; save(); progress(); go(1); };
+$("lat0").onclick = ()=>declare("first");
+$("lat1").onclick = ()=>declare("last");
+const help = on => { $("scrim").hidden = !on; };
+$("help").onclick = ()=>help(true);
+$("closehelp").onclick = ()=>help(false);
 $("clear").onclick = ()=>{ delete state[cur().study]; save(); loadStudy(); };
 
 $("export").onclick = ()=>{
@@ -245,8 +400,14 @@ $("export").onclick = ()=>{
   for (const s of studies){
     const r = state[s.study]; if (!r) continue;
     out.annotations.push({
-      study:s.study, series:s.series, transform:s.transform, out_px:s.out_px,
+      study:s.study, series:s.series, transform:s.transform, out_px:s.out_px, n:s.n,
       mm_per_px_shown:s.mm_per_px_shown, side:s.side, side_from:s.side_from,
+      // What the annotator declared, and the side it implies. Kept apart from the
+      // header's own answer so the two can be compared rather than merged.
+      lat_end:r.lat_end || null,
+      side_declared:(!s.side && r.lat_end)
+        ? (((r.lat_end === "first" ? s.x_first : s.x_last) > 0) ? "L" : "R") : null,
+      x_first:s.x_first, x_last:s.x_last,
       skipped:!!r.skipped,
       points:Object.fromEntries(Object.entries(r.points).map(([k,p])=>[k,{
         slice:p.slice, sop:s.slices[p.slice].sop, row:p.row, col:p.col,
@@ -268,6 +429,8 @@ addEventListener("keydown", e=>{
   else if (e.key==="Enter") go(1);
   else if (k==="p") go(-1);
   else if (k==="u") $("undo").click();
+  else if (k==="h" || e.key==="?") help($("scrim").hidden);
+  else if (e.key==="Escape") help(false);
   else if (k==="s") $("skip").click();
   else if (k==="r"){ $("br").value=1; $("ct").value=1; levels(); }
 });
