@@ -45,7 +45,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from rsna.config import Config, TARGETS                                  # noqa: E402
+from rsna.config import Config, TARGETS
+from rsna.dicom.geometry import patient_mm
+from rsna.landmark.series import pick_sagittal                                  # noqa: E402
 from tools.atlas.render import window                                    # noqa: E402
 from tools.atlas.study import (TRAIN_SERIES, load_series, series_headers,  # noqa: E402
                                side_of, stack_orientation)
@@ -59,23 +61,15 @@ FOV_MM = 180.0
 #: limited by the acquisition, not by the bundle.
 OUT_PX = 576
 
+#: A 3D series carries 320 slices at 0.6 mm where a 2D one carries 30 at 3.4 mm. Rendering
+#: all of them would cost 14 MB per study and make the stack unscrollable, and it would buy
+#: nothing: the landmark is one point, and its depth precision is set by how well a human
+#: can see the horns, not by how finely the scanner sampled. Deep stacks are therefore
+#: subsampled **in depth only** to roughly the 2D slice count. Every frame stays a real
+#: acquired slice, keyed by its own SOPInstanceUID, so a click still resolves exactly.
+MAX_SLICES = 44
+
 JPEG_QUALITY = 85
-
-
-def patient_mm(ipp, iop, spacing, row: float, col: float) -> list[float]:
-    """Pixel (row, col) of a slice -> position in the patient, in millimetres.
-
-    The DICOM formula. `ImageOrientationPatient` is the direction cosines of the first
-    row and the first column: the first triplet points along increasing *column* index,
-    the second along increasing *row* index. `PixelSpacing` is (between rows, between
-    columns), so it pairs with them the other way round — which is the detail this
-    function exists to get right once instead of at every call site.
-    """
-
-    ipp = np.asarray(ipp, float)
-    iop = np.asarray(iop, float)
-    return list(ipp + col * float(spacing[1]) * iop[0:3]
-                    + row * float(spacing[0]) * iop[3:6])
 
 
 def render(slice_: np.ndarray, mm_per_px: float) -> tuple[np.ndarray, dict]:
@@ -97,25 +91,10 @@ def render(slice_: np.ndarray, mm_per_px: float) -> tuple[np.ndarray, dict]:
     return out, {"row0": r0, "col0": c0, "scale": want / OUT_PX}
 
 
-def pick_sagittal(headers: pd.DataFrame):
-    """The sagittal series a meniscus is actually read on: PD first, then T2, then T1."""
-
-    sag = headers[headers["plane"] == "Sagittal"]
-    if not len(sag):
-        return None
-    for weight in ("PD", "T2", "T1"):
-        hit = sag[sag["weight"] == weight]
-        if len(hit):
-            # Prefer no fat suppression: short-TE without FS shows signal *inside* the
-            # fibrocartilage best, which is the whole basis of meniscal grading.
-            hit = hit.sort_values(["fatsat", "n_slices"], ascending=[True, False])
-            return hit.iloc[0]
-    return sag.sort_values("n_slices", ascending=False).iloc[0]
-
-
-def build_study(uid: str, out: Path, config: Config, headers=None) -> dict | None:
+def build_study(uid: str, out: Path, config: Config, headers=None,
+                prefer_deep: bool = False) -> dict | None:
     headers = series_headers(uid) if headers is None else headers
-    chosen = pick_sagittal(headers)
+    chosen = pick_sagittal(headers, prefer_deep=prefer_deep)
     if chosen is None:
         return None
 
@@ -131,13 +110,18 @@ def build_study(uid: str, out: Path, config: Config, headers=None) -> dict | Non
     directory = Path(chosen["dir"])
     names = _ordered_names(directory, config)
 
+    keep = list(range(series.n))
+    if series.n > MAX_SLICES:
+        keep = sorted({int(i) for i in
+                       np.linspace(0, series.n - 1, MAX_SLICES).round()})
+
     slices, transform = [], None
-    for i in range(series.n):
+    for j, i in enumerate(keep):
         image, transform = render(eight[i], series.mm_per_px)
-        cv2.imwrite(str(folder / f"{i:03d}.jpg"), image,
+        cv2.imwrite(str(folder / f"{j:03d}.jpg"), image,
                     [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
         meta = _slice_meta(directory, names[i]) if i < len(names) else {}
-        slices.append({"i": i, "file": f"img/{tail}/{i:03d}.jpg", **meta})
+        slices.append({"i": j, "native_i": i, "file": f"img/{tail}/{j:03d}.jpg", **meta})
 
     # The field is rounded to a whole number of native pixels, so the rendered scale is
     # very slightly off the nominal FOV_MM/OUT_PX. Publish the value that is true for
@@ -147,17 +131,31 @@ def build_study(uid: str, out: Path, config: Config, headers=None) -> dict | Non
     # SliceThickness is the slab, not the gap between slice centres — they differ
     # whenever the acquisition has a skip. Physical resampling needs the measured step.
     steps = np.diff([p for p in series.positions if np.isfinite(p)])
-    spacing = float(np.median(np.abs(steps))) if len(steps) else series.thickness
+    native_spacing = float(np.median(np.abs(steps))) if len(steps) else series.thickness
+    shown_steps = np.diff([series.positions[i] for i in keep
+                           if i < len(series.positions) and np.isfinite(series.positions[i])])
+    spacing = float(np.median(np.abs(shown_steps))) if len(shown_steps) else native_spacing
+
+    # The patient x at each end of the stack. An annotator who declares which end is
+    # lateral gives us the side for free: lateral is away from the midline, so a positive
+    # x there means a left knee and a negative one a right knee — true regardless of which
+    # way the stack happens to be sorted, and it still holds for a knee near the midline
+    # where the median-x rule gives up.
+    ends = [s.get("ipp") for s in (slices[0], slices[-1])]
+    x_first, x_last = [float(e[0]) if e else None for e in ends]
 
     return {
         "study": uid, "tail": tail, "series": str(chosen["SeriesInstanceUID"]),
         "sequence": series.label, "description": series.description,
         "side": side, "side_from": how,
         "first_end": first_end, "last_end": last_end,
-        "n": series.n, "ordered": bool(series.ordered),
+        "n": len(slices), "native_n": series.n, "ordered": bool(series.ordered),
+        "subsampled": len(slices) < series.n,
+        "x_first": x_first, "x_last": x_last,
         "mm_per_px_native": round(series.mm_per_px, 5),
         "mm_per_px_shown": round(shown, 6),
         "slice_spacing_mm": round(spacing, 3),
+        "native_spacing_mm": round(native_spacing, 3),
         "thickness": series.thickness, "fov_mm": FOV_MM, "out_px": OUT_PX,
         "transform": transform, "slices": slices,
     }
@@ -191,8 +189,17 @@ def _slice_meta(directory: Path, name: str) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--n", type=int, default=30, help="how many studies")
+    ap.add_argument("--studies", type=Path,
+                    help="a file of StudyInstanceUIDs, one per line (or a CSV with that "
+                         "column) to render instead of drawing at random. Sampling design "
+                         "belongs to whoever wrote the list — see tools/annotate/select.py "
+                         "— and this stays a renderer.")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--prefer-3d", action="store_true",
+                    help="render the 3D sagittal series where a study has one, instead of "
+                         "the 2D the default preference would pick. Subsampled in depth to "
+                         f"{MAX_SLICES} slices, so it stays scrollable.")
     ap.add_argument("--gold", action="store_true",
                     help="draw from the 58 expert-labelled studies instead of the corpus")
     ap.add_argument("--tagged-only", action="store_true",
@@ -204,12 +211,22 @@ def main() -> int:
                          "untagged half afterwards.")
     args = ap.parse_args()
 
-    train = pd.read_csv(ROOT / "data/raw/train.csv")
-    if args.gold:
-        train = train[train[TARGETS].notna().all(axis=1)]
-    pool = [u for u in train["StudyInstanceUID"] if (TRAIN_SERIES / u).is_dir()]
-    rng = np.random.default_rng(args.seed)
-    chosen = list(rng.permutation(pool)[:args.n])
+    if args.studies:
+        text = args.studies.read_text()
+        listed = ([r.split(",")[0].strip() for r in text.splitlines()[1:]]
+                  if text.splitlines()[0].startswith("StudyInstanceUID")
+                  else [r.strip() for r in text.splitlines()])
+        chosen = [u for u in listed if u and (TRAIN_SERIES / u).is_dir()]
+        missing = len([u for u in listed if u]) - len(chosen)
+        if missing:
+            print(f"{missing} listed studies are not on this machine, skipped")
+    else:
+        train = pd.read_csv(ROOT / "data/raw/train.csv")
+        if args.gold:
+            train = train[train[TARGETS].notna().all(axis=1)]
+        pool = [u for u in train["StudyInstanceUID"] if (TRAIN_SERIES / u).is_dir()]
+        rng = np.random.default_rng(args.seed)
+        chosen = list(rng.permutation(pool)[:args.n])
 
     args.out.mkdir(parents=True, exist_ok=True)
     config = Config()
@@ -225,7 +242,8 @@ def main() -> int:
                 failed.append((uid, f"side not from the tag ({how})"))
                 continue
 
-            record = build_study(uid, args.out, config, headers=headers)
+            record = build_study(uid, args.out, config, headers=headers,
+                                 prefer_deep=args.prefer_3d)
             if record is None:
                 failed.append((uid, "no sagittal series"))
             else:
@@ -235,8 +253,12 @@ def main() -> int:
         print(f"  {k}/{len(chosen)}  {uid[-11:]}", flush=True)
 
     # No global mm/px: it is a property of each study's rounding, not of the bundle.
-    manifest = {"fov_mm": FOV_MM, "out_px": OUT_PX,
-                "seed": args.seed, "pool": "gold" if args.gold else "train",
+    manifest = {"fov_mm": FOV_MM, "out_px": OUT_PX, "max_slices": MAX_SLICES,
+                "prefer_3d": bool(args.prefer_3d),
+                "seed": args.seed,
+                "pool": (str(args.studies) if args.studies
+                         else ("gold" if args.gold else "train")),
+                "tagged_only": bool(args.tagged_only),
                 "studies": studies}
     (args.out / "studies.json").write_text(json.dumps(manifest))
 
@@ -244,13 +266,18 @@ def main() -> int:
     # directory: serve it with `python -m http.server` and there is nothing else to install.
     import shutil
     shutil.copy(Path(__file__).with_name("annotate.html"), args.out / "index.html")
+    # The landmark definition travels with it; a tool that ships without the definition
+    # of the point it collects gets two annotators' readings, averaged.
+    shutil.copytree(Path(__file__).with_name("figures"), args.out / "figures",
+                    dirs_exist_ok=True)
 
     size = sum(f.stat().st_size for f in args.out.rglob("*") if f.is_file())
     print(f"\n{len(studies)} studies, {sum(s['n'] for s in studies)} slices, "
           f"{size/1e6:.0f} MB -> {args.out}")
     unresolved = [s["tail"] for s in studies if s["side"] is None]
     if unresolved:
-        print(f"side UNRESOLVED on {len(unresolved)}: {unresolved}")
+        print(f"side not resolved by header or geometry on {len(unresolved)}/{len(studies)}"
+              f" — the annotator declares which end is lateral on these")
     for uid, why in failed:
         print(f"  FAILED {uid[-11:]}: {why}")
     return 0
