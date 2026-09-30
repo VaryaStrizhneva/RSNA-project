@@ -26,3 +26,7 @@ models/
 # Pathology atlas pages. The builder is in git; its output is not — each page embeds
 # a few hundred patient MRI slices as data URIs, and this repo has a GitHub remote.
 docs/atlas/*.html
+
+# Annotation exports land here from the browser's download directory. The copy that
+# counts is in data/manual_annotations/, named after who made it and when.
+/landmarks-lateral-*.json
