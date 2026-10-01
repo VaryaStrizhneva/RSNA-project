@@ -79,8 +79,18 @@ def build(landmarks: str | Path, series: pd.DataFrame, out: str | Path, spec: Ro
     out.mkdir(parents=True, exist_ok=True)
 
     points = pd.read_csv(landmarks)
+    have = sorted(points["point"].dropna().unique())
     points = points[points["point"] == spec.landmark].set_index("study")
     studies = list(points.index)
+    if not studies:
+        # It used to write the empty cache and report `nan %` coverage, which the next
+        # stage would then happily train on. A spec asking for a point the table does
+        # not carry is the likely cause and is invisible otherwise: both names are
+        # valid, they just come from different annotation passes.
+        raise ValueError(
+            f"{Path(landmarks).name} holds no rows for {spec.landmark!r}, which "
+            f"{spec.name} hangs off — it carries {have}. Point the spec at the right "
+            f"landmark, or the build at the right table.")
     by_study = {s: g for s, g in series.groupby("StudyInstanceUID")}
     log(f"{len(studies)} studies, {len(spec.series)} series slots -> {out}")
 

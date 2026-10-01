@@ -27,7 +27,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ..dicom.geometry import normal_of, pixel_of, through_plane
+from ..dicom.geometry import _axes, normal_of, pixel_of, through_plane
 from .config import RoiSpec
 
 
@@ -40,6 +40,7 @@ class RoiStack:
     t_mm: np.ndarray          #: (slots,) through-plane position, NaN where padded
     sop: list                 #: SOPInstanceUID per slot, None where padded
     toward_bowtie: float      #: +1 or -1, the direction of the peripheral end
+    flipped: bool             #: whether the crop was mirrored to put lateral on the right
     native_spacing_mm: float
     stride: int               #: 1 unless the series was thinned
     centre_slot: int          #: the slot holding the slice nearest the landmark
@@ -82,14 +83,27 @@ def choose_slices(t: np.ndarray, t_point: float, toward_bowtie: float,
     return inside
 
 
-def crop_plane(image: np.ndarray, row: float, col: float, spacing,
-               spec: RoiSpec) -> np.ndarray:
-    """The box around (row, col), at the spec's fixed millimetres per pixel."""
+def crop_plane(image: np.ndarray, row: float, col: float, spacing, spec: RoiSpec,
+               to_lateral: float = 0.0,
+               to_front: float = 0.0) -> np.ndarray:
+    """The box around (row, col), at the spec's fixed millimetres per pixel.
+
+    `to_lateral` is +1 when the image's increasing-column direction points away from the
+    midline, -1 when it points toward it, and 0 for a plane where the horizontal axis is
+    not medial-lateral at all. It does two things on a coronal crop that a sagittal one
+    does not need: it shifts the box off the landmark by `spec.box_offset_mm`, and it
+    mirrors the result so **lateral is always on the right**. Without the mirror a branch
+    would have to learn the lateral compartment twice, once per knee.
+    """
 
     import cv2
 
     hw = spec.box_w_mm / 2 / float(spacing[1])
     hh = spec.box_h_mm / 2 / float(spacing[0])
+    col = col + to_lateral * spec.box_offset_mm / float(spacing[1])
+    # The other axis, and a different direction: `box_rise_mm` moves the box toward the
+    # front, which is along the rows. Only an axial crop has a front to move toward.
+    row = row + to_front * spec.box_rise_mm / float(spacing[0])
     r0, r1 = int(round(row - hh)), int(round(row + hh))
     c0, c1 = int(round(col - hw)), int(round(col + hw))
 
@@ -102,8 +116,11 @@ def crop_plane(image: np.ndarray, row: float, col: float, spacing,
     if sr1 > sr0 and sc1 > sc0:
         canvas[sr0 - r0:sr1 - r0, sc0 - c0:sc1 - c0] = image[sr0:sr1, sc0:sc1]
 
+    if to_lateral < 0:
+        canvas = canvas[:, ::-1]
     interp = cv2.INTER_AREA if canvas.shape[1] >= spec.out_w else cv2.INTER_LINEAR
-    return cv2.resize(canvas, (spec.out_w, spec.out_h), interpolation=interp)
+    return cv2.resize(np.ascontiguousarray(canvas), (spec.out_w, spec.out_h),
+                      interpolation=interp)
 
 
 def extract(volume: np.ndarray, geometry: list[dict], point_mm,
@@ -133,8 +150,29 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
         stride = max(1, int(round(spec.decimate_to_mm / native)))
     thinned = np.arange(0, len(geometry), stride)
 
-    toward, _ = bowtie_direction(volume[thinned], t[thinned], t_point)
+    # A symmetric window needs no direction, and asking for one on a coronal stack would
+    # answer a question about the anterior-posterior axis with a rule measured on the
+    # medial-lateral one.
+    toward = 1.0 if spec.symmetric_depth else bowtie_direction(
+        volume[thinned], t[thinned], t_point)[0]
     keep = thinned[choose_slices(t[thinned], t_point, toward, spec)]
+
+    # Which way the image's columns run, relative to the midline. DICOM puts the
+    # patient's left at positive x, so lateral is +x on a left knee and -x on a right
+    # one; the column direction says whether that is the image's right or its left.
+    to_lateral = 0.0
+    if spec.plane in ("Coronal", "Axial"):
+        u = _axes(iop)[0]
+        to_lateral = float(np.sign(point[0]) * np.sign(u[0])) or 1.0
+
+    # And which way the rows run, for the planes that have a front. DICOM puts the
+    # patient's posterior at positive y, so the anterior is the negative row direction.
+    # Read per series rather than taken from the corpus count: 3342 of 3342 axial series
+    # run their rows toward the posterior, which is a regularity, not a guarantee.
+    to_front = 0.0
+    if spec.plane == "Axial":
+        v = _axes(iop)[1]
+        to_front = -float(np.sign(v[1])) or 1.0
 
     # In-plane position does not depend on which slice supplies the origin: both
     # orientation vectors are orthogonal to the normal, so a displacement along the
@@ -150,10 +188,11 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
 
     for j, i in enumerate(keep):
         slot = start + j
-        out[slot] = crop_plane(volume[i], row, col, ps, spec)
+        out[slot] = crop_plane(volume[i], row, col, ps, spec, to_lateral, to_front)
         valid[slot] = True
         t_mm[slot] = t[i]
         sop[slot] = geometry[i].get("sop")
 
     return RoiStack(volume=out, valid=valid, t_mm=t_mm, sop=sop, toward_bowtie=toward,
-                    native_spacing_mm=native, stride=stride, centre_slot=centre)
+                    flipped=to_lateral < 0, native_spacing_mm=native, stride=stride,
+                    centre_slot=centre)
