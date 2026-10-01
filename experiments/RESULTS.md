@@ -90,7 +90,15 @@ the only labels read from the images rather than from text."* This run therefore
 on 59 studies fewer than the recipe it claims to reproduce, and those 59 carry
 `gold_weight` 3.0 — the heaviest and only image-read labels in the corpus. Read it as a
 yardstick for our own experiments, which share the same departure, and not as a
-reproduction of 0.891. `window_30epochs_goldin` is the run that does not depart.
+reproduction of 0.891.
+
+**And there is a second departure, found later.** The baseline's `normalise_laterality`
+reverses the *slice order* of a sagittal stack for a right knee — `torch.flip(img,
+dims=[0])`. Our port kept the coronal and axial mirror and dropped that line; it has never
+been in the repository (`git log -S`, one commit, `9c7c2c7`). So **no run so far reproduces
+the baseline**, `window_30epochs_goldin` included, and every package in `out/` was fitted
+on a corpus whose sagittal depth axis points one way on left knees and the other on right
+ones. See `docs/pipeline_v2.md` §8.1.
 
 ```
 out-of-fold macro AUC   0.8330   (95% 0.828-0.838)

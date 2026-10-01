@@ -353,14 +353,57 @@ Measured once, recorded here so they are not re-derived or mis-remembered.
 
 Recorded so they are fixed deliberately rather than rediscovered.
 
-1. **The sagittal stack is not reversed for right knees.** `preprocessing.ipynb`
-   Problem 3 states the intent — *"mirroring a sagittal stack is done by reversing slice
-   order"* — and no code does it. `normalise_laterality` mirrors coronal and axial and
-   returns sagittal untouched; `lat_map` is used in exactly one place.
-   *Invisible today* because the model averages over the stack, so a reversed depth axis
-   is equivalent to augmentation. **Fatal** for any depth-indexed ROI. Fix before §5 is
-   trained. `cache_tag` includes `rules`, so a new rule value will correctly refuse old
-   caches.
+1. **The sagittal stack is not reversed for right knees — the port dropped the line.**
+   The public baseline does it:
+
+   ```python
+   def normalise_laterality(img, plane, lat):          # baseline notebook
+       if lat != "R":                    return img
+       if plane in ("Coronal", "Axial"): return torch.flip(img, dims=[-1])
+       return torch.flip(img, dims=[0])                # <- the sagittal reversal
+   ```
+
+   Ours keeps the first two lines and returns `image` for sagittal. It has never held the
+   reversal (`git log -S "::-1"`, one commit, `9c7c2c7`), and the docstring was reworded
+   from *"the channel order is reversed instead"* into *"is handled by the slice order, not
+   here"*, which reads as a deferral rather than a description.
+
+   **What it costs.** The 2.5D triplet `[c-1, c, c+1]` becomes `[c+1, c, c-1]` on half the
+   corpus — a real transformation the encoder must spend capacity being invariant to, on a
+   nuisance axis we could simply remove. Five of twelve targets are side-defined.
+   Normalising takes the corpus from ~50/50 mixed to **~86 % consistent** (not 100 %:
+   geometry errs 9 % of the time and 10.5 % stay unresolved, hence unflipped).
+
+   **Does the ROI path escape it? No — it pays the same cost.** Cropping around a landmark
+   in patient millimetres is orientation-independent, but the landmark model *takes the
+   stack as input*, and its 2.5D window inherits the reversed channel order just as the
+   wide view does. The stack-reversal augmentation makes it side-agnostic, but that is
+   capacity spent learning an invariance, on a model that will have ~170 annotations.
+
+   So the accurate statement is: **required nowhere, useful everywhere.** Nothing breaks
+   without it — a model can learn the invariance — and everything is slightly easier with
+   it. Normalising and augmenting are complements, not alternatives: normalisation removes
+   the axis for the ~86 % where the side is known, augmentation covers the ~14 % where it
+   is wrong or unresolved.
+
+   **Status: the code is fixed, the data is not.** `PixelRules.sagittal_flip` now exists
+   and `normalise_laterality` honours it. It defaults to **False — the defect — on
+   purpose**: a manifest written before the field existed replays through
+   `Config.from_dict` as the default, so defaulting to True would silently mirror the
+   input of all thirteen existing packages at inference, and the fingerprint cannot catch
+   it (it is computed on synthetic pixels that never pass through this function). A
+   forgotten `True` costs an improvement; a wrong `True` costs correctness.
+
+   Turning it on changes the cache tag — `336px_12sl_130mm_0.20-0.80` becomes
+   `…_44e6dd` — so the old cache is refused rather than silently reused. Verified: with
+   the rule off, the 36 GB cache still loads and all 31 members reproduce their
+   fingerprint distance exactly.
+
+   **When to turn it on.** With the cache rebuild the ROI branches require anyway. Set
+   `rules: {sagittal_flip: true}` in the first experiment that rebuilds.
+
+   **Consequence for the record**: no run in `out/` reproduces the published baseline.
+   `experiments/RESULTS.md` has been corrected.
 2. **Slot weighting is chosen by slice count, not by sequence.** `pick_slots` sorts on
    `n_slices`, so when a study has both a sagittal PD and a sagittal T2 for the same
    slot it is a coin toss — **PD 9, T2 8** in the non-fat-sat sagittal slot **[m]**.
