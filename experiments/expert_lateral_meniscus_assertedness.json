@@ -8,8 +8,7 @@
     "folds": 5,
     "seed": 0,
     "targets": [
-      "Lateral Meniscus",
-      "Lateral OA"
+      "Lateral Meniscus"
     ]
   },
   "run": {

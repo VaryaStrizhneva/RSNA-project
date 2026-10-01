@@ -1,19 +1,17 @@
 {
   "config": {
-    "roi": "lateral_meniscus",
     "encoder": "resnet18",
     "epochs": 30,
     "batch": 32,
     "lr": 0.0003,
     "folds": 5,
     "seed": 0,
-    "targets": [
-      "Lateral Meniscus"
-    ]
+    "targets": ["PF OA"],
+    "rois": ["pf_oa_s7"]
   },
   "run": {
     "labels": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
-    "weights": "uniform",
+    "weights": "assertedness",
     "holdout_gold": true
   }
 }

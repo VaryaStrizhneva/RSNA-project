@@ -28,5 +28,7 @@ models/
 docs/atlas/*.html
 
 # Annotation exports land here from the browser's download directory. The copy that
-# counts is in data/manual_annotations/, named after who made it and when.
-/landmarks-lateral-*.json
+# counts is in data/manual_annotations/, named after who made it and when. The tool now
+# names the file after the point it collected, so this matches any of them rather than
+# only the first one's spelling.
+/landmarks-*.json

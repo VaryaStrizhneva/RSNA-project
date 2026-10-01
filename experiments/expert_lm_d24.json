@@ -1,6 +1,6 @@
 {
   "config": {
-    "roi": "lateral_meniscus",
+    "roi": "lateral_meniscus_d24",
     "encoder": "resnet18",
     "epochs": 30,
     "batch": 32,
@@ -13,7 +13,7 @@
   },
   "run": {
     "labels": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
-    "weights": "uniform",
+    "weights": "assertedness",
     "holdout_gold": true
   }
 }

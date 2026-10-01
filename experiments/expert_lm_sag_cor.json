@@ -1,6 +1,5 @@
 {
   "config": {
-    "roi": "lateral_meniscus",
     "encoder": "resnet18",
     "epochs": 30,
     "batch": 32,
@@ -9,11 +8,15 @@
     "seed": 0,
     "targets": [
       "Lateral Meniscus"
+    ],
+    "rois": [
+      "lateral_meniscus",
+      "lateral_meniscus_coronal"
     ]
   },
   "run": {
     "labels": "data/external/pilkwang-rsna-knee-llm-labels/report_labels_v2.csv",
-    "weights": "uniform",
+    "weights": "assertedness",
     "holdout_gold": true
   }
 }
