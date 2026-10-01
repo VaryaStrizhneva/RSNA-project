@@ -27,26 +27,41 @@ from .config import ExpertConfig
 
 
 class Attention(nn.Module):
-    """A weighted mean over whatever series a study actually has.
+    """A weighted mean over whatever series a study actually has, once per target.
 
     Coverage is the reason this is not a plain mean: sagittal PD fat-suppressed is
     present on 81.3 % of studies and PD without it on 36.3 %, while at least one of the
     two covers 99.7 %. A study missing a series must contribute nothing from it rather
     than contribute a zero, which a mean over a fixed denominator would do.
+
+    **One set of weights per target, not one shared.** The heads are already separate,
+    so what two targets on one encoder actually compete over is this pooling: a single
+    scorer must pick one ranking of the series for both of them, and they do not want
+    the same one. A meniscal tear is signal inside the fibrocartilage, which the
+    non-fat-suppressed proton density shows; osteoarthritis is marrow and bone, which
+    the fat-suppressed and the T1 show. Measured, sharing the scorer cost the meniscus
+    0.0084 (0.8334 against 0.8418 alone) and left osteoarthritis at 0.7866. Adding the
+    coronal plane raises the series count from two to four or five, so the arbitration
+    gets tighter, not looser.
+
+    With one target this is the shared scorer: `Linear(dim, 1)`, same shape, same
+    initialisation, same arithmetic. The single-target runs still reproduce.
     """
 
-    def __init__(self, dim: int):
+    def __init__(self, dim: int, heads: int = 1):
         super().__init__()
-        self.score = nn.Linear(dim, 1)
+        self.score = nn.Linear(dim, heads)
 
     def forward(self, feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        w = self.score(feat).squeeze(-1)
-        w = w.masked_fill(~mask.bool() if mask.dtype == torch.bool else mask <= 0,
-                          float("-inf"))
+        """(batch, series, dim) and (batch, series) -> (batch, target, dim)."""
+
+        w = self.score(feat)                                      # (b, series, target)
+        gone = ~mask.bool() if mask.dtype == torch.bool else mask <= 0
+        w = w.masked_fill(gone.unsqueeze(-1), float("-inf"))
         # A study with no series at all would give a row of -inf and a NaN softmax.
-        empty = torch.isinf(w).all(dim=1, keepdim=True)
-        w = torch.where(empty.expand_as(w), torch.zeros_like(w), w)
-        return torch.einsum("bs,bsd->bd", w.softmax(dim=1), feat)
+        empty = gone.all(dim=1)[:, None, None].expand_as(w)
+        w = torch.where(empty, torch.zeros_like(w), w)
+        return torch.einsum("bst,bsd->btd", w.softmax(dim=1), feat)
 
 
 class ExpertNet(nn.Module):
@@ -65,8 +80,10 @@ class ExpertNet(nn.Module):
         self.trunk = timm.create_model(config.encoder, pretrained=pretrained,
                                        num_classes=0, global_pool="avg")
         dim = self.trunk.num_features
-        self.attend = Attention(dim)
+        self.attend = Attention(dim, heads=len(config.targets))
         self.drop = nn.Dropout(config.dropout)
+        # Not a Linear over one pooled vector: each target pools the series its own way,
+        # so each reads its own vector. Weight (target, dim), applied row against row.
         self.head = nn.Linear(dim, len(config.targets))
 
         # Start at the corpus rate rather than at even odds: the head then learns the
@@ -111,9 +128,10 @@ class ExpertNet(nn.Module):
             live.append(mask[:, :, centre])
         return torch.stack(wins, dim=2), torch.stack(live, dim=2)
 
-    def forward(self, imgs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """imgs: (batch, series, slot, h, w). mask: (batch, series, slot).
-        Returns (batch, target).
+    def encode(self, imgs: torch.Tensor, mask: torch.Tensor) -> tuple:
+        """One ROI group -> (batch, series, dim) and (batch, series) presence.
+
+        imgs: (batch, series, slot, h, w). mask: (batch, series, slot).
 
         **Only the windows that hold an acquired slice reach the encoder.** Four studies
         in five carry one of the two series and not the other, and their slots are
@@ -140,5 +158,27 @@ class ExpertNet(nn.Module):
         feat = feat.reshape(b, s, n_win, -1)
 
         count = live.sum(dim=2, keepdim=True).clamp(min=1)
-        feat = (feat * live.unsqueeze(-1)).sum(dim=2) / count
-        return self.head(self.drop(self.attend(feat, live.any(dim=2))))
+        return (feat * live.unsqueeze(-1)).sum(dim=2) / count, live.any(dim=2)
+
+    def forward(self, groups) -> torch.Tensor:
+        """A list of (imgs, mask), one per ROI spec -> (batch, target).
+
+        The specs do not share a tensor: a sagittal crop is 224x126 and a coronal one
+        224x140, because 48x27 mm and 48x30 mm at the same millimetres per pixel are not
+        the same number of rows. Running the trunk once per group and letting the
+        features meet at the attention costs nothing and keeps each box free to be the
+        right size for what it frames.
+        """
+
+        if torch.is_tensor(groups):
+            groups = [(groups, None)]
+        feats, masks = [], []
+        for imgs, mask in groups:
+            f, m = self.encode(imgs, mask)
+            feats.append(f)
+            masks.append(m)
+        feat = torch.cat(feats, dim=1)
+        mask = torch.cat(masks, dim=1)
+        pooled = self.drop(self.attend(feat, mask))          # (batch, target, dim)
+        return (torch.einsum("btd,td->bt", pooled, self.head.weight)
+                + self.head.bias)

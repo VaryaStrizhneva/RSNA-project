@@ -76,12 +76,22 @@ def main() -> int:
     if unknown:
         raise SystemExit(f"{unknown} are not among the twelve targets")
 
-    spec = SPECS[config.roi]
-    volumes, mask, records = cache.load(args.roi_cache, spec)
-    studies = [r["study"] for r in records]
-    log(f"{args.experiment}: {', '.join(config.targets)} on {spec.name}")
-    log(f"  {len(studies)} studies, {volumes.nbytes / 1e9:.2f} GB, "
-        f"{100 * mask.any(axis=(1, 2)).mean():.1f} % with at least one series")
+    groups, studies, total = [], None, 0
+    log(f"{args.experiment}: {', '.join(config.targets)}")
+    for spec in config.specs:
+        volumes, mask, records = cache.load(args.roi_cache, spec)
+        names = [r["study"] for r in records]
+        if studies is None:
+            studies = names
+        elif names != studies:
+            raise SystemExit(f"{spec.name} was cut over a different set of studies; "
+                             f"rebuild it from the same landmark table")
+        groups.append((volumes, mask))
+        total += volumes.nbytes
+        log(f"  {spec.name}: {spec.plane} {spec.box_w_mm:.0f}x{spec.box_h_mm:.0f} mm on "
+            f"{spec.out_w}x{spec.out_h} px, {spec.slots} slots, "
+            f"{100 * mask.any(axis=(1, 2)).mean():.1f} % of studies covered")
+    log(f"  {len(studies)} studies, {total / 1e9:.2f} GB in all")
 
     # The twelve-target machinery builds all twelve, then one column is taken. Cheaper
     # than a second code path, and it keeps the weighting identical to the wide model's
@@ -89,6 +99,13 @@ def main() -> int:
     base = Config(weights=run.get("weights", "uniform"))
     if base.weights == "assertedness":
         base = base.replace(silence=silence_of(labels))
+    # Say which weighting ran. It is recorded in history.json either way, but a number
+    # quoted from a log should be checkable from that log: the difference between
+    # uniform and assertedness was worth +0.0125 on the lateral meniscus, which is the
+    # size of the differences these runs are being compared on.
+    log(f"  weighting: {base.weights}"
+        + (f", silence from {Path(labels).name}" if base.weights == "assertedness" else "")
+        + (", gold studies held out" if run.get("holdout_gold") else ""))
     train_csv = pd.read_csv(args.data_root / "train.csv", dtype={"StudyInstanceUID": str})
     derived = pd.read_csv(labels, dtype={"StudyInstanceUID": str}).set_index(
         "StudyInstanceUID")
@@ -115,9 +132,9 @@ def main() -> int:
         gold_index = np.array(sorted(at[s] for s in gold.index if s in at), int)
         # Also drop anything sharing a gold study's report: identical reports produce
         # identical weak labels, so leaving them in leaks the answer without copying it.
-        groups = train_csv.set_index("StudyInstanceUID")["Report"].map(report_group)
-        shared = set(groups.reindex(gold.index).dropna())
-        for s_, g in groups.items():
+        report_groups = train_csv.set_index("StudyInstanceUID")["Report"].map(report_group)
+        shared = set(report_groups.reindex(gold.index).dropna())
+        for s_, g in report_groups.items():
             if g in shared and s_ in at:
                 excluded[at[s_]] = True
         gold_y = (gold.loc[[studies[i] for i in gold_index], list(config.targets)]
@@ -140,10 +157,11 @@ def main() -> int:
         train = np.flatnonzero((folds != f) & (folds >= 0) & covered & ~excluded)
         log(f"fold {f}: {len(train)} train, {len(val)} held out")
         model = ExpertNet(config)
-        result = fit(model, volumes, mask, y, w, studies, train, val, config,
+        result = fit(model, groups, y, w, studies, train, val, config,
                      device=args.device, seed=config.seed,
                      gold_index=gold_index, gold_y=gold_y, log=log)
-        torch.save({"config": config.to_dict(), "spec": spec.to_dict(), "fold": f,
+        torch.save({"config": config.to_dict(),
+                    "specs": [sp.to_dict() for sp in config.specs], "fold": f,
                     "state": result.state}, out / f"fold{f}.pt")
         history[str(f)] = [vars(e) for e in result.history]
         scores.append(result.scores)
@@ -180,7 +198,8 @@ def main() -> int:
 
     (out / "history.json").write_text(json.dumps(
         {"experiment": args.experiment, "config": config.to_dict(),
-         "spec": spec.to_dict(), "labels": labels, "run": run, "history": history,
+         "specs": [sp.to_dict() for sp in config.specs], "labels": labels,
+         "run": run, "history": history,
          "oof": {"per_target": {n: float(v) for n, v in zip(config.targets, per)},
                  "mean": float(np.nanmean(per)), "n": len(t)},
          "gold": gold_line},

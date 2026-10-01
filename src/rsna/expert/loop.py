@@ -77,7 +77,7 @@ def auc(y: np.ndarray, p: np.ndarray) -> float:
     return float(np.nanmean(aucs(y, p)))
 
 
-def fit(model, volumes, mask: np.ndarray, y: np.ndarray, w: np.ndarray,
+def fit(model, groups, y: np.ndarray, w: np.ndarray,
         studies: list[str], train_index: np.ndarray, val_index: np.ndarray,
         config: ExpertConfig, device="cuda", seed: int = 0,
         gold_index: np.ndarray | None = None, gold_y: np.ndarray | None = None,
@@ -104,11 +104,15 @@ def fit(model, volumes, mask: np.ndarray, y: np.ndarray, w: np.ndarray,
     log(f"  {len(val_index)} held out, positives per target: {counts}")
 
     def load(idx):
-        v = torch.as_tensor(np.asarray(volumes[idx]).copy(), device=device).float() / 255.0
-        # The slot-level mask, not the series-level one: the network needs to know
-        # which windows hold an acquired slice so the padding never reaches the trunk.
-        m = torch.as_tensor(mask[idx].astype(bool), device=device)
-        return v, m
+        """One batch of every ROI group, in the order the model expects them.
+
+        The slot-level mask, not the series-level one: the network needs to know which
+        windows hold an acquired slice so the padding never reaches the trunk.
+        """
+
+        return [(torch.as_tensor(np.asarray(v[idx]).copy(), device=device).float() / 255.0,
+                 torch.as_tensor(m[idx].astype(bool), device=device))
+                for v, m in groups]
 
     for epoch in range(1, config.epochs + 1):
         model.train()
@@ -116,9 +120,8 @@ def fit(model, volumes, mask: np.ndarray, y: np.ndarray, w: np.ndarray,
         shuffled = train_index[order_rng.permutation(len(train_index))]
         for start in range(0, len(shuffled), config.batch):
             idx = np.sort(shuffled[start:start + config.batch])
-            v, m = load(idx)
-            v = A.augment_batch(v, rng)
-            logits = model(v, m)
+            batch = [(A.augment_batch(v, rng), m) for v, m in load(idx)]
+            logits = model(batch)
             target = torch.as_tensor(y[idx], device=device).float()
             weight = torch.as_tensor(w[idx], device=device).float()
             if target.ndim == 1:
@@ -139,8 +142,8 @@ def fit(model, volumes, mask: np.ndarray, y: np.ndarray, w: np.ndarray,
             out = []
             with torch.no_grad():
                 for start in range(0, len(index), config.batch):
-                    v, m = load(index[start:start + config.batch])
-                    out.append(torch.sigmoid(model(v, m)).cpu().numpy())
+                    out.append(torch.sigmoid(
+                        model(load(index[start:start + config.batch]))).cpu().numpy())
             return np.concatenate(out) if out else np.array([])
 
         p = score(val_index)

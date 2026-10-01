@@ -15,9 +15,14 @@ class ExpertConfig:
     #: rather than one model each: they share a region of interest, so they share the
     #: features that describe it, and a lateral compartment is one thing to look at.
     targets: tuple[str, ...] = ("Lateral Meniscus", "Lateral OA")
-    #: Which ROI spec cuts its input. `"wide"` means no crop at all — the control run
-    #: that makes the comparison a comparison rather than a claim.
-    roi: str = "lateral_meniscus"
+    #: Which ROI specs cut its input, by name in `rsna.roi.SPECS`. Several because a
+    #: compartment is read in more than one plane and they do not show the same thing:
+    #: a sagittal crop shows the two horns in profile, a coronal one shows extrusion,
+    #: which is a displacement past the tibial margin that a sagittal slice cannot give
+    #: at all. Each spec brings its own box, its own depth and its own output size, so
+    #: they do not share a tensor — the encoder is run once per spec and the features
+    #: meet at the attention.
+    rois: tuple[str, ...] = ("lateral_meniscus",)
 
     #: A timm model name. Convolutional on purpose; see `network.py`.
     encoder: str = "resnet18"
@@ -37,22 +42,27 @@ class ExpertConfig:
     seed: int = 0
 
     @property
-    def spec(self) -> RoiSpec | None:
-        return SPECS.get(self.roi)
+    def specs(self) -> list[RoiSpec]:
+        return [SPECS[name] for name in self.rois]
 
     def to_dict(self) -> dict:
         out = asdict(self)
         out["targets"] = list(self.targets)
+        out["rois"] = list(self.rois)
         return out
 
     @classmethod
     def from_dict(cls, data: dict) -> "ExpertConfig":
         data = dict(data)
-        # Runs written before this model trained several targets at once name one.
-        if "target" in data:
-            data["targets"] = (data.pop("target"),)
-        if "targets" in data:
-            data["targets"] = tuple(data["targets"])
+        # Runs written before this model read several planes, or trained several
+        # targets, name one of each. Reading them back matters: an experiment file that
+        # no longer reproduces its own run turns a published number into a rumour.
+        for old, new in (("roi", "rois"), ("target", "targets")):
+            if old in data:
+                data[new] = (data.pop(old),)
+        for key in ("rois", "targets"):
+            if key in data:
+                data[key] = tuple(data[key])
         unknown = set(data) - set(cls.__dataclass_fields__)
         if unknown:
             raise ValueError(f"config records fields this pipeline does not define: "
