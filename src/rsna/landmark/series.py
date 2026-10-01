@@ -41,3 +41,68 @@ def pick_sagittal(headers: pd.DataFrame, prefer_deep: bool = False):
         # fibrocartilage best, which is the whole basis of meniscal grading.
         return hit.sort_values(["fatsat", "n_slices"], ascending=[True, False]).iloc[0]
     return sag.sort_values("n_slices", ascending=False).iloc[0]
+
+
+def pick_axial(headers: pd.DataFrame, prefer_deep: bool = False):
+    """The axial series the patellofemoral joint is read on: fat-suppressed first.
+
+    The opposite preference to `pick_sagittal`, and the same reasoning turned round. A
+    meniscal tear is signal *inside* fibrocartilage, which fat suppression flattens, so
+    the meniscus wants it off. Patellofemoral osteoarthritis is cartilage loss and
+    subchondral oedema, and oedema is only visible once the fat around it is suppressed,
+    so this wants it on.
+
+    PD fat-suppressed covers 72.2 % of studies and T2 fat-suppressed 28.2 %; at least
+    one of the two covers **98.5 %**, and adding T1 to that gains nothing at all — so
+    the pair is the whole of the preference, and what follows it is only a fallback for
+    the 1.5 % that have neither.
+    """
+
+    ax = headers[headers["plane"] == "Axial"]
+    if not len(ax):
+        return None
+    for weight, fat in (("PD", True), ("T2", True), ("PD", False), ("T2", False),
+                        ("T1", False)):
+        hit = ax[(ax["weight"] == weight) & (ax["fatsat"].astype(bool) == fat)]
+        if not len(hit):
+            continue
+        if prefer_deep:
+            deep = hit[hit["n_slices"] > 100]
+            if len(deep):
+                return deep.sort_values("n_slices", ascending=False).iloc[0]
+        return hit.sort_values("n_slices", ascending=False).iloc[0]
+    return ax.sort_values("n_slices", ascending=False).iloc[0]
+
+
+#: Which picker each landmark needs, by the plane it is annotated on.
+PICKERS = {"Sagittal": pick_sagittal, "Axial": pick_axial}
+
+
+#: The points this project collects, and what each needs to be annotated correctly.
+#:
+#: `prefer_deep` has to be read at **inference** as well as at annotation, and has to be
+#: the same both times. It decides which series of a study the model is shown, so a run
+#: that predicts on a 320-slice acquisition for a point annotated on a 30-slice one is
+#: asking the model about pixels it never trained on. The meniscus bundles were built
+#: with it and the patellofemoral one without, so it lives here rather than being passed
+#: separately to each script and eventually passed differently.
+#:
+#: `laterality` is the one that changes the annotation tool rather than the model: a
+#: sagittal stack runs along the left-right axis, so which end is lateral decides which
+#: meniscus is being pointed at and the annotator has to be told. An axial stack runs
+#: inferior to superior, and `pf_centre` sits on the midline of its joint, so nothing
+#: about left or right changes where the click goes. Showing a lateral badge there would
+#: be asking for a declaration that cannot be wrong, which teaches an annotator to stop
+#: reading badges.
+LANDMARKS = {
+    "lat_centre": {
+        "id": "lat_centre", "plane": "Sagittal", "colour": "#ff6b6b",
+        "laterality": True, "prefer_deep": True,
+        "what": "the centre of the lateral meniscus",
+    },
+    "pf_centre": {
+        "id": "pf_centre", "plane": "Axial", "colour": "#ffb24d",
+        "laterality": False, "prefer_deep": False,
+        "what": "the middle of the patellofemoral joint space",
+    },
+}

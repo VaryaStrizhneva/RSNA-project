@@ -29,7 +29,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from rsna.config import Config                                       # noqa: E402
 from rsna.dicom.headers import annotate, walk                        # noqa: E402
 from rsna.dicom.ordering import order_slices                         # noqa: E402
-from rsna.landmark import LandmarkConfig, pick_sagittal, sample_series  # noqa: E402
+from rsna.landmark import LandmarkConfig, sample_series            # noqa: E402
+from rsna.landmark.series import LANDMARKS, PICKERS                  # noqa: E402
 from rsna.landmark.loop import to_input                              # noqa: E402
 from rsna.landmark.network import LandmarkNet                        # noqa: E402
 from rsna.landmark.target import decode                              # noqa: E402
@@ -39,19 +40,36 @@ def log(message: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {message}", flush=True)
 
 
-def load_models(run: Path, config: LandmarkConfig, device: str) -> list:
-    models = []
-    for path in sorted(run.glob("fold*.pt")):
+def load_models(run: Path, device: str) -> tuple[list, LandmarkConfig]:
+    """Every fold of a run, and **the config it was fitted under**.
+
+    Read from the weights rather than rebuilt from the module default. Taking the
+    default here meant this script could only ever predict the landmark that happened
+    to be `LandmarkConfig`'s default — it refused a patellofemoral run outright, and had
+    the two configs differed in a field that does not change the state dict it would
+    have loaded the weights and sampled the input the wrong way instead, which is the
+    version of this bug that says nothing.
+
+    The folds still have to agree with each other: a run assembled from two trainings is
+    not one model.
+    """
+
+    paths = sorted(run.glob("fold*.pt"))
+    if not paths:
+        raise ValueError(f"no fold weights in {run}")
+    config, models = None, []
+    for path in paths:
         ck = torch.load(path, map_location="cpu", weights_only=False)
         stored = LandmarkConfig.from_dict(ck["config"])
-        if stored != config:
-            raise ValueError(f"{path} was fitted under a different LandmarkConfig")
+        if config is None:
+            config = stored
+        elif stored != config:
+            raise ValueError(f"{path} was fitted under a different LandmarkConfig than "
+                             f"{paths[0]}; this run is two models, not one")
         model = LandmarkNet(config, pretrained=False)
         model.load_state_dict(ck["state"])
         models.append(model.eval().to(device))
-    if not models:
-        raise ValueError(f"no fold weights in {run}")
-    return models
+    return models, config
 
 
 def main() -> int:
@@ -68,9 +86,8 @@ def main() -> int:
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = ap.parse_args()
 
-    config = LandmarkConfig()
-    models = load_models(args.run, config, args.device)
-    log(f"{len(models)} folds from {args.run}")
+    models, config = load_models(args.run, args.device)
+    log(f"{len(models)} folds from {args.run}, predicting {', '.join(config.points)}")
 
     root = args.dicom_root or args.data_root
     series = annotate(walk(Path(root), args.split))
@@ -82,12 +99,19 @@ def main() -> int:
     log(f"{len(series)} series over {series.StudyInstanceUID.nunique()} studies, "
         f"{int(series.plane.isna().sum())} with no plane")
 
+    # Which series to read is a property of the point, not of this script: the picker
+    # and its prefer_deep must be the ones the annotation bundle used, or the model is
+    # shown a sequence it never trained on.
+    landmark = LANDMARKS[config.points[0]]
+    plane, deep = landmark["plane"], landmark["prefer_deep"]
+    log(f"{config.points[0]}: reading the {plane.lower()} series"
+        f"{', preferring a 3D acquisition' if deep else ''}")
     chosen = {}
     for study, group in series.groupby("StudyInstanceUID"):
-        row = pick_sagittal(group, prefer_deep=True)
+        row = PICKERS[plane](group, prefer_deep=deep)
         if row is not None:
             chosen[study] = row
-    log(f"{len(chosen)} studies have a sagittal series")
+    log(f"{len(chosen)} studies have a {plane.lower()} series")
     studies = list(chosen)[:args.limit or None]
 
     base = Config()
