@@ -81,8 +81,14 @@ def rows(export: dict, annotator: str) -> list[dict]:
             continue
         t = a["transform"]
         for name, p in a["points"].items():
-            lat_end = lateral_end_from_click(a, p)
-            from_click = side_at(a, lat_end)
+            # Recovering the side from the click is a *sagittal* trick: that stack runs
+            # along the left-right axis, so the end the click is nearest is the lateral
+            # one. An axial stack runs inferior to superior and the click says nothing
+            # about laterality — running it anyway would read the x of an image corner
+            # and report a side with the same confidence as a real one.
+            sagittal = export.get("plane", "Sagittal") == "Sagittal"
+            lat_end = lateral_end_from_click(a, p) if sagittal else None
+            from_click = side_at(a, lat_end) if sagittal else None
             side = a.get("side") or from_click
             side_from = (a.get("side_from") if a.get("side")
                          else ("the click's own position in the stack" if side

@@ -158,6 +158,7 @@ kbd{background:#242a31;border:1px solid var(--line);border-radius:4px;padding:0 
 
 <div class="scrim" id="scrim" hidden>
   <div class="help">
+    <div data-lm="lat_centre">
     <h2>lat_centre &mdash; what the point means</h2>
     <p class="hint">One point per study: the centre of the <b>lateral</b> meniscus, on one
       sagittal slice. Two people who each annotate sensibly but differently produce two
@@ -220,18 +221,100 @@ kbd{background:#242a31;border:1px solid var(--line);border-radius:4px;padding:0 
     <p>When two readings of this text are both defensible, that is a defect in the text.
       Say so, and we fix the wording, not the clicks.</p>
 
+    </div>
+
+    <div data-lm="pf_centre" hidden>
+    <h2>pf_centre &mdash; ce que le point veut dire</h2>
+    <p class="hint">Un point par &eacute;tude&nbsp;: le <b>milieu de l'interligne
+      f&eacute;moro-patellaire</b>, sur une coupe axiale. <kbd>H</kbd> ferme cette aide.</p>
+
+    <img src="figures/pf_centre.jpg" alt="une coupe axiale de l'articulation f&eacute;moro-patellaire, avec le point et une bo&icirc;te candidate">
+
+    <h3>L'articulation</h3>
+    <p>Rien &agrave; voir avec les compartiments tibio-f&eacute;moraux. La rotule est un os
+      pris dans le tendon quadricipital&nbsp;; sa face post&eacute;rieure est
+      cartilagineuse et elle glisse dans la <b>trochl&eacute;e</b>, la goutti&egrave;re
+      &agrave; l'avant du f&eacute;mur. Une cr&ecirc;te m&eacute;diane partage cette face en
+      une <b>facette lat&eacute;rale</b> (en g&eacute;n&eacute;ral la plus grande) et une
+      <b>facette m&eacute;diale</b>.</p>
+    <p><b>L'orientation ne change jamais</b> ici&nbsp;: mesur&eacute; sur 3342 s&eacute;ries
+      axiales PD FS, les colonnes vont vers la gauche du patient et les lignes vers
+      l'arri&egrave;re &mdash; 3342 fois sur 3342. Donc <b>l'ant&eacute;rieur est en
+      haut</b> et la rotule est toujours en haut de l'image. C'est pour &ccedil;a qu'il n'y
+      a pas de badge lat&eacute;ral sur ce bundle&nbsp;: le point est sur la ligne
+      m&eacute;diane de l'articulation, rien ne s'inverse entre un genou droit et un
+      gauche.</p>
+
+    <h3>1. La coupe &mdash; au milieu de la rotule</h3>
+    <p>Scrolle depuis le bas&nbsp;: d'abord tibia et p&eacute;ron&eacute;, puis
+      l'articulation, puis la rotule appara&icirc;t en haut, s'&eacute;largit, et
+      dispara&icirc;t quand tu passes au-dessus. Elle occupe dix &agrave; quinze coupes.</p>
+    <p>Prends-en une <b>au milieu</b> de cette plage, l&agrave; o&ugrave; la rotule est la
+      plus large. &Eacute;vite les coupes o&ugrave; elle vient d'appara&icirc;tre ou va
+      dispara&icirc;tre&nbsp;: l'interligne y est un filet et le point bouge beaucoup pour
+      un petit coup de molette.</p>
+
+    <h3>2. Le point &mdash; au milieu de l'interligne</h3>
+    <p>Entre la rotule et le f&eacute;mur il y a une ligne (claire en PD fat-sat, c'est le
+      cartilage et le liquide). Le point va <b>dans cette ligne</b>, &agrave;
+      <b>mi-chemin entre le bord lat&eacute;ral et le bord m&eacute;dial de la
+      rotule</b> &mdash; donc en face de la cr&ecirc;te m&eacute;diane, entre les deux
+      facettes.</p>
+    <p>Centr&eacute; sur l'interligne et pas sur l'os&nbsp;: &ccedil;a met la rotule devant
+      le point et la trochl&eacute;e derri&egrave;re, et une seule bo&icirc;te tient les
+      deux surfaces que l'arthrose attaque. Un point au milieu de la rotule pousserait la
+      trochl&eacute;e hors du cadre, et l'inverse pour un point dans la goutti&egrave;re.</p>
+
+    <h3>3. Clique aussi quand c'est pathologique &mdash; <em>surtout</em> alors</h3>
+    <p>Cartilage pinc&eacute;, ost&eacute;ophytes, rotule bascul&eacute;e ou
+      subluxée&nbsp;: le point se place quand m&ecirc;me, l&agrave; o&ugrave; la
+      g&eacute;om&eacute;trie le dit, pas l&agrave; o&ugrave; se trouve la l&eacute;sion.
+      Si l'interligne est compl&egrave;tement pinc&eacute; d'un c&ocirc;t&eacute;, vise
+      toujours le milieu de la largeur rotulienne.</p>
+    <p>C'est la r&egrave;gle qui compte le plus. Si le point d&eacute;rive vers la
+      l&eacute;sion sur les positifs, le ROI d&eacute;rive avec lui et le crop se met
+      &agrave; encoder le label par sa seule position &mdash; un signal qui existe dans le
+      jeu d'entra&icirc;nement et nulle part ailleurs.</p>
+
+    <h3>Ce qui ferait un clic faux</h3>
+    <ul>
+      <li><b>dans la rotule</b> au lieu de l'interligne derri&egrave;re elle&nbsp;;</li>
+      <li>sur le <b>tendon ou le paquet graisseux</b> &agrave; l'avant, qui prennent la
+        place de la rotule sur les coupes situ&eacute;es en dessous d'elle&nbsp;;</li>
+      <li>sur une coupe <b>sous la rotule</b>&nbsp;: on y voit les condyles et
+        l'&eacute;chancrure, qui appartiennent aux autres compartiments&nbsp;;</li>
+      <li>d&eacute;river vers une facette. Le point est entre les deux.</li>
+    </ul>
+
+    <h3>Quand passer son tour</h3>
+    <p>Pas de rotule identifiable sur la pile, ou ordre des coupes inutilisable (banni&egrave;re
+      rouge)&nbsp;: <kbd>S</kbd>. Passer est honn&ecirc;te et pas cher.</p>
+
+    <h3>Si tu h&eacute;sites</h3>
+    <p><b>La constance vaut mieux que la justesse.</b> Choisis une lecture et tiens-la sur
+      les 300. Un d&eacute;calage syst&eacute;matique de 3&nbsp;mm ne co&ucirc;te rien, la
+      bo&icirc;te l'absorbe. Un d&eacute;calage qui change d'une &eacute;tude &agrave;
+      l'autre est du bruit que le mod&egrave;le ne moyenne jamais compl&egrave;tement.</p>
+    <p>Si deux lectures de ce texte sont d&eacute;fendables, c'est le texte qui a un
+      d&eacute;faut. Dis-le, on corrige les mots, pas les clics.</p>
+    </div>
+
     <div class="row" style="margin-top:18px"><button class="primary" id="closehelp">back to annotating</button></div>
   </div>
 </div>
 
 <script>
-// One point for now: the medial compartment gets its own pass later, and the export is
-// keyed by name, so adding it changes nothing downstream.
-const TARGET = {id:"lat_centre", color:"#ff6b6b"};
-const KEY = "rsna-landmarks-v1";
+// Which point this bundle collects is the bundle's property, not this file's. One tool
+// serves every landmark: the manifest names the point, the plane it lives on and whether
+// laterality means anything for it, and the help below has a section per point.
+// The storage key is per point on purpose — a meniscus session and a patellofemoral one
+// are different work on the same studies, and sharing one key would let the second
+// overwrite the first in a browser that still held it.
+let TARGET = {id:"lat_centre", color:"#ff6b6b", laterality:true};
+let KEY = "rsna-landmarks-v1";
 
 let M=null, studies=[], si=0, slice=0;
-let state = JSON.parse(localStorage.getItem(KEY) || "{}");
+let state = {};
 
 const $ = id => document.getElementById(id);
 const cur = () => studies[si];
@@ -280,7 +363,19 @@ function sideOf(){
 }
 
 function ends(){
-  const s = cur(), e = latEnd();
+  const s = cur();
+  if (!TARGET.laterality){
+    // An axial stack runs inferior to superior on a left and a right knee alike, and
+    // this point sits on the midline of its own joint — so nothing flips and there is
+    // nothing to declare. Showing a lateral badge here would ask for a declaration that
+    // cannot be wrong, which is how an annotator learns to stop reading badges.
+    $("endA").textContent = "\u25c0 " + (s.first_end || "?");
+    $("endB").textContent = (s.last_end || "?") + " \u25b6";
+    $("latflag").style.display = "none";
+    $("declare").hidden = true;
+    return;
+  }
+  const e = latEnd();
   const a = e === null ? "?" : (e === "first" ? "lateral" : "medial");
   const b = e === null ? "?" : (e === "first" ? "medial" : "lateral");
   $("endA").textContent = "◀ " + a;
@@ -395,6 +490,7 @@ $("clear").onclick = ()=>{ delete state[cur().study]; save(); loadStudy(); };
 
 $("export").onclick = ()=>{
   const out = {tool:"rsna-landmarks-v1", exported:new Date().toISOString(),
+               landmark:TARGET.id, plane:M.plane || "Sagittal",
                bundle:{fov_mm:M.fov_mm, out_px:M.out_px, seed:M.seed, pool:M.pool},
                annotations:[]};
   for (const s of studies){
@@ -418,7 +514,7 @@ $("export").onclick = ()=>{
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],
                                         {type:"application/json"}));
-  a.download = `landmarks-lateral-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `landmarks-${TARGET.id}-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 };
 
@@ -437,6 +533,21 @@ addEventListener("keydown", e=>{
 
 fetch("studies.json").then(r=>r.json()).then(m=>{
   M=m; studies=m.studies;
+  if (m.landmark){
+    TARGET = {id:m.landmark.id,
+              color:m.landmark.colour || m.landmark.color || "#ff6b6b",
+              laterality:!!m.landmark.laterality};
+  }
+  // The meniscus keeps the name it has always had. Renaming it would be tidier and it
+  // would also hide every in-progress session already sitting in a browser under the old
+  // key, which is annotation work that has not been exported yet.
+  KEY = TARGET.id === "lat_centre" ? "rsna-landmarks-v1"
+                                   : "rsna-landmarks-" + TARGET.id;
+  state = JSON.parse(localStorage.getItem(KEY) || "{}");
+  document.title = `Landmark annotation \u2014 ${TARGET.id}`;
+  // One help section per point; the others are not for this bundle.
+  document.querySelectorAll("[data-lm]").forEach(
+    el => { el.hidden = el.getAttribute("data-lm") !== TARGET.id; });
   const next = studies.findIndex(s=>!state[s.study]);
   si = next<0 ? 0 : next;
   loadStudy();

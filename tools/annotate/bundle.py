@@ -47,7 +47,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from rsna.config import Config, TARGETS
 from rsna.dicom.geometry import patient_mm
-from rsna.landmark.series import pick_sagittal                                  # noqa: E402
+from rsna.landmark.series import LANDMARKS, PICKERS                             # noqa: E402
 from tools.atlas.render import window                                    # noqa: E402
 from tools.atlas.study import (TRAIN_SERIES, load_series, series_headers,  # noqa: E402
                                side_of, stack_orientation)
@@ -92,15 +92,15 @@ def render(slice_: np.ndarray, mm_per_px: float) -> tuple[np.ndarray, dict]:
 
 
 def build_study(uid: str, out: Path, config: Config, headers=None,
-                prefer_deep: bool = False) -> dict | None:
+                prefer_deep: bool = False, plane: str = "Sagittal") -> dict | None:
     headers = series_headers(uid) if headers is None else headers
-    chosen = pick_sagittal(headers, prefer_deep=prefer_deep)
+    chosen = PICKERS[plane](headers, prefer_deep=prefer_deep)
     if chosen is None:
         return None
 
     side, how = side_of(headers)
     series = load_series(chosen, config)
-    first_end, last_end = stack_orientation("Sagittal", side)
+    first_end, last_end = stack_orientation(plane, side)
 
     tail = uid[-11:]
     folder = out / "img" / tail
@@ -189,6 +189,10 @@ def _slice_meta(directory: Path, name: str) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--n", type=int, default=30, help="how many studies")
+    ap.add_argument("--landmark", default="lat_centre", choices=sorted(LANDMARKS),
+                    help="which point to collect. It decides the plane, the series "
+                         "preference and whether the tool asks about laterality at all "
+                         "— see rsna.landmark.series.LANDMARKS.")
     ap.add_argument("--studies", type=Path,
                     help="a file of StudyInstanceUIDs, one per line (or a CSV with that "
                          "column) to render instead of drawing at random. Sampling design "
@@ -210,6 +214,8 @@ def main() -> int:
                          "paying for a first training set; the model can resolve the "
                          "untagged half afterwards.")
     args = ap.parse_args()
+    landmark = LANDMARKS[args.landmark]
+    plane = landmark["plane"]
 
     if args.studies:
         text = args.studies.read_text()
@@ -238,14 +244,14 @@ def main() -> int:
             # otherwise half the build time is spent on studies that get deleted.
             headers = series_headers(uid)
             side, how = side_of(headers)
-            if args.tagged_only and "tag" not in (how or ""):
+            if args.tagged_only and landmark["laterality"] and "tag" not in (how or ""):
                 failed.append((uid, f"side not from the tag ({how})"))
                 continue
 
             record = build_study(uid, args.out, config, headers=headers,
-                                 prefer_deep=args.prefer_3d)
+                                 prefer_deep=args.prefer_3d, plane=plane)
             if record is None:
-                failed.append((uid, "no sagittal series"))
+                failed.append((uid, f"no {plane.lower()} series"))
             else:
                 studies.append(record)
         except Exception as exc:  # noqa: BLE001
@@ -254,6 +260,12 @@ def main() -> int:
 
     # No global mm/px: it is a property of each study's rounding, not of the bundle.
     manifest = {"fov_mm": FOV_MM, "out_px": OUT_PX, "max_slices": MAX_SLICES,
+                # The tool reads this to know which point it is collecting: the help it
+                # shows, the colour of the marker, the key it saves under, and whether
+                # laterality is asked about at all. A bundle that did not carry it would
+                # let the meniscus tool open a stack of axial slices and say nothing.
+                "landmark": landmark,
+                "plane": plane,
                 "prefer_3d": bool(args.prefer_3d),
                 "seed": args.seed,
                 "pool": (str(args.studies) if args.studies
@@ -275,7 +287,7 @@ def main() -> int:
     print(f"\n{len(studies)} studies, {sum(s['n'] for s in studies)} slices, "
           f"{size/1e6:.0f} MB -> {args.out}")
     unresolved = [s["tail"] for s in studies if s["side"] is None]
-    if unresolved:
+    if unresolved and landmark["laterality"]:
         print(f"side not resolved by header or geometry on {len(unresolved)}/{len(studies)}"
               f" — the annotator declares which end is lateral on these")
     for uid, why in failed:

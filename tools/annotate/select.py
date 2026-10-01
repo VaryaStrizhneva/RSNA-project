@@ -41,7 +41,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from tools.annotate.bundle import pick_sagittal          # noqa: E402
+from rsna.landmark.series import pick_sagittal            # noqa: E402
 from tools.atlas.study import series_headers             # noqa: E402
 
 #: The corpus mix, measured over a 200-study draw and recorded in `docs/pipeline_v2.md`.
@@ -86,6 +86,10 @@ def main() -> int:
                          "than a different set of them.")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("-o", "--out", required=True, type=Path)
+    ap.add_argument("--landmark", default="lat_centre",
+                    help="which point the bundle is for. Only changes what is reported "
+                         "here — the laterality note is meaningless for a point that "
+                         "does not depend on which knee it is.")
     args = ap.parse_args()
 
     scan = pd.read_csv(args.scan)
@@ -147,11 +151,17 @@ def main() -> int:
         "already": prior,
     }).fillna(0).astype(int).to_string(), "\n")
     print(f"3D (as rendered): {n_3d}")
-    untagged = len(picked) - int(picked.tagged.sum())
-    print(f"side from the DICOM tag: {int(picked.tagged.sum())}/{len(picked)} — the other "
-          f"{untagged} show no badge, so the annotator orients on the fibular head. "
-          f"Nothing extra to enter: the click's own position in the stack recovers which "
-          f"end was lateral (161/161 on the first bundle).")
+    from rsna.landmark.series import LANDMARKS
+    if LANDMARKS.get(args.landmark, {}).get("laterality", True):
+        untagged = len(picked) - int(picked.tagged.sum())
+        print(f"side from the DICOM tag: {int(picked.tagged.sum())}/{len(picked)} — the "
+              f"other {untagged} show no badge, so the annotator orients on the fibular "
+              f"head. Nothing extra to enter: the click's own position in the stack "
+              f"recovers which end was lateral (161/161 on the first bundle).")
+    else:
+        print(f"laterality is not asked about for {args.landmark}: an axial stack runs "
+              f"inferior to superior on both knees and the point is on the midline of "
+              f"its joint, so tagged and untagged studies cost the annotator the same.")
 
     args.out.write_text("\n".join(chosen) + "\n")
     print(f"\nwrote {args.out}")
