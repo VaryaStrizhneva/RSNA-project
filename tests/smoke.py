@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -986,7 +987,7 @@ def test_series_choice() -> None:
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     import pandas as pd
-    from tools.annotate.bundle import pick_sagittal
+    from rsna.landmark.series import LANDMARKS, PICKERS, pick_axial, pick_sagittal
 
     print("\nannotate.bundle")
 
@@ -994,6 +995,54 @@ def test_series_choice() -> None:
         return pd.DataFrame([{"plane": "Sagittal", "weight": w, "fatsat": f,
                               "n_slices": n, "SeriesInstanceUID": uid}
                              for w, f, n, uid in rows])
+
+    # The annotator is one HTML file serving every landmark, and no JavaScript engine is
+    # installed here to run it — so what can be checked is that its wiring and the
+    # registry still agree. Each of these guards a failure that is silent in a browser:
+    # a help section for a point that no bundle names, a point whose section is missing
+    # so the annotator sees the *other* landmark's instructions, or the storage key
+    # quietly renamed out from under a session that has not been exported yet.
+    tool = (Path(__file__).resolve().parents[1]
+            / "tools/annotate/annotate.html").read_text()
+    sections = set(re.findall(r'data-lm="([a-z_]+)"', tool))
+    check("the annotator has a help section for every landmark, and no orphans",
+          sections == set(LANDMARKS), f"{sorted(sections)}")
+    check("and it takes the point from the bundle rather than from its own source",
+          "m.landmark" in tool and "KEY = TARGET.id" in tool,
+          "one tool, many points: the manifest names which one")
+    check("the meniscus keeps the storage key its sessions were saved under",
+          '"rsna-landmarks-v1"' in tool,
+          "renaming it would hide annotation work still sitting unexported in a browser")
+    figures = Path(__file__).resolve().parents[1] / "tools/annotate/figures"
+    check("every landmark ships the picture of what its point means",
+          all((figures / f"{k}.jpg").exists() for k in LANDMARKS),
+          "a tool that ships without the definition of the point it collects gets two "
+          "annotators' readings, averaged")
+
+    def axi(*rows):
+        return pd.DataFrame([{"plane": "Axial", "weight": w, "fatsat": f,
+                              "n_slices": n, "SeriesInstanceUID": uid}
+                             for w, f, n, uid in rows])
+
+    # The patellofemoral joint wants the opposite of what the meniscus wants, and for
+    # the same reason read the other way: a tear is signal inside fibrocartilage, which
+    # fat suppression flattens; subchondral oedema is only visible once the fat is gone.
+    mixed = axi(("PD", False, 40, "pd"), ("PD", True, 32, "pdfs"), ("T1", False, 60, "t1"))
+    check("the axial picker prefers fat suppression, where the meniscus refuses it",
+          pick_axial(mixed)["SeriesInstanceUID"] == "pdfs"
+          and pick_sagittal(sag(("PD", True, 32, "pdfs"),
+                                ("PD", False, 28, "pd")))["SeriesInstanceUID"] == "pd",
+          "PD FS covers 72.2 % of studies axially and T2 FS 28.2 %, 98.5 % together")
+    check("and falls back to T2 fat-suppressed before anything unsuppressed",
+          pick_axial(axi(("T2", True, 30, "t2fs"),
+                         ("PD", False, 44, "pd")))["SeriesInstanceUID"] == "t2fs")
+    check("every landmark names a plane that has a picker",
+          all(d["plane"] in PICKERS for d in LANDMARKS.values()),
+          ", ".join(f"{k} on {v['plane']}" for k, v in LANDMARKS.items()))
+    check("only the sagittal point claims laterality",
+          [k for k, v in LANDMARKS.items() if v["laterality"]] == ["lat_centre"],
+          "an axial stack runs inferior to superior on both knees, so pf_centre has "
+          "nothing to declare and the tool must not ask")
 
     both = sag(("PD", True, 28, "pd"), ("T1", False, 140, "t1"), ("GRE", False, 92, "gre"))
     check("--prefer-3d does not cross the weighting to reach a deeper series",
@@ -1362,20 +1411,23 @@ def test_expert() -> None:
     """
 
     from rsna.expert import ExpertConfig, ExpertNet
-    from rsna.roi import RoiSpec
+    from rsna.roi import SPECS, RoiSpec
 
     print("\nexpert")
 
     config = ExpertConfig()
     spec = RoiSpec()
     check("the expert reads the ROI the spec cuts, for every target of its group",
-          config.roi == spec.name
+          config.rois[0] == spec.name
           and set(config.targets) == {"Lateral Meniscus", "Lateral OA"},
           f"{len(config.targets)} targets on one encoder: they share a compartment, so "
           f"they share the features that describe it")
-    check("a run written before the model took several targets still reads",
-          ExpertConfig.from_dict({"target": "Lateral Meniscus"}).targets
-          == ("Lateral Meniscus",))
+    check("a run written before the model took several targets or planes still reads",
+          ExpertConfig.from_dict({"target": "Lateral Meniscus",
+                                  "roi": "lateral_meniscus"}).targets
+          == ("Lateral Meniscus",),
+          "an experiment file that no longer reproduces its own run turns a published "
+          "number into a rumour")
 
     class Trunk(nn.Module):
         """A stand-in with the one property that matters: it sees the whole batch."""
@@ -1394,7 +1446,8 @@ def test_expert() -> None:
     nn.Module.__init__(model)
     model.config = config
     model.trunk = Trunk()
-    model.attend = __import__("rsna.expert", fromlist=["Attention"]).Attention(8)
+    Attention = __import__("rsna.expert", fromlist=["Attention"]).Attention
+    model.attend = Attention(8, heads=len(config.targets))
     model.drop = nn.Dropout(0.0)
     model.head = nn.Linear(8, len(config.targets))
     nn.init.zeros_(model.head.weight)
@@ -1412,15 +1465,40 @@ def test_expert() -> None:
     pad = ~mask[..., None, None].expand_as(imgs)
     noisy[pad] = torch.rand(int(pad.sum()))
     with torch.no_grad():
-        a, c = model(imgs, mask), model(noisy, mask)
+        a, c = model([(imgs, mask)]), model([(noisy, mask)])
     check("one logit per target", tuple(a.shape) == (b, len(config.targets)))
     check("padding never reaches the encoder",
           float((a - c).abs().max()) < 1e-6,
           "filling it with noise instead of zeros changes nothing, which is only true "
           "if it was never encoded")
 
+    # One scorer per target, not one shared. The heads were always separate; the pooling
+    # was not, and that is what two targets on one encoder actually compete over. A tear
+    # is signal inside the fibrocartilage, which non-fat-suppressed PD shows;
+    # osteoarthritis is bone, which the fat-suppressed and the T1 show. Sharing the
+    # scorer cost the meniscus 0.0084 and left osteoarthritis at 0.7866.
+    two = Attention(8, heads=2)
+    with torch.no_grad():
+        nn.init.constant_(two.score.bias, 0.0)
+        two.score.weight.copy_(torch.stack([torch.ones(8), -torch.ones(8)]))
+        feat = torch.rand(1, 3, 8)
+        pooled = two(feat, torch.ones(1, 3, dtype=torch.bool))
+    check("each target weighs the series its own way",
+          tuple(pooled.shape) == (1, 2, 8)
+          and float((pooled[0, 0] - pooled[0, 1]).abs().max()) > 1e-3,
+          "opposite scorers must not land on the same pooled vector, or the per-target "
+          "attention is decoration")
+    with torch.no_grad():
+        one_head = Attention(8, heads=1)
+        flat = one_head(feat, torch.ones(1, 3, dtype=torch.bool))
+        w = one_head.score(feat).squeeze(-1).softmax(dim=1)
+    check("and with a single target it is still the shared mean",
+          float((flat[:, 0] - torch.einsum("bs,bsd->bd", w, feat)).abs().max()) < 1e-6,
+          "the single-target runs reproduce: same shape, same initialisation, same "
+          "arithmetic as before the split")
+
     check("a study with no series at all falls back to the prior",
-          float((model(imgs, torch.zeros_like(mask)).detach()
+          float((model([(imgs, torch.zeros_like(mask))]).detach()
                  - config.prior_logit).abs().max()) < 1e-5,
           "a masked softmax over nothing would otherwise give NaN")
 
@@ -1439,6 +1517,73 @@ def test_expert() -> None:
     check("a full stack keeps its real neighbours",
           bool(torch.equal(win[1, 0, 1, 2], imgs[1, 0, 3])),
           "clamping only bites at the edge of the acquired run, not everywhere")
+
+    # Two ROI specs do not share a tensor: 48x27 mm and 48x30 mm at the same millimetres
+    # per pixel are 126 and 140 rows. The trunk runs once per group and the features meet
+    # at the attention, which is what lets each box be the size of what it frames.
+    # The patellofemoral box moves along the OTHER axis. `box_offset_mm` shifts columns
+    # and `box_rise_mm` shifts rows, and a crop that confused them would be displaced
+    # sideways by the amount it should have risen — silently, since both produce a
+    # plausible-looking crop of the same knee.
+    # Every spec must name a landmark some annotation pass actually collected. Getting
+    # this wrong does not crash: the build filters the table to zero rows and writes an
+    # empty cache, reports `nan %` coverage, and the training stage reads it.
+    from rsna.landmark.series import LANDMARKS as _POINTS
+    unknown = {s.name: s.landmark for s in SPECS.values() if s.landmark not in _POINTS}
+    check("every ROI spec hangs off a landmark this project collects",
+          not unknown, f"{unknown or 'all of them'}")
+    check("and the axial specs hang off the axial point",
+          all(s.landmark == "pf_centre" for s in SPECS.values() if s.plane == "Axial"),
+          "a spec left on the default asked for lat_centre and silently cut nothing")
+
+    pf = SPECS["pf_oa"]
+    check("the patellofemoral box rises instead of shifting sideways",
+          pf.plane == "Axial" and pf.box_rise_mm > 0 and pf.box_offset_mm == 0,
+          f"{pf.box_w_mm:.0f}x{pf.box_h_mm:.0f} mm raised {pf.box_rise_mm:.0f} mm "
+          f"toward the front")
+    check("and its pixels are isotropic and whole patches",
+          abs(pf.box_w_mm / pf.out_w - pf.box_h_mm / pf.out_h) < 1e-9
+          and pf.out_w % pf.patch == 0 and pf.out_h % pf.patch == 0,
+          f"{pf.out_w}x{pf.out_h} px at {pf.mm_per_px:.3f} mm/px, against a 0.31 mm/px "
+          f"median acquisition — finer would resample past what was acquired")
+    check("its depth is symmetric, having no bowtie to be short toward",
+          pf.symmetric_depth,
+          "the landmark is mid-patella by definition and the joint runs as far above "
+          "it as below")
+
+    # The ramp has to be bigger than the box, or both crops run off the edge and the
+    # zero padding swamps the very difference being measured.
+    flat = np.tile(np.arange(200, dtype=np.uint8)[:, None], (1, 200))
+    spacing = (1.0, 1.0)
+    from rsna.roi.extract import crop_plane
+    tiny = pf.replace(out_w=14, out_h=12, patch=1)
+    low = crop_plane(flat, 100.0, 100.0, spacing, tiny, to_lateral=1.0, to_front=-1.0)
+    high = crop_plane(flat, 100.0, 100.0, spacing, tiny, to_lateral=1.0, to_front=1.0)
+    check("and the rise follows the series' own row direction, not a fixed sign",
+          float(low.mean()) < float(high.mean()),
+          f"on a ramp brightening with the row index, a series whose front is -row "
+          f"gives {low.mean():.0f} and one whose front is +row gives {high.mean():.0f}")
+
+    cor = SPECS["lateral_meniscus_coronal"]
+    wide = ExpertConfig(rois=("lateral_meniscus", "lateral_meniscus_coronal"))
+    big = ExpertNet(wide, pretrained=False)
+    sag_spec = SPECS["lateral_meniscus"]
+    pair = [(torch.rand(2, 2, sag_spec.slots, sag_spec.out_h, sag_spec.out_w),
+             torch.ones(2, 2, sag_spec.slots, dtype=torch.bool)),
+            (torch.rand(2, 2, cor.slots, cor.out_h, cor.out_w),
+             torch.ones(2, 2, cor.slots, dtype=torch.bool))]
+    with torch.no_grad():
+        both = big(pair)
+    check("two ROI groups of different shapes go through one encoder",
+          tuple(both.shape) == (2, len(wide.targets)),
+          f"{sag_spec.out_h}x{sag_spec.out_w} and {cor.out_h}x{cor.out_w} rows, one trunk")
+    pair[1] = (pair[1][0], torch.zeros(2, 2, cor.slots, dtype=torch.bool))
+    with torch.no_grad():
+        one = big(pair)
+    check("and a study missing one of them still answers",
+          bool(torch.isfinite(one).all()),
+          "88.3 % of studies have a coronal PD against 99.8 % sagittal, so this is the "
+          "common case, not the edge one")
 
 
 def main() -> int:
