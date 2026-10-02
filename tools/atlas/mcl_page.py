@@ -49,6 +49,28 @@ POINT = (234, 297)                  # against the medial cortex, at the joint li
 BOX_MM = (30.0, 70.0)
 
 
+#: The two knees the side figure is drawn on, one of each, and the study the slice
+#: figure traces the ligament on — a right knee whose report does not mention the MCL,
+#: so the band shown is an intact one.
+SIDE_STUDIES = {"R": "19291133169", "L": "25891779423"}
+BAND_STUDY, BAND_GOOD, BAND_BAD = "19291133169", 15, 8
+
+#: The medial strip of a RIGHT knee: rows 15-90 % and columns 58-95 % of the acquired
+#: image, enlarged 3x. The polyline below is in that strip's pixels, read off a printed
+#: grid rather than detected, so it only means anything together with these numbers.
+STRIP = (0.15, 0.90, 0.58, 0.95)
+STRIP_ZOOM = 3
+BAND = [(332, 350), (362, 560), (382, 760), (390, 890), (378, 1060), (348, 1250)]
+BAND_POINT = (390, 890)
+
+
+def find(tail: str) -> str:
+    hits = [d.name for d in TRAIN_SERIES.iterdir() if d.name.endswith(tail)]
+    if len(hits) != 1:
+        raise ValueError(f"{tail!r} matches {len(hits)} studies")
+    return hits[0]
+
+
 def _text(img, s, x, y, colour):
     cv2.putText(img, s, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (0, 0, 0), 5)
     cv2.putText(img, s, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.52, colour, 1)
@@ -161,6 +183,83 @@ def derived_panel(uid: str, point: np.ndarray) -> tuple[str, str] | None:
     return to_jpeg(big, max_width=470)[0], cap
 
 
+def _label(img, s, x, y, colour, scale=1.1, thick=2):
+    cv2.putText(img, s, (x, y), cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 8)
+    cv2.putText(img, s, (x, y), cv2.FONT_HERSHEY_SIMPLEX, scale, colour, thick)
+
+
+def side_figure() -> str:
+    """Which edge of the picture is medial, settled by the one asymmetric bone.
+
+    The ligament looks much the same on both knees, so no rule about its own appearance
+    can say which side it is on. The fibula can: there is only one of it, it is always
+    lateral, and on a coronal stack it comes into view in the posterior third.
+    """
+
+    panels = []
+    for side, tail in SIDE_STUDIES.items():
+        series = load_series(coronal_of(series_headers(find(tail))), Config())
+        eight = window(series.volume)
+        k = int(series.n * 0.72)
+        im = eight[k]
+        big = cv2.cvtColor(cv2.resize(
+            im, (420, int(420 * im.shape[0] / im.shape[1])),
+            interpolation=cv2.INTER_CUBIC), cv2.COLOR_GRAY2BGR)
+        h, w = big.shape[:2]
+        lat_left = side == "R"
+        fx = int(w * 0.17) if lat_left else int(w * 0.83)
+        mx = int(w * 0.83) if lat_left else int(w * 0.17)
+        cv2.circle(big, (fx, int(h * 0.70)), 34, (80, 200, 255), 2)
+        _label(big, "perone", fx - 32, int(h * 0.70) + 58, (80, 200, 255), 0.6, 1)
+        _label(big, "LATERAL", fx - 38, int(h * 0.70) + 80, (80, 200, 255), 0.55, 1)
+        cv2.arrowedLine(big, (mx + (60 if not lat_left else -60), int(h * 0.52)),
+                        (mx, int(h * 0.52)), (120, 255, 120), 2, tipLength=0.3)
+        _label(big, "MEDIAL", mx - (90 if lat_left else -8), int(h * 0.47),
+               (120, 255, 120), 0.6, 1)
+        _label(big, "le point va ici", mx - (140 if lat_left else -8), int(h * 0.57),
+               (120, 255, 120), 0.5, 1)
+        _label(big, f"genou {side} - coupe {k}/{series.n}", 10, h - 12,
+               (0, 255, 255), 0.5, 1)
+        panels.append(big)
+    tall = max(x.shape[0] for x in panels)
+    panels = [np.vstack([x, np.zeros((tall - x.shape[0], x.shape[1], 3), np.uint8)])
+              for x in panels]
+    return to_jpeg(np.hstack(panels), max_width=900)[0]
+
+
+def slice_figure() -> str:
+    """Which slice to take: the one where the dark band runs furthest unbroken."""
+
+    series = load_series(coronal_of(series_headers(find(BAND_STUDY))), Config())
+    eight = window(series.volume)
+
+    def strip(i):
+        im = eight[i]
+        h, w = im.shape
+        r0, r1, c0, c1 = STRIP
+        crop = im[int(h * r0):int(h * r1), int(w * c0):int(w * c1)]
+        return cv2.cvtColor(cv2.resize(
+            crop, (crop.shape[1] * STRIP_ZOOM, crop.shape[0] * STRIP_ZOOM),
+            interpolation=cv2.INTER_CUBIC), cv2.COLOR_GRAY2BGR)
+
+    good = strip(BAND_GOOD)
+    for a, b in zip(BAND[:-1], BAND[1:]):
+        cv2.line(good, a, b, (255, 200, 0), 4, cv2.LINE_AA)
+    cv2.drawMarker(good, BAND_POINT, (0, 0, 255), cv2.MARKER_CROSS, 60, 5)
+    _label(good, f"BONNE coupe  {BAND_GOOD}/{series.n}", 22, 70, (0, 255, 255), 1.15)
+    _label(good, "le LCM = bande SOMBRE,", 30, 250, (255, 200, 0), 0.95)
+    _label(good, "continue du femur...", 30, 300, (255, 200, 0), 0.95)
+    _label(good, "...jusqu'au tibia", 120, 1330, (255, 200, 0), 0.95)
+    _label(good, "interligne", 420, 860, (140, 140, 255), 0.95)
+    _label(good, "= le point", 420, 910, (140, 140, 255), 0.95)
+    bad = strip(BAND_BAD)
+    _label(bad, f"MAUVAISE coupe  {BAND_BAD}/{series.n}", 22, 70, (0, 165, 255), 1.15)
+    _label(bad, "trop anterieure :", 30, 250, (0, 165, 255), 0.95)
+    _label(bad, "aucune bande continue", 30, 300, (0, 165, 255), 0.95)
+    _label(bad, "a suivre jusqu'au tibia", 30, 350, (0, 165, 255), 0.95)
+    return to_jpeg(np.hstack([good, bad]), max_width=900)[0]
+
+
 def case(uid: str, vid: str, note: str) -> str:
     headers = series_headers(uid)
     row = coronal_of(headers)
@@ -185,11 +284,12 @@ def main() -> int:
     ap.add_argument("--cases", type=int, default=2)
     args = ap.parse_args()
 
-    fig_uid = next(d.name for d in TRAIN_SERIES.iterdir()
-                   if d.name.endswith(FIGURE_STUDY))
+    fig_uid = find(FIGURE_STUDY)
     fig_series = load_series(coronal_of(series_headers(fig_uid)), Config())
     plain = anatomy_figure(fig_series, with_point=False)
     marked = anatomy_figure(fig_series, with_point=True)
+    sides = side_figure()
+    slices = slice_figure()
 
     lab = pd.read_csv(LABELS)
     lm = pd.read_csv(LANDMARKS).set_index("study")
@@ -282,6 +382,18 @@ vers le <b>bas</b> &mdash; 3815 sur 3815. Donc le sup&eacute;rieur est en haut, 
 m&eacute;diane de son articulation, celui-ci est <b>lat&eacute;ralis&eacute; par
 d&eacute;finition</b>. Le c&ocirc;t&eacute; du genou change donc o&ugrave; il se trouve,
 et l'outil d'annotation devra le dire &mdash; comme il le fait pour le m&eacute;nisque.</p>
+
+<h3>Le v&eacute;rifier soi-m&ecirc;me&nbsp;: le p&eacute;ron&eacute;</h3>
+<p>Le ligament se ressemble d'un genou &agrave; l'autre, donc aucune r&egrave;gle sur son
+apparence ne peut dire de quel c&ocirc;t&eacute; il est. Le <b>p&eacute;ron&eacute;</b>
+le peut&nbsp;: il n'y en a qu'un, il est toujours <em>lat&eacute;ral</em>, et sur une pile
+coronale il entre dans le champ au <b>tiers post&eacute;rieur</b> &mdash; un second os,
+d&eacute;tach&eacute; du tibia, en bas.</p>
+<figure style="margin:14px 0"><img src="{sides}" style="width:100%;max-width:900px;border-radius:8px">
+<figcaption class="note">&Agrave; gauche un genou droit, &agrave; droite un genou gauche.
+Le p&eacute;ron&eacute; change de bord, et le ligament est toujours en face de lui.
+<b>Genou droit &rarr; le point va &agrave; droite de l'image&nbsp;; genou gauche &rarr;
+&agrave; gauche.</b></figcaption></figure>
 </div>"""]
 
     # -- the free placement, and why it does not work ------------------------ #
@@ -330,6 +442,24 @@ au-dessus et l'insertion tibiale en dessous &mdash; et c'est un point que le gen
 poss&egrave;de autant que le genou l&eacute;s&eacute;, ce qui est la r&egrave;gle qui
 compte&nbsp;: si le rep&egrave;re d&eacute;rivait vers la l&eacute;sion, le crop
 encoderait le label par sa position.</p>
+<h3>Quelle coupe, et ce qu'on cherche dessus</h3>
+<p>Ce qu'on suit est une ligne <b>sombre</b>, fine, continue, plaqu&eacute;e contre la
+corticale m&eacute;diale&nbsp;: elle descend du condyle f&eacute;moral, croise
+l'interligne, et continue sur le tibia, en s&eacute;parant l'os de la graisse
+sous-cutan&eacute;e. La bonne coupe est celle o&ugrave; on peut la suivre <b>le plus loin
+sans la perdre</b>.</p>
+<figure style="margin:14px 0"><img src="{slices}" style="width:100%;max-width:900px;border-radius:8px">
+<figcaption class="note">La m&ecirc;me &eacute;tude, deux coupes. &Agrave; gauche la bande
+se suit d'un trait du f&eacute;mur au tibia et croise l'interligne &mdash; c'est
+l&agrave; que va le point. &Agrave; droite, trop ant&eacute;rieure, il n'y a aucune bande
+continue &agrave; suivre.</figcaption></figure>
+<p class="danger"><b>Pas</b> un signal blanc. Sur du PD fat-sat un ligament <em>sain</em>
+est noir&nbsp;; le blanc est l'&oelig;d&egrave;me, donc la l&eacute;sion. Choisir ses
+coupes &laquo;&nbsp;l&agrave; o&ugrave; &ccedil;a brille&nbsp;&raquo; reviendrait &agrave;
+les choisir autrement sur les positifs que sur les n&eacute;gatifs, et le crop encoderait
+le label par sa seule position &mdash; un signal qui existe dans le jeu
+d'entra&icirc;nement et nulle part ailleurs. On cherche la <b>continuit&eacute;</b>, pas
+l'intensit&eacute;.</p>
 <p>La bo&icirc;te serait <b>haute et &eacute;troite</b> &mdash; de l'ordre de 30 mm de
 large sur 70 de haut, &agrave; confirmer sur une page de tailles comme pour les deux
 autres &mdash; et le crop devrait &ecirc;tre <b>miroit&eacute;</b> pour que le
