@@ -1,23 +1,24 @@
 {
-  "id": "mathysgouverneur/rsna-knee-submit",
-  "title": "RSNA Knee submit",
-  "code_file": "notebook.ipynb",
-  "language": "python",
-  "kernel_type": "notebook",
-  "is_private": true,
-  "enable_gpu": true,
-  "enable_tpu": false,
-  "enable_internet": false,
-  "dataset_sources": [
-    "mathysgouverneur/rsna-src",
-    "mathysgouverneur/rsna-knee-weights"
-  ],
-  "competition_sources": [
-    "rsna-knee-abnormality-detection"
-  ],
-  "model_sources": [
-    "metaresearch/dinov2/PyTorch/small/1"
-  ],
-  "kernel_sources": [],
-  "machine_shape": "NvidiaTeslaT4"
+ "id": "mathysgouverneur/rsna-knee-submit",
+ "title": "RSNA Knee submit",
+ "code_file": "notebook.ipynb",
+ "language": "python",
+ "kernel_type": "notebook",
+ "is_private": true,
+ "enable_gpu": true,
+ "enable_tpu": false,
+ "enable_internet": false,
+ "dataset_sources": [
+  "mathysgouverneur/rsna-src",
+  "mathysgouverneur/rsna-knee-weights",
+  "mathysgouverneur/rsna-knee-experts"
+ ],
+ "competition_sources": [
+  "rsna-knee-abnormality-detection"
+ ],
+ "model_sources": [
+  "metaresearch/dinov2/PyTorch/small/1"
+ ],
+ "kernel_sources": [],
+ "machine_shape": "NvidiaTeslaT4"
 }
