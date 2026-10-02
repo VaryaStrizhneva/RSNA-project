@@ -239,6 +239,33 @@ SPECS = {
         box_w_mm=32.0, box_h_mm=80.0, out_w=112, out_h=280,
         box_offset_mm=5.0, box_rise_mm=-12.0,
         lateral_mm=12.0, medial_mm=12.0, slots=7,
+        #: Three, and the third is NOT fat-suppressed. The pair of fat-suppressed
+        #: sequences leaves 197 studies (4.5 %) with no coronal at all, and a study with
+        #: no pixels still gets scored: every window is masked, the attention falls back
+        #: to zero and the head emits its bias, so they arrive as one block of ties.
+        #: Measured on the patellofemoral run, 1.5 % uncovered cost 0.0032 of AUC.
+        #:
+        #: **96.4 % of those 197 have a coronal PD without fat suppression**, and adding
+        #: it takes coverage to 99.8 %. It is the right sequence to fall back on rather
+        #: than merely the common one: PD without suppression is where the band itself
+        #: reads best, the surrounding fat giving it contrast, so the ligament's
+        #: thickness and continuity are plain. What it shows less well is oedema, which
+        #: is the low-grade sprain — it is a worse sequence than the fat-suppressed ones
+        #: and a far better one than nothing.
+        #:
+        #: Coronal T1 was the other candidate and was refused: +1.0 point of coverage,
+        #: and T1 does not show oedema at all, so it would add a slot in which the thing
+        #: being looked for is largely invisible.
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
+    #: What the first collateral run was actually cut under — the two fat-suppressed
+    #: series only, 95.5 % of studies. Kept so `experiments/expert_mcl_fsonly.json`
+    #: still reproduces the number it published.
+    "mcl_fsonly": RoiSpec(
+        name="mcl_fsonly", landmark="mcl_centre", plane="Coronal",
+        box_w_mm=32.0, box_h_mm=80.0, out_w=112, out_h=280,
+        box_offset_mm=5.0, box_rise_mm=-12.0,
+        lateral_mm=12.0, medial_mm=12.0, slots=7,
         series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
     #: The depth sweep for the patellofemoral box, which the annotations cannot settle:
     #: a point says nothing about how far the joint extends around it. What *was*
