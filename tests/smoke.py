@@ -1653,6 +1653,39 @@ def test_expert() -> None:
               f"on a ramp brightening downward: {up_crop.mean():.0f} against "
               f"{down.mean():.0f} — anterior on axial, superior on coronal")
 
+    # A region between two landmarks. The cruciate is the first that needs it: it sits
+    # in the notch, where no collected point is, and the two meniscus points bracket it.
+    acl = SPECS["acl"]
+    check("the cruciate region is defined between two points",
+          acl.landmark2 is not None and acl.depth_inset_mm > 0,
+          f"{acl.landmark} + {acl.landmark2}, inset {acl.depth_inset_mm:.0f} mm")
+    check("and its window follows the knee instead of a fixed extent",
+          acl.lateral_mm == 0 and acl.medial_mm == 0,
+          "the fixed half-extent is unused when a second point sets the span: 27 mm "
+          "across on the narrowest of 294 knees, 48 on the widest")
+
+    from rsna.roi.extract import extract
+    # Sixty slices a millimetre apart, a point at 10 and another at 50: the window must
+    # start and end 8 mm inside each, so it spans 18..42 and not 10..50.
+    vol = np.full((60, 40, 40), 120, np.uint8)
+    geom = [{"sop": f"s{i}", "ipp": [0.0, 0.0, float(i)],
+             "iop": [1, 0, 0, 0, 1, 0], "ps": [1.0, 1.0]} for i in range(60)]
+    spec = acl.replace(out_w=14, out_h=14, patch=1, box_w_mm=10.0, box_h_mm=10.0,
+                       slots=40, box_offset_mm=0.0, box_rise_mm=0.0,
+                       plane="Axial", decimate_to_mm=0.1)
+    got = extract(vol, geom, (0.0, 0.0, 10.0), spec, (0.0, 0.0, 50.0))
+    kept = sorted(int(s[1:]) for s in got.sop if s)
+    check("the window starts and ends inside each point",
+          kept and kept[0] >= 18 and kept[-1] <= 42,
+          f"slices {kept[0]}..{kept[-1]} of a 10..50 gap inset by "
+          f"{acl.depth_inset_mm:.0f} mm")
+    wide = extract(vol, geom, (0.0, 0.0, 5.0), spec, (0.0, 0.0, 55.0))
+    kw = sorted(int(s[1:]) for s in wide.sop if s)
+    check("and a wider gap gives a wider window",
+          (kw[-1] - kw[0]) > (kept[-1] - kept[0]),
+          f"{kw[-1]-kw[0]} slices against {kept[-1]-kept[0]} — a fixed extent would "
+          f"have given the same both times")
+
     cor = SPECS["lateral_meniscus_coronal"]
     wide = ExpertConfig(rois=("lateral_meniscus", "lateral_meniscus_coronal"))
     big = ExpertNet(wide, pretrained=False)

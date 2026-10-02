@@ -31,9 +31,11 @@ class RoiSpec:
     #: Box height, along the superior-inferior axis. 27 rather than a rounder number so
     #: the pixels come out isotropic at the output size below: 48/224 = 27/126.
     box_h_mm: float = 27.0
-    #: How far the box centre sits toward the **lateral** side of the landmark, in
-    #: millimetres; negative is toward the midline. Zero on a sagittal crop, where the
-    #: horizontal axis is anterior-posterior and there is no lateral to shift toward.
+    #: How far the box centre is moved along the **column** axis, in millimetres. What
+    #: that axis *is* depends on the plane, and all three were measured: a coronal or
+    #: axial series runs its columns toward the patient's left, so the shift is toward
+    #: the **lateral** side and negative goes toward the midline; a sagittal series runs
+    #: them toward the **posterior** on 5563 of 5563, so there the shift is backwards.
     #: A coronal crop needs it: measured on 70 studies, the landmark sits at 95 % of the
     #: knee's width from its medial edge, with 28 mm of skin in front of it and 85 mm of
     #: knee behind — so a box centred on it wastes half its width outside the patient.
@@ -43,10 +45,10 @@ class RoiSpec:
     #: `box_offset_mm` shifts it along the column axis — two different directions, and a
     #: crop needs whichever one its plane gives it.
     #:
-    #: What the top *is* depends on the plane, and both were measured rather than
+    #: What the top *is* depends on the plane, and all were measured rather than
     #: assumed: an axial series runs its rows toward the posterior on 3342 of 3342, so up
-    #: is **anterior**; a coronal one runs them toward the inferior on 3815 of 3815, so
-    #: up is **superior**. A sagittal crop has no use for it.
+    #: is **anterior**; a coronal one runs them toward the inferior on 3815 of 3815 and a
+    #: sagittal one on 5563 of 5563, so on both of those up is **superior**.
     #:
     #: The patellofemoral box needs it. Its landmark is the joint line, with the patella
     #: in front and the trochlea behind, and the patella is the half that gets clipped:
@@ -83,6 +85,22 @@ class RoiSpec:
     #: A 3D series is thinned towards this before anything else, by an integer stride —
     #: otherwise 16 mm at 0.4 mm spacing is forty slices for five slots.
     decimate_to_mm: float = 3.3
+
+    #: A second landmark, when the region is defined **between two points** rather than
+    #: around one. The crop then centres on their midpoint and the depth window spans
+    #: from one to the other, inset by `depth_inset_mm` at each end — so its width
+    #: follows the knee rather than being fixed.
+    #:
+    #: The cruciate needs this and nothing before it did. It sits in the notch, between
+    #: the compartments, so no single point this project collects is near it — but the
+    #: two meniscus points bracket it. Measured over the 294 studies carrying both, they
+    #: are 50.8 mm apart in the median (p2.5 42.5, p97.5 64.3), so a window inset 8 mm
+    #: at each end spans 35 mm in the median and ranges from 27 to 48. A fixed +/- 17 mm
+    #: would be too wide on a small knee and too narrow on a large one.
+    landmark2: str | None = None
+    #: Millimetres dropped at each end of a two-landmark depth window. Ignored without
+    #: `landmark2`.
+    depth_inset_mm: float = 0.0
 
     #: Which series the ROI is taken from, as (plane, weighting, fat-suppressed).
     #: Several at once, each with its own presence mask: SAG_PD_FS covers 81.3 % of
@@ -177,6 +195,39 @@ SPECS = {
     "medial_meniscus": RoiSpec(
         name="medial_meniscus", landmark="med_centre",
         box_w_mm=54.0, box_h_mm=33.0, out_w=252, out_h=154),
+    #: The anterior cruciate ligament, defined **between** the two meniscus points
+    #: rather than around one — the first region here that needs two. It sits in the
+    #: intercondylar notch, between the compartments, so nothing this project collects
+    #: is near it; but the two meniscus points bracket it, 50.8 mm apart in the median.
+    #:
+    #: The depth window starts 8 mm inside each of them and keeps everything between:
+    #: 35 mm in the median, 27 on the narrowest knee of the 294 carrying both points and
+    #: 48 on the widest. A fixed half-extent cannot do that — it would be too wide on a
+    #: small knee and too narrow on a large one.
+    #:
+    #: 60 x 52 mm, 8 mm up and 4 mm back from the midpoint. "Up" and "back" are
+    #: measurable and not figurative: a sagittal series runs its columns toward the
+    #: posterior and its rows toward the inferior on 5563 of 5563, so up is superior and
+    #: a positive column offset is backwards. The ligament runs from the back of the
+    #: notch down and forwards, so its middle sits above the joint line the two meniscus
+    #: points lie on.
+    #:
+    #: 210 x 182 px at 0.286 mm/px, not the meniscus crop's 0.214. The cruciate is a
+    #: 10 mm structure, not a 1.5 mm tear, and the finer grid would cost 78 % more
+    #: pixels to resolve something that does not need it. It also makes the box land on
+    #: whole patches: at 4/14 mm per pixel the available sizes step by 4 mm, and 60 and
+    #: 52 are both multiples of 4.
+    #:
+    #: **Expect little.** The rule the first three experts suggest — a crop helps when
+    #: the lesion is small against the whole-knee view — puts this on the wrong side:
+    #: the cruciate bundle is 26 px at the wide model's 0.387 mm/px, against 4 px for a
+    #: meniscal tear that worked and 10 px for the collateral band that did not.
+    "acl": RoiSpec(
+        name="acl", landmark="lat_centre", landmark2="med_centre", plane="Sagittal",
+        box_w_mm=60.0, box_h_mm=52.0, out_w=210, out_h=182,
+        box_offset_mm=4.0, box_rise_mm=8.0, depth_inset_mm=8.0,
+        lateral_mm=0.0, medial_mm=0.0, slots=13,
+        series=(("Sagittal", "PD", True), ("Sagittal", "PD", False))),
     #: Tibiofemoral osteoarthritis, one spec per compartment, both hanging off the
     #: meniscus point that compartment already has — **no new annotation**. Projected
     #: onto a coronal slice the two points land one in each compartment, 57 mm apart on

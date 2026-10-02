@@ -125,7 +125,7 @@ def crop_plane(image: np.ndarray, row: float, col: float, spacing, spec: RoiSpec
 
 
 def extract(volume: np.ndarray, geometry: list[dict], point_mm,
-            spec: RoiSpec) -> RoiStack:
+            spec: RoiSpec, point2_mm=None) -> RoiStack:
     """Crop one series around one landmark.
 
     `geometry` is one dict per slice of `volume`, in the same order, each carrying
@@ -156,7 +156,17 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
     # medial-lateral one.
     toward = 1.0 if spec.symmetric_depth else bowtie_direction(
         volume[thinned], t[thinned], t_point)[0]
-    keep = thinned[choose_slices(t[thinned], t_point, toward, spec)]
+    if point2_mm is not None:
+        # Between the two points rather than around one, inset at each end. The window
+        # then follows the knee: 27 mm across on the narrowest of the 294 studies
+        # carrying both meniscus points, 48 on the widest.
+        t2 = through_plane(np.asarray(point2_mm, float), n)
+        half = max(abs(t2 - t_point) / 2.0 - spec.depth_inset_mm, 1e-6)
+        centre_t = (t_point + t2) / 2.0
+        span = spec.replace(lateral_mm=half, medial_mm=half)
+        keep = thinned[choose_slices(t[thinned], centre_t, 1.0, span)]
+    else:
+        keep = thinned[choose_slices(t[thinned], t_point, toward, spec)]
 
     # Which way the image's columns run, relative to the midline. DICOM puts the
     # patient's left at positive x, so lateral is +x on a left knee and -x on a right
@@ -165,6 +175,11 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
     if spec.plane in ("Coronal", "Axial"):
         u = _axes(iop)[0]
         to_lateral = float(np.sign(point[0]) * np.sign(u[0])) or 1.0
+    elif spec.plane == "Sagittal":
+        # No lateral to shift toward here — the column axis is anterior-posterior. A
+        # positive offset goes **backwards**, and the sign is read from this series
+        # rather than from the 5563 of 5563 that run their columns posterior.
+        to_lateral = float(np.sign(_axes(iop)[0][1])) or 1.0
 
     # Which way the row index must move to go toward the picture's "up". The two planes
     # do NOT share a sign, which is the trap: up is the **anterior** on an axial crop and
@@ -176,7 +191,7 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
     # 3342 axial rows toward the posterior, 3815 of 3815 coronal rows toward the
     # inferior), which are regularities and not guarantees of the format.
     to_front = 0.0
-    if spec.plane in ("Axial", "Coronal"):
+    if spec.plane in ("Axial", "Coronal", "Sagittal"):
         v = _axes(iop)[1]
         up = np.array([0.0, -1.0, 0.0]) if spec.plane == "Axial" \
             else np.array([0.0, 0.0, 1.0])
@@ -185,7 +200,8 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
     # In-plane position does not depend on which slice supplies the origin: both
     # orientation vectors are orthogonal to the normal, so a displacement along the
     # stack projects to zero on each.
-    row, col = pixel_of(geometry[usable[0]]["ipp"], iop, ps, point)
+    centre = point if point2_mm is None else (point + np.asarray(point2_mm, float)) / 2.0
+    row, col = pixel_of(geometry[usable[0]]["ipp"], iop, ps, centre)
 
     out = np.zeros((spec.slots, spec.out_h, spec.out_w), np.uint8)
     valid = np.zeros(spec.slots, bool)

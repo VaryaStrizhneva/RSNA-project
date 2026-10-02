@@ -80,15 +80,23 @@ def build(landmarks: str | Path, series: pd.DataFrame, out: str | Path, spec: Ro
 
     points = pd.read_csv(landmarks)
     have = sorted(points["point"].dropna().unique())
+    # A region defined between two landmarks needs both, so a study carrying only one is
+    # not a study this spec can cut.
+    second = None
+    if spec.landmark2:
+        second = points[points["point"] == spec.landmark2].set_index("study")
     points = points[points["point"] == spec.landmark].set_index("study")
+    if second is not None:
+        points = points[points.index.isin(second.index)]
     studies = list(points.index)
     if not studies:
         # It used to write the empty cache and report `nan %` coverage, which the next
         # stage would then happily train on. A spec asking for a point the table does
         # not carry is the likely cause and is invisible otherwise: both names are
         # valid, they just come from different annotation passes.
+        wanted = spec.landmark + (f" and {spec.landmark2}" if spec.landmark2 else "")
         raise ValueError(
-            f"{Path(landmarks).name} holds no rows for {spec.landmark!r}, which "
+            f"{Path(landmarks).name} holds no study with {wanted}, which "
             f"{spec.name} hangs off — it carries {have}. Point the spec at the right "
             f"landmark, or the build at the right table.")
     by_study = {s: g for s, g in series.groupby("StudyInstanceUID")}
@@ -104,6 +112,10 @@ def build(landmarks: str | Path, series: pd.DataFrame, out: str | Path, spec: Ro
         i, study = index_study
         point = points.loc[study, ["x_mm", "y_mm", "z_mm"]].to_numpy(float)
         group = by_study.get(study)
+        point2 = None
+        if second is not None:
+            r2 = second.loc[study]
+            point2 = (float(r2.x_mm), float(r2.y_mm), float(r2.z_mm))
         found = []
         for k, (plane, weight, fatsat) in enumerate(spec.series):
             if group is None:
@@ -115,7 +127,7 @@ def build(landmarks: str | Path, series: pd.DataFrame, out: str | Path, spec: Ro
             row = hit.sort_values("n_slices", ascending=False).iloc[0]
             try:
                 volume, geom = read_series(Path(row["dir"]), config)
-                stack = extract(volume, geom, point, spec)
+                stack = extract(volume, geom, point, spec, point2)
             except Exception as exc:  # noqa: BLE001
                 found.append((k, None, f"{type(exc).__name__}: {exc}"))
                 continue
