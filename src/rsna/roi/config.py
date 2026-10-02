@@ -391,6 +391,51 @@ SPECS = {
         box_offset_mm=5.0, box_rise_mm=-12.0,
         lateral_mm=12.0, medial_mm=12.0, slots=7,
         series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
+    #: The popliteal cyst, and the first region here cut for **coverage** rather than
+    #: resolution. A cyst is 25 mm across, 64 px in the wide model's view — six times the
+    #: 10 px where the collateral expert failed — so nothing is gained by zooming. What is
+    #: gained is the slices the wide model's sampler throws away: its `band` keeps the
+    #: central 60 % of each stack, which leaves a **median of 5.3 mm** of tissue medial of
+    #: `med_centre` out of **26.4 mm acquired**, and 19.9 % of studies with 10 mm or more
+    #: against 97.6 % acquired. A cyst hangs off the posteromedial capsule, between the
+    #: semimembranosus and the medial head of the gastrocnemius, which is exactly there.
+    #:
+    #: Measured, not recalled. Over 72 reported-positive against 118 reported-negative
+    #: studies, the frequency of bright voxels — fluid being the brightest thing on a
+    #: fat-suppressed fluid-sensitive image, thresholded per study against its own
+    #: distribution — peaks **44 mm posterior and 17 mm superior** to the landmark. The
+    #: first draft of this box was put 12 mm *below* it by analogy with the collateral
+    #: ligament, which the map contradicts.
+    #:
+    #: 90 x 75 mm at 252 x 210 holds **71 %** of that excess. Bigger holds more — 96 x 84
+    #: holds 78.5 % — but at 0.429 mm/px, coarser than the wide model's own 0.387, and its
+    #: posterior edge leaves the acquisition on a few per cent of studies. The box is
+    #: forgiving, which matters once the landmark comes from a model rather than a click:
+    #: moving it 6 mm in any direction costs under 2 points of capture.
+    #:
+    #: The depth window [-8, +20] mm holds **88 %** of the excess against 72 % for
+    #: [-8, +12]; at the 3.3 mm median sagittal spacing that is 9 slices. `lateral_mm` is
+    #: the distance toward the nearer end of the stack, which `bowtie_direction` finds on
+    #: its own — from `med_centre` that end is the medial edge, so it is the field that
+    #: opens the window onto the discarded slices.
+    #:
+    #: One number says whether the box is worth cutting at all: the bright-voxel fraction
+    #: inside it, with nothing fitted, scores **0.6847**. The same count restricted to the
+    #: slices the band keeps scores **0.5500**, and over the whole slice 0.6323. The signal
+    #: is in what is thrown away, and it is specific to this region.
+    #:
+    #: Sagittal only, and fat-suppressed first: popliteal fat is abundant exactly here, so
+    #: suppression is what separates the cyst from it. Coronal is cut worse than sagittal
+    #: — the cyst sits at 0.78 of a coronal stack, outside the band on 43.3 % of studies —
+    #: but its depth window would have to be offset 22 mm posteriorly, which this dataclass
+    #: cannot express and `bowtie_direction` must not be asked to do. Axial needs no
+    #: expert: the cyst falls at 0.50 of that stack, outside the band on 0.6 %.
+    "baker": RoiSpec(
+        name="baker", landmark="med_centre", plane="Sagittal",
+        box_w_mm=90.0, box_h_mm=75.0, out_w=252, out_h=210,
+        box_offset_mm=16.0, box_rise_mm=20.0,
+        lateral_mm=20.0, medial_mm=8.0, slots=9,
+        series=(("Sagittal", "PD", True), ("Sagittal", "PD", False))),
     #: The depth sweep for the patellofemoral box, which the annotations cannot settle:
     #: a point says nothing about how far the joint extends around it. What *was*
     #: measured, over the 200 annotated stacks, is how many slots each fills --
