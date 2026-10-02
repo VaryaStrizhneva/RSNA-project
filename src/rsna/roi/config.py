@@ -436,6 +436,44 @@ SPECS = {
         box_offset_mm=16.0, box_rise_mm=20.0,
         lateral_mm=20.0, medial_mm=8.0, slots=9,
         series=(("Sagittal", "PD", True), ("Sagittal", "PD", False))),
+    #: The cyst again, larger in every direction the measurement allowed, and on the
+    #: sequence the first spec forgot.
+    #:
+    #: **The forgotten slot.** `baker` took its two series straight from the meniscus
+    #: specs — sagittal PD fat-suppressed, then PD without. That is right for a meniscus,
+    #: where PD *is* the sequence, and wrong for a fluid collection sitting in popliteal
+    #: fat: 766 studies (17.4 %) carry no sagittal PD fat-sat, and **478 of them do carry
+    #: a sagittal T2 fat-sat** the spec never asked for, so they were read on a sequence
+    #: where the fat is as bright as the cyst. Adding the slot moves 11 % of the corpus
+    #: onto a suppressed sequence; it buys almost no coverage (99.8 % to 99.9 %), which
+    #: is the opposite of why the collateral ligament got its third series.
+    #:
+    #: **The size.** Measured against the acquisition over 292 annotated studies, a box
+    #: centred 16 mm behind and 20 mm above the landmark fits entirely inside the image
+    #: on 100 % of studies at 90 x 75, **95.5 % at 110 x 95**, and 86.3 % at 120 x 100 —
+    #: the posterior edge is what runs out, at a median of 81 mm of knee behind the
+    #: point. 110 x 95 is the last size that does not pad an eighth of the corpus.
+    #:
+    #: It is deliberately past what the trivial probe prefers. That probe — the
+    #: bright-voxel fraction in the box — falls monotonically as the box grows, from
+    #: 0.716 at 64 x 56 to 0.664 at 126 x 105, because it is a **mean** and empty area
+    #: dilutes it. The network is not a mean: it attends over windows, masked, once per
+    #: target. What the probe measures that does transfer is the per-study capture, and
+    #: that rises with size: at 90 x 75 no reported-positive study has under 20 % of its
+    #: excess in the box, at 64 x 56 one in ten has under 10 %.
+    #:
+    #: **The depth.** [-8, +28] mm against the first spec's [-8, +20]: 93 % of the
+    #: measured excess against 88 %, and the p10 of per-study capture rises from 0.26 to
+    #: 0.29. Eleven slices at the 3.3 mm median spacing. This is the axis where growing
+    #: is safest, because the attention can drop a window it does not want and the
+    #: encoder's global average pool cannot drop a corner of an image.
+    "baker_wide": RoiSpec(
+        name="baker_wide", landmark="med_centre", plane="Sagittal",
+        box_w_mm=110.0, box_h_mm=95.0, out_w=308, out_h=266,
+        box_offset_mm=16.0, box_rise_mm=20.0,
+        lateral_mm=28.0, medial_mm=8.0, slots=11,
+        series=(("Sagittal", "PD", True), ("Sagittal", "T2", True),
+                ("Sagittal", "PD", False))),
     #: The depth sweep for the patellofemoral box, which the annotations cannot settle:
     #: a point says nothing about how far the joint extends around it. What *was*
     #: measured, over the 200 annotated stacks, is how many slots each fills --
