@@ -1708,6 +1708,113 @@ def test_expert() -> None:
           "common case, not the edge one")
 
 
+def test_expert_inference() -> None:
+    """Reading an expert back the way the scored notebook will have to.
+
+    The one that matters is the first: `ExpertNet` defaults to `pretrained=True`, which
+    asks timm for ImageNet weights over the network. The Kaggle notebook has no network,
+    so the default is not a slow path, it is a crash at model construction — before a
+    pixel is read and after the mounts have cost minutes. Every weight the model needs is
+    in the checkpoint and would overwrite the download on the next line anyway.
+    """
+
+    import tempfile
+
+    import timm
+
+    from rsna.expert import ExpertConfig, ExpertNet
+    from rsna.infer.experts import load_experts, score_experts
+    from rsna.roi import SPECS
+
+    print("\nexpert inference")
+
+    config = ExpertConfig(targets=("Lateral Meniscus",), rois=("lateral_meniscus",),
+                          encoder="resnet18")
+    spec = SPECS["lateral_meniscus"]
+
+    asked = []
+    real = timm.create_model
+
+    def spy(name, pretrained=True, **kw):
+        asked.append(pretrained)
+        return real(name, pretrained=False, **kw)
+
+    net = ExpertNet(config, pretrained=False)
+    timm.create_model = spy
+    try:
+        with tempfile.TemporaryDirectory() as folder:
+            for fold in range(2):
+                torch.save({"config": config.to_dict(), "specs": [spec.to_dict()],
+                            "fold": fold, "state": net.state_dict()},
+                           Path(folder) / f"fold{fold}.pt")
+            models, got_config, got_specs = load_experts(folder, "cpu")
+
+            check("the trunk is built without reaching for ImageNet weights",
+                  bool(asked) and not any(asked),
+                  "internet is off in the scored notebook: pretrained=True is a crash, "
+                  "not a slow path")
+            check("the config and the regions are read off the weights",
+                  got_config == config and got_specs == [spec],
+                  "rebuilding either from a module default is how a run gets read under "
+                  "the wrong point, which loads cleanly and scores badly")
+
+            # A run assembled from two trainings is not one model.
+            other = config.replace(prior_logit=config.prior_logit + 1.0)
+            torch.save({"config": other.to_dict(), "specs": [spec.to_dict()],
+                        "fold": 2, "state": ExpertNet(other, pretrained=False).state_dict()},
+                       Path(folder) / "fold2.pt")
+            refused = False
+            try:
+                load_experts(folder, "cpu")
+            except ValueError:
+                refused = True
+            check("folds fitted under different configs are refused, not averaged",
+                  refused,
+                  "averaging two models trained to answer different questions produces "
+                  "a number that is neither")
+
+        n = 2
+        rng = np.random.default_rng(0)
+        volumes = rng.integers(0, 255, (n, len(spec.series), spec.slots,
+                                        spec.out_h, spec.out_w), dtype=np.uint8)
+        mask = np.ones((n, len(spec.series), spec.slots), bool)
+        one = score_experts(models[:1], [(volumes, mask)], batch=2, device="cpu")
+        both = score_experts(models, [(volumes, mask)], batch=2, device="cpu")
+        check("one probability per study per target",
+              one.shape == (n, len(config.targets)), f"{one.shape}")
+        check("identical folds average to themselves",
+              float(np.max(np.abs(one - both))) < 1e-6,
+              "the average is over probabilities, matching how the gold scores were "
+              "pooled when the run was fitted")
+    finally:
+        timm.create_model = real
+
+    # The scale the expert's answer has to be written on.
+    from rsna.config import TARGETS
+    from rsna.infer.chain import _overwrite
+
+    studies = [f"s{i}" for i in range(6)]
+    frame = pd.DataFrame({t: np.linspace(0.1, 1.0, 6) for t in TARGETS},
+                         index=pd.Index(studies, name="StudyInstanceUID"))
+    before = frame["ACL"].to_numpy().copy()
+    # The expert reads four of the six, and ranks them backwards.
+    scored = studies[:4]
+    expert = np.array([[0.9], [0.8], [0.7], [0.6]])
+    _overwrite(frame, scored, ["ACL"], expert, lambda *_: None)
+    after = frame["ACL"].to_numpy()
+
+    check("the column keeps the values it had, so one scale survives",
+          sorted(np.round(after, 9)) == sorted(np.round(before, 9)),
+          "a column holding ranks for some studies and probabilities for others is "
+          "scored as one ordering that neither half belongs to")
+    check("inside the scored group the ordering becomes the expert's",
+          list(np.argsort(after[:4])) == list(np.argsort(expert[:, 0])),
+          "which is the only reason to run an expert at all")
+    check("the studies it could not read are left alone",
+          bool(np.allclose(after[4:], before[4:])),
+          "they keep the wide model's answer rather than a prior")
+
+
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
                  test_laterality, test_model, test_stems, test_encoders, test_encoder_unchanged,
@@ -1715,6 +1822,7 @@ def main() -> int:
                  test_augment, test_loop, test_windows,
                  test_submission, test_figures, test_eval, test_annotation_side, test_series_choice, test_annotation_side_rule,
                  test_excluded_list, test_roi, test_expert,
+                 test_expert_inference,
                  test_cache_shorten,
                  test_landmark_geometry):
         test()
