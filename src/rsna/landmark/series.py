@@ -121,6 +121,11 @@ PICKERS = {"Sagittal": pick_sagittal, "Axial": pick_axial, "Coronal": pick_coron
 #:   a badge there would ask for a declaration that cannot be wrong, which teaches an
 #:   annotator to stop reading badges.
 #:
+#: `click_near` may be None even on a sagittal stack: `acl_centre` sits in the notch,
+#: near the middle of the left-right axis, so which end of the stack it is nearest says
+#: nothing about the side. It is the meniscus points' distance from the periphery that
+#: makes the trick work, not the plane.
+#:
 #: `click_near` says which end of a sagittal stack the point lands nearest, and it is
 #: what lets the click recover the side without a second question. It is **not** the same
 #: for the two menisci: a lateral point is near the lateral end, a medial one near the
@@ -144,6 +149,11 @@ LANDMARKS = {
         "id": "med_centre", "plane": "Sagittal", "colour": "#6ea8fe",
         "side_cue": "stack-end", "prefer_deep": True, "click_near": "medial",
         "what": "the centre of the medial meniscus",
+    },
+    "acl_centre": {
+        "id": "acl_centre", "plane": "Sagittal", "colour": "#c58af9",
+        "side_cue": "stack-end", "prefer_deep": True, "click_near": None,
+        "what": "the mid-substance of the anterior cruciate ligament",
     },
     "pf_centre": {
         "id": "pf_centre", "plane": "Axial", "colour": "#ffb24d",
