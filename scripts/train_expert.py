@@ -176,12 +176,35 @@ def main() -> int:
 
     p, t = np.concatenate(scores), np.concatenate(truth)
     per = aucs(t, p)
+    # Which of the studies scored actually had pixels in any of the ROI's series. A
+    # study with none still gets a score — every window is masked, the attention falls
+    # back to zero and the head emits its bias — so they arrive as one block of ties and
+    # drag the AUC toward 0.5 in proportion to how many of them there are. Measured on
+    # the patellofemoral run, 1.5 % of studies uncovered cost 0.0032; a region of
+    # interest read from scarcer series costs correspondingly more.
+    #
+    # Both numbers are reported because they answer different questions: the first is
+    # what this branch alone would score on the whole corpus, the second is what it does
+    # where it can see anything at all.
+    has_pixels = np.zeros(len(studies), bool)
+    for _, m in groups:
+        has_pixels |= m.any(axis=(1, 2))
+    seen_index = {s: i for i, s in enumerate(studies)}
+    covered_scored = np.array([bool(has_pixels[seen_index[s]]) for s in seen])
+
     log(f"\nOUT OF FOLD over {len(t)} studies")
     for j, name in enumerate(config.targets):
         pos = int((t[:, j] > 0.5).sum())
         lo, hi = auc_interval(float(per[j]), pos, len(t) - pos)
         log(f"  {name:20s} auc {per[j]:.4f}  [{lo:.3f}, {hi:.3f}]  ({pos} positive)")
     log(f"  {'mean':20s}     {np.nanmean(per):.4f}")
+    if not covered_scored.all():
+        sub = aucs(t[covered_scored], p[covered_scored])
+        log(f"  over the {int(covered_scored.sum())} with pixels in this ROI "
+            f"({100 * covered_scored.mean():.1f} %), ignoring the "
+            f"{int((~covered_scored).sum())} that have none and all score the prior:")
+        for j, name in enumerate(config.targets):
+            log(f"  {name:20s} auc {sub[j]:.4f}  ({sub[j] - per[j]:+.4f})")
     log("  that is agreement with the label extractor, which is itself worth 0.841 "
         "against the 58 expert studies with 10 % UNK")
     gold_line = {}
