@@ -164,7 +164,19 @@ SPECS = {
     #: directions for the two, **70 times out of 70**, with a comparable margin — median
     #: separation 3.15 against the lateral's 3.50, minimum 2.00 against 2.10. So it
     #: corrects itself and no field was needed.
-    "medial_meniscus": RoiSpec(name="medial_meniscus", landmark="med_centre"),
+    #: A little larger than the lateral box in both directions, because the medial
+    #: meniscus is the larger of the two — a wide C against a nearly closed O — and its
+    #: posterior horn is the broader one.
+    #:
+    #: 54 x 33 rather than the 52 x 30 that was asked for, because the sizes are
+    #: quantised. Holding the lateral crop's resolution (48/224 = 3/14 mm per pixel) and
+    #: requiring both output sides to divide by 14 leaves `box = 3 * patches`: the boxes
+    #: available near 52 x 30 are 51 x 30, 54 x 30, 51 x 33 and 54 x 33, and nothing in
+    #: between. Choosing the same millimetres per pixel is what makes this box
+    #: comparable to the lateral one at all — what differs is extent, not sharpness.
+    "medial_meniscus": RoiSpec(
+        name="medial_meniscus", landmark="med_centre",
+        box_w_mm=54.0, box_h_mm=33.0, out_w=252, out_h=154),
     #: The coronal view of the same compartment, hanging off the same landmark — no new
     #: annotation, because the point is in patient millimetres and the other series of
     #: the study are read in those same millimetres. What it adds is **extrusion**: the
