@@ -86,8 +86,18 @@ def build(annotations: str | Path, dicom_root: str | Path, out: str | Path,
         except Exception as exc:  # noqa: BLE001
             failed.append((study, f"{type(exc).__name__}: {exc}"))
             continue
-        volumes[len(records)] = s.volume
         points = {r.point: (r.x_mm, r.y_mm, r.z_mm) for r in group.itertuples()}
+        # Every configured point, or the study does not go in. `encode` leaves a point
+        # it was not given at zero, and a plain mean-squared error reads that as "the
+        # landmark is nowhere in this knee" rather than "nobody said" — so a two-point
+        # model would learn that these studies have no second meniscus. Dropping them is
+        # the cheap half of that trade: the two meniscus passes overlap on 302 of 320
+        # studies, so it costs 18.
+        absent = [n for n in config.points if points.get(n) is None]
+        if absent:
+            failed.append((study, f"no {', '.join(absent)}"))
+            continue
+        volumes[len(records)] = s.volume
         rec = _record(s, study, series, points)
         rec["ordered"] = bool(ordered)
         records.append(rec)
@@ -104,7 +114,7 @@ def build(annotations: str | Path, dicom_root: str | Path, out: str | Path,
 
     (out / f"geometry_{cache_tag(config)}.json").write_text(json.dumps(
         {"config": config.to_dict(), "records": records}))
-    log(f"{len(records)} sampled, {len(failed)} failed")
+    log(f"{len(records)} sampled, {len(failed)} failed or incomplete")
     for study, why in failed:
         log(f"  FAILED {study[-11:]}: {why}")
     return out
