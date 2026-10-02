@@ -124,14 +124,23 @@ chang&eacute;. L'apport des pixels par-dessus la comorbidit&eacute; ne suffit pa
 pr&eacute;dire qu'un expert va marcher&nbsp;: le MCL en avait plus que l'arthrose
 f&eacute;moro-patellaire et a &eacute;chou&eacute;.</p>
 <table class="report">
-<tr><th>cible</th><th>mod&egrave;le large</th><th>expert</th><th>&eacute;cart appari&eacute;</th><th>la l&eacute;sion</th></tr>
-<tr><td>Lateral Meniscus</td><td>0.8206</td><td>0.8508</td><td><b>+0.030</b></td>
+<tr><th>cible</th><th>&eacute;cart appari&eacute; expert &minus; large</th><th>intervalle 95 %</th><th>la l&eacute;sion</th></tr>
+<tr><td>Lateral Meniscus</td><td><b>+0.030</b></td><td>[+0.026, +0.059]</td>
     <td>fissure de ~1,5 mm</td></tr>
-<tr><td>PF OA</td><td>0.8093</td><td>0.8305</td><td><b>+0.021</b></td>
+<tr><td>PF OA</td><td><b>+0.021</b></td><td>[+0.0002, +0.042]</td>
     <td>cartilage aminci, ost&eacute;ophytes</td></tr>
-<tr class="danger"><td>MCL</td><td>0.8080</td><td>0.8042</td><td><b>&minus;0.013</b></td>
+<tr class="danger"><td>MCL</td><td><b>&minus;0.013</b></td><td>[&minus;0.039, +0.013]</td>
     <td>bande de plusieurs mm, &oelig;d&egrave;me diffus</td></tr>
 </table>
+<p class="note">L'&eacute;cart appari&eacute; est la seule comparaison honn&ecirc;te ici,
+et c'est pourquoi les AUC brutes ne sont pas affich&eacute;es &agrave; c&ocirc;t&eacute;.
+Le mod&egrave;le large a &eacute;t&eacute; entra&icirc;n&eacute; sur un <b>autre fichier
+de labels</b> que les experts &mdash; <code>llm_labels_v4_blend</code> sur 1715
+&eacute;tudes contre <code>report_labels_v2</code> sur 4406 &mdash; et les deux ne
+s'accordent pas sur qui est positif. Mettre leurs AUC c&ocirc;te &agrave; c&ocirc;te
+compare deux nombres qui ne mesurent pas la m&ecirc;me chose. Le bootstrap appari&eacute;,
+lui, note les deux pr&eacute;dicteurs contre <em>un seul</em> jeu de labels sur les
+&eacute;tudes qu'ils ont en commun.</p>
 <p>Ce qui s&eacute;pare les trois est la <b>taille de la l&eacute;sion devant la vue
 enti&egrave;re du genou</b>. Recadrer l&egrave;ve une limite de r&eacute;solution&nbsp;;
 l&agrave; o&ugrave; il n'y en a pas, &ccedil;a n'apporte rien. Le bon crit&egrave;re est
@@ -141,16 +150,30 @@ m&eacute;nisque m&eacute;dial est le test le plus franc qu'on puisse lui faire s
 m&ecirc;me taille de l&eacute;sion que le lat&eacute;ral, m&ecirc;me plan, m&ecirc;me
 s&eacute;quence. Si l'hypoth&egrave;se vaut quelque chose, &ccedil;a doit marcher&nbsp;;
 si &ccedil;a rate, elle est fausse.</p>
+<p>Ce que les pixels apportent par-dessus les onze autres labels, calcul&eacute;
+sur les m&ecirc;mes 1715 &eacute;tudes et les m&ecirc;mes labels que l'AUC du
+mod&egrave;le large, pour que la soustraction veuille dire quelque chose&nbsp;:</p>
 <table class="report">
-<tr><th></th><th>positifs</th><th>comorbidit&eacute; seule</th><th>mod&egrave;le large</th><th>apport des pixels</th></tr>
-<tr><td>Lateral Meniscus <span class="tag">fait</span></td><td>1121</td><td>0.7655</td><td>0.8206</td><td>+0.055</td></tr>
-<tr class="danger"><td><b>Medial Meniscus</b></td><td><b>1808</b></td><td><b>0.7538</b></td><td><b>0.8785</b></td><td><b>+0.125</b></td></tr>
+<tr><th>cible</th><th>positifs</th><th>comorbidit&eacute; seule</th><th>mod&egrave;le large</th><th>apport des pixels</th></tr>
+<tr><td>MCL <span class="tag">&eacute;chou&eacute;</span></td><td>282</td><td>0.6565</td><td>0.8080</td><td>+0.152</td></tr>
+<tr class="danger"><td><b>Medial Meniscus</b></td><td><b>704</b></td><td><b>0.7330</b></td><td><b>0.8785</b></td><td><b>+0.146</b></td></tr>
+<tr><td>Lateral Meniscus <span class="tag">fait</span></td><td>254</td><td>0.7375</td><td>0.8206</td><td>+0.083</td></tr>
+<tr><td>PF OA <span class="tag">fait</span></td><td>810</td><td>0.7916</td><td>0.8093</td><td>+0.018</td></tr>
+<tr><td>Lateral OA <span class="tag">&eacute;chou&eacute;</span></td><td>465</td><td>0.8575</td><td>0.8471</td><td>&minus;0.011</td></tr>
 </table>
-<p class="note">Le mod&egrave;le large est d&eacute;j&agrave; &agrave; 0.8785, nettement
-mieux que sur le lat&eacute;ral &mdash; probablement parce que les l&eacute;sions
-m&eacute;diales sont bien plus fr&eacute;quentes, donc plus apprises. La marge est donc
-plus &eacute;troite en haut qu'elle ne l'&eacute;tait sur le lat&eacute;ral. C'est la
-r&eacute;serve honn&ecirc;te &agrave; garder.</p>
+<p class="note">Sur <code>report_labels_v2</code>, celui dont les experts se servent, les
+m&ecirc;mes cibles comptent 2347 positifs pour le m&eacute;dial et 1121 pour le
+lat&eacute;ral&nbsp;: les deux extractions ne lisent pas les comptes rendus pareil, d'o&ugrave;
+la pr&eacute;caution ci-dessus.</p>
+<p class="note">Et noter que cette colonne <b>ne pr&eacute;dit pas</b> le succ&egrave;s
+d'un expert&nbsp;: le MCL en a plus que le m&eacute;nisque m&eacute;dial et a
+&eacute;chou&eacute;, PF OA en a le moins et a r&eacute;ussi. Elle dit seulement qu'il y a
+quelque chose &agrave; voir dans l'image. La seconde condition &mdash; que la l&eacute;sion
+soit petite devant la vue enti&egrave;re &mdash; est celle qui a tri&eacute; les trois.</p>
+<p class="note">Le mod&egrave;le large est d&eacute;j&agrave; &agrave; 0.8785 sur le
+m&eacute;dial, nettement mieux que sur le lat&eacute;ral, probablement parce que les
+l&eacute;sions m&eacute;diales sont plus fr&eacute;quentes donc mieux apprises. La marge
+en haut est donc plus &eacute;troite. C'est la r&eacute;serve &agrave; garder.</p>
 </div>
 
 <div class="card">
