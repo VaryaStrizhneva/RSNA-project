@@ -200,10 +200,21 @@ SPECS = {
     #: intercondylar notch, between the compartments, so nothing this project collects
     #: is near it; but the two meniscus points bracket it, 50.8 mm apart in the median.
     #:
-    #: The depth window starts 8 mm inside each of them and keeps everything between:
-    #: 35 mm in the median, 27 on the narrowest knee of the 294 carrying both points and
-    #: 48 on the widest. A fixed half-extent cannot do that — it would be too wide on a
-    #: small knee and too narrow on a large one.
+    #: The depth window starts 12 mm inside each of them and keeps everything between:
+    #: measured over the 294 studies carrying both points, **26.8 mm in the median**,
+    #: 18.5 on the narrowest knee and 40.3 on the widest, and never empty. A fixed
+    #: half-extent cannot do that — it would be too wide on a small knee and too narrow
+    #: on a large one.
+    #:
+    #: 12 rather than 8: at 8 the window ran to 48 mm on the widest knees, which is more
+    #: than the notch is deep and spends slots on compartment rather than on cruciate.
+    #:
+    #: An adaptive window cannot fill a fixed number of slots, and 11 is the least bad of
+    #: them. Measured over 120 studies, the window holds 4 to 12 acquired slices, median
+    #: 8 — so 9 slots would fill on 42 % of studies but **throw acquired slices away on
+    #: 26 %**, while 13 would fill on none. 11 pads 88 % and thins 3 %, and padding is
+    #: the cheaper mistake: a window whose centre slot is padding never reaches the
+    #: encoder, where a thinned stack has lost pixels that existed.
     #:
     #: 60 x 52 mm, 8 mm up and 4 mm back from the midpoint. "Up" and "back" are
     #: measurable and not figurative: a sagittal series runs its columns toward the
@@ -225,8 +236,8 @@ SPECS = {
     "acl": RoiSpec(
         name="acl", landmark="lat_centre", landmark2="med_centre", plane="Sagittal",
         box_w_mm=60.0, box_h_mm=52.0, out_w=210, out_h=182,
-        box_offset_mm=4.0, box_rise_mm=8.0, depth_inset_mm=8.0,
-        lateral_mm=0.0, medial_mm=0.0, slots=13,
+        box_offset_mm=4.0, box_rise_mm=8.0, depth_inset_mm=12.0,
+        lateral_mm=0.0, medial_mm=0.0, slots=11,
         series=(("Sagittal", "PD", True), ("Sagittal", "PD", False))),
     #: Tibiofemoral osteoarthritis, one spec per compartment, both hanging off the
     #: meniscus point that compartment already has — **no new annotation**. Projected

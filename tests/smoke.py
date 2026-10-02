@@ -1661,8 +1661,8 @@ def test_expert() -> None:
           f"{acl.landmark} + {acl.landmark2}, inset {acl.depth_inset_mm:.0f} mm")
     check("and its window follows the knee instead of a fixed extent",
           acl.lateral_mm == 0 and acl.medial_mm == 0,
-          "the fixed half-extent is unused when a second point sets the span: 27 mm "
-          "across on the narrowest of 294 knees, 48 on the widest")
+          "the fixed half-extent is unused when a second point sets the span: 18.5 mm "
+          "across on the narrowest of 294 knees, 40.3 on the widest")
 
     from rsna.roi.extract import extract
     # Sixty slices a millimetre apart, a point at 10 and another at 50: the window must
@@ -1675,10 +1675,10 @@ def test_expert() -> None:
                        plane="Axial", decimate_to_mm=0.1)
     got = extract(vol, geom, (0.0, 0.0, 10.0), spec, (0.0, 0.0, 50.0))
     kept = sorted(int(s[1:]) for s in got.sop if s)
+    inset = acl.depth_inset_mm
     check("the window starts and ends inside each point",
-          kept and kept[0] >= 18 and kept[-1] <= 42,
-          f"slices {kept[0]}..{kept[-1]} of a 10..50 gap inset by "
-          f"{acl.depth_inset_mm:.0f} mm")
+          kept and kept[0] >= 10 + inset and kept[-1] <= 50 - inset,
+          f"slices {kept[0]}..{kept[-1]} of a 10..50 gap inset by {inset:.0f} mm")
     wide = extract(vol, geom, (0.0, 0.0, 5.0), spec, (0.0, 0.0, 55.0))
     kw = sorted(int(s[1:]) for s in wide.sop if s)
     check("and a wider gap gives a wider window",
