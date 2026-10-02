@@ -150,6 +150,21 @@ class RoiSpec:
 #: point says nothing about how far the meniscus extends around it.
 SPECS = {
     "lateral_meniscus": RoiSpec(),
+    #: The other compartment, and nothing else changes. Every number in `RoiSpec`'s
+    #: defaults describes the size of a meniscus and the useful thickness around it, and
+    #: a medial meniscus is of the same order — so the box, the depth and the series are
+    #: taken verbatim from the lateral one.
+    #:
+    #: The asymmetry **did** look like it would have to flip. The depth is short toward
+    #: the bowtie and long toward the notch because the landmark sits a slice or two off
+    #: the peripheral end, and the medial compartment's periphery is the opposite edge
+    #: of the knee. But `bowtie_direction` does not hardcode a side: it measures how far
+    #: the imaged knee extends either way **from the point it is given**, and the nearer
+    #: end wins. Measured on 70 studies carrying both points, it returns opposite
+    #: directions for the two, **70 times out of 70**, with a comparable margin — median
+    #: separation 3.15 against the lateral's 3.50, minimum 2.00 against 2.10. So it
+    #: corrects itself and no field was needed.
+    "medial_meniscus": RoiSpec(name="medial_meniscus", landmark="med_centre"),
     #: The coronal view of the same compartment, hanging off the same landmark — no new
     #: annotation, because the point is in patient millimetres and the other series of
     #: the study are read in those same millimetres. What it adds is **extrusion**: the

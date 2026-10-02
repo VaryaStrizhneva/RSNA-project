@@ -219,22 +219,26 @@ lat&eacute;ral est <b>{lat.box_w_mm:.0f}&times;{lat.box_h_mm:.0f} mm</b> &agrave
 Rien dans ces nombres ne d&eacute;pend du compartiment&nbsp;: c'est la taille d'un
 m&eacute;nisque et l'&eacute;paisseur de son voisinage utile, et le m&eacute;dial est du
 m&ecirc;me ordre.</p>
-<p><b>Une seule chose doit s'inverser, et elle est subtile.</b> La profondeur est
-asym&eacute;trique &mdash; {lat.lateral_mm:.0f} mm vers le bowtie,
+<p><b>Une chose avait l'air de devoir s'inverser, et elle ne s'inverse pas.</b> La
+profondeur est asym&eacute;trique &mdash; {lat.lateral_mm:.0f} mm vers le bowtie,
 {lat.medial_mm:.0f} mm vers l'&eacute;chancrure &mdash; parce que le point est &agrave;
 une coupe ou deux du bowtie et que l'essentiel du m&eacute;nisque est de l'autre
-c&ocirc;t&eacute;. Pour le m&eacute;nisque m&eacute;dial, le bowtie est au bord
-<em>m&eacute;dial</em>, donc <b>la direction courte change de sens</b>.</p>
-<p>Concr&egrave;tement&nbsp;: <code>rsna.roi.extract.bowtie_direction</code> trouve la
-p&eacute;riph&eacute;rie <em>lat&eacute;rale</em> &mdash; mesur&eacute; 298 fois sur 298,
-le membre imag&eacute; s'arr&ecirc;te plus vite de ce c&ocirc;t&eacute;-l&agrave;. Pour le
-compartiment m&eacute;dial il faudra prendre l'oppos&eacute;, donc un champ au spec qui
-dise de quel c&ocirc;t&eacute; est sa p&eacute;riph&eacute;rie. Sans quoi la bo&icirc;te
-serait courte du mauvais c&ocirc;t&eacute; et perdrait la corne post&eacute;rieure
-&mdash; celle qui se d&eacute;chire le plus.</p>
-<p class="note">La bo&icirc;te et la profondeur auront leur page de tailles une fois les
-annotations faites, comme pour les trois autres. On ne reprend pas les nombres du
-lat&eacute;ral sans les regarder&nbsp;; on part de l&agrave;.</p>
+c&ocirc;t&eacute;. Le bowtie du m&eacute;nisque m&eacute;dial &eacute;tant au bord
+oppos&eacute; du genou, la direction courte devrait changer de sens.</p>
+<p>Elle le fait d'elle-m&ecirc;me. <code>rsna.roi.extract.bowtie_direction</code> ne code
+pas un c&ocirc;t&eacute; en dur&nbsp;: elle mesure jusqu'o&ugrave; le genou imag&eacute;
+s'&eacute;tend de part et d'autre <b>du point qu'on lui donne</b>, et retient le bout le
+plus proche. Mesur&eacute; sur 70 &eacute;tudes portant les deux points, elle rend des
+directions <b>oppos&eacute;es 70 fois sur 70</b>, avec une marge comparable &mdash;
+s&eacute;paration m&eacute;diane 3,15 contre 3,50 pour le lat&eacute;ral, minimum 2,00
+contre 2,10. Aucun champ &agrave; ajouter au spec.</p>
+<p class="note">Cette page affirmait le contraire avant la mesure&nbsp;: qu'il faudrait un
+champ disant de quel c&ocirc;t&eacute; est la p&eacute;riph&eacute;rie. C'&eacute;tait
+une d&eacute;duction, pas un fait, et elle &eacute;tait fausse.</p>
+<p>Le spec <code>medial_meniscus</code> est donc une copie du lat&eacute;ral dont
+<b>seuls le nom et le point</b> diff&egrave;rent &mdash; v&eacute;rifi&eacute; champ par
+champ. La bo&icirc;te se regarde quand m&ecirc;me sur les images avant d'&ecirc;tre
+accept&eacute;e&nbsp;: voir <code>docs/atlas/medial_boxes.html</code>.</p>
 </div>
 
 <div class="card">

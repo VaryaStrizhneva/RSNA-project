@@ -31,6 +31,32 @@ def cache_tag(config: LandmarkConfig) -> str:
             f"{config.decimate_to_mm:.1f}dec")
 
 
+def shorten(path: Path, keep: int, chunk: int = 32) -> None:
+    """Keep the first `keep` studies of a cache array, in place.
+
+    Through a temporary file, copied in chunks, then renamed over the original. The
+    obvious version — `np.save(path, np.asarray(memmap[:keep]))` — does not work and
+    does not fail quietly either: `np.asarray` of a memmap slice is a **view**, so the
+    save truncates the file and then reads the data it is writing out of the file it has
+    just truncated. It raised `OSError: 924844032 requested and 3968 written` the first
+    time anything was ever dropped.
+
+    Chunked because the array is of the order of a gigabyte and there is no reason to
+    hold it twice.
+    """
+
+    src = np.load(path, mmap_mode="r")
+    tmp = path.with_suffix(".npy.tmp")
+    dst = np.lib.format.open_memmap(tmp, mode="w+", dtype=src.dtype,
+                                    shape=(keep, *src.shape[1:]))
+    for i in range(0, keep, chunk):
+        j = min(i + chunk, keep)        # not i + chunk: the source is the longer array
+        dst[i:j] = src[i:j]
+    dst.flush()
+    del dst, src
+    tmp.replace(path)
+
+
 def _record(s: Sampled, study: str, series: str, points: dict) -> dict:
     return {"study": study, "series": series,
             "valid": s.valid.tolist(), "t_mm": s.t_mm.tolist(),
@@ -105,12 +131,10 @@ def build(annotations: str | Path, dicom_root: str | Path, out: str | Path,
             log(f"  {i + 1}/{len(grouped)}")
 
     volumes.flush()
+    del volumes
     if len(records) < len(grouped):
         # Shorten rather than leave zeroed rows that would train as black studies.
-        trimmed = np.lib.format.open_memmap(
-            out / f"volumes_{cache_tag(config)}.npy", mode="r+", dtype=np.uint8,
-            shape=(len(grouped), config.slices, config.img, config.img))[:len(records)]
-        np.save(out / f"volumes_{cache_tag(config)}.npy", np.asarray(trimmed))
+        shorten(out / f"volumes_{cache_tag(config)}.npy", len(records))
 
     (out / f"geometry_{cache_tag(config)}.json").write_text(json.dumps(
         {"config": config.to_dict(), "records": records}))

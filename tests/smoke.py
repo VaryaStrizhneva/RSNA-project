@@ -974,6 +974,32 @@ def test_annotation_side() -> None:
           "both are kept; merging them would hide the disagreement")
 
 
+def test_cache_shorten() -> None:
+    """Trimming a cache array must keep what it keeps.
+
+    The obvious version — `np.save(path, np.asarray(memmap[:keep]))` — reads from a
+    **view** into the file it is truncating, and raised `OSError: 924844032 requested
+    and 3968 written` the first time any study was ever dropped. The branch had never
+    run before, so nothing had caught it.
+    """
+
+    import tempfile
+    from rsna.landmark.cache import shorten
+
+    print("\nlandmark.cache")
+
+    for n, keep in ((10, 6), (100, 97), (5, 5), (70, 1)):
+        path = Path(tempfile.mkdtemp()) / "v.npy"
+        a = (np.arange(n * 4 * 4) % 251).astype(np.uint8).reshape(n, 4, 4)
+        np.save(path, a)
+        shorten(path, keep)
+        back = np.load(path)
+        check(f"{n} studies trimmed to {keep}",
+              back.shape == (keep, 4, 4) and bool((back == a[:keep]).all()),
+              "shape and content, not just shape — a truncating save gets the first "
+              "right and the second wrong")
+
+
 def test_series_choice() -> None:
     """Which sagittal series an annotation bundle shows, and what `--prefer-3d` may not do.
 
@@ -1651,6 +1677,7 @@ def main() -> int:
                  test_augment, test_loop, test_windows,
                  test_submission, test_figures, test_eval, test_annotation_side, test_series_choice, test_annotation_side_rule,
                  test_excluded_list, test_roi, test_expert,
+                 test_cache_shorten,
                  test_landmark_geometry):
         test()
     print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")
