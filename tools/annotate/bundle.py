@@ -99,6 +99,26 @@ def build_study(uid: str, out: Path, config: Config, headers=None,
         return None
 
     side, how = side_of(headers)
+    # How far from the midline the geometric rule had to decide. It is the rule's own
+    # confidence, and the annotator needs it: measured on a 299-study draw, the rule
+    # agrees with the DICOM tag 140/150, and eight of the ten disagreements sit within
+    # 31 mm of zero. A point whose side cannot be recovered from the click — anything
+    # read on a coronal or axial picture — has no second chance at this.
+    # The confidence of the side **that is displayed**, so it has to be measured over
+    # exactly what decided it: `side_of` -> `side_from_geometry` takes the median centre
+    # x over all of a study's series, so this does too. Measuring it on the rendered
+    # series alone was tried and is a different number — it describes a different
+    # decision, and a margin that does not belong to the badge beside it is worse than
+    # no margin.
+    #
+    # The median is noisy on purpose-built grounds: a sagittal stack steps along x, so
+    # which of its slices supplies the header moves the answer. That noise belongs to
+    # the rule, not to this measurement, and hiding it would overstate the badge.
+    from rsna.dicom.laterality import centre_x
+    frame = headers if "StudyInstanceUID" in headers else headers.assign(
+        StudyInstanceUID=uid)
+    x = centre_x(frame).get(uid)
+    margin = None if x is None else round(abs(float(x)), 1)
     series = load_series(chosen, config)
     first_end, last_end = stack_orientation(plane, side)
 
@@ -147,7 +167,7 @@ def build_study(uid: str, out: Path, config: Config, headers=None,
     return {
         "study": uid, "tail": tail, "series": str(chosen["SeriesInstanceUID"]),
         "sequence": series.label, "description": series.description,
-        "side": side, "side_from": how,
+        "side": side, "side_from": how, "side_margin_mm": margin,
         "first_end": first_end, "last_end": last_end,
         "n": len(slices), "native_n": series.n, "ordered": bool(series.ordered),
         "subsampled": len(slices) < series.n,
@@ -244,7 +264,7 @@ def main() -> int:
             # otherwise half the build time is spent on studies that get deleted.
             headers = series_headers(uid)
             side, how = side_of(headers)
-            if args.tagged_only and landmark["laterality"] and "tag" not in (how or ""):
+            if args.tagged_only and landmark["side_cue"] != "none" and "tag" not in (how or ""):
                 failed.append((uid, f"side not from the tag ({how})"))
                 continue
 
@@ -287,9 +307,13 @@ def main() -> int:
     print(f"\n{len(studies)} studies, {sum(s['n'] for s in studies)} slices, "
           f"{size/1e6:.0f} MB -> {args.out}")
     unresolved = [s["tail"] for s in studies if s["side"] is None]
-    if unresolved and landmark["laterality"]:
+    if unresolved and landmark["side_cue"] == "stack-end":
         print(f"side not resolved by header or geometry on {len(unresolved)}/{len(studies)}"
               f" — the annotator declares which end is lateral on these")
+    elif unresolved and landmark["side_cue"] == "image-side":
+        print(f"side not resolved by header or geometry on {len(unresolved)}/{len(studies)}"
+              f" — there is no end to declare on this plane, so the tool shows the side "
+              f"as unknown and the annotator orients on the fibula")
     for uid, why in failed:
         print(f"  FAILED {uid[-11:]}: {why}")
     return 0

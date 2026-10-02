@@ -299,6 +299,67 @@ kbd{background:#242a31;border:1px solid var(--line);border-radius:4px;padding:0 
       d&eacute;faut. Dis-le, on corrige les mots, pas les clics.</p>
     </div>
 
+    <div data-lm="mcl_centre" hidden>
+    <h2>mcl_centre &mdash; ce que le point veut dire</h2>
+    <p class="hint">Un point par &eacute;tude&nbsp;: le <b>ligament collat&eacute;ral
+      m&eacute;dial l&agrave; o&ugrave; il croise l'interligne articulaire</b>, sur une
+      coupe coronale. <kbd>H</kbd> ferme cette aide.</p>
+
+    <h3>Le ligament</h3>
+    <p>Le LCM part de l'<b>&eacute;picondyle f&eacute;moral m&eacute;dial</b>, descend le
+      long du c&ocirc;t&eacute; interne du genou en croisant l'interligne, et s'attache
+      sur le tibia cinq &agrave; sept centim&egrave;tres plus bas. C'est une bande
+      <b>longue et mince, plaqu&eacute;e contre l'os</b> &mdash; pas dans la graisse
+      sous-cutan&eacute;e, qui est plus en dehors.</p>
+    <p>Sur du PD fat-sat il appara&icirc;t comme une ligne <b>sombre</b> le long de la
+      corticale. Quand il est l&eacute;s&eacute;, du signal clair l'entoure ou le traverse.</p>
+
+    <h3>De quel c&ocirc;t&eacute; est le m&eacute;dial</h3>
+    <p>Le badge sur l'image le dit, par &eacute;tude. Mesur&eacute; sur 3815 s&eacute;ries
+      coronales&nbsp;: les colonnes vont toutes vers la gauche du patient, donc le
+      m&eacute;dial est le <b>bord droit</b> de l'image sur un genou droit et le
+      <b>bord gauche</b> sur un genou gauche. Contrairement au m&eacute;nisque, <b>ton
+      clic ne peut pas r&eacute;cup&eacute;rer le c&ocirc;t&eacute;</b> &mdash; si le
+      badge est marqu&eacute; &laquo;&nbsp;d&eacute;duit&nbsp;&raquo;, v&eacute;rifie au
+      <b>p&eacute;ron&eacute;</b>, ce second os d&eacute;tach&eacute; du tibia qui
+      n'existe que du c&ocirc;t&eacute; <em>lat&eacute;ral</em>, donc &agrave; l'oppos&eacute;.</p>
+
+    <h3>1. La coupe &mdash; o&ugrave; le ligament est le plus net</h3>
+    <p>Fais d&eacute;filer d'avant en arri&egrave;re. Le ligament se voit le mieux sur
+      les coupes moyennes, l&agrave; o&ugrave; l'interligne est bien ouvert et o&ugrave;
+      la bande se suit sans interruption du f&eacute;mur au tibia. S'il appara&icirc;t
+      sur plusieurs coupes, prends celle du milieu.</p>
+
+    <h3>2. Le point &mdash; sur le ligament, &agrave; hauteur de l'interligne</h3>
+    <p>Le point va <b>sur la bande</b>, &agrave; la hauteur o&ugrave; elle croise
+      l'espace articulaire. C'est son milieu dans le sens de la longueur, donc la
+      bo&icirc;te tiendra l'attache f&eacute;morale au-dessus et l'attache tibiale en
+      dessous.</p>
+    <p>Pi&egrave;ge principal&nbsp;: <b>ne clique pas dans la graisse sous-cutan&eacute;e</b>.
+      Le ligament est contre l'os. Une r&egrave;gle automatique plac&eacute;e &agrave;
+      10&nbsp;mm sous la peau a &eacute;t&eacute; essay&eacute;e et tombait syst&eacute;matiquement
+      trop en dehors&nbsp;: c'est pr&eacute;cis&eacute;ment pour &ccedil;a qu'on annote.</p>
+
+    <h3>3. Clique aussi quand c'est pathologique &mdash; <em>surtout</em> alors</h3>
+    <p>&OElig;d&egrave;me, &eacute;paississement, rupture compl&egrave;te&nbsp;: le point
+      se place quand m&ecirc;me, l&agrave; o&ugrave; la g&eacute;om&eacute;trie le dit.
+      Si la bande est interrompue, vise l&agrave; o&ugrave; elle croiserait l'interligne
+      &mdash; le f&eacute;mur et le tibia sont toujours l&agrave; pour te le dire.</p>
+    <p>C'est la r&egrave;gle qui compte le plus. Si le point d&eacute;rive vers la
+      l&eacute;sion sur les positifs, le crop encode le label par sa seule position
+      &mdash; un signal qui existe dans le jeu d'entra&icirc;nement et nulle part ailleurs.</p>
+
+    <h3>Quand passer son tour</h3>
+    <p>Ligament introuvable, c&ocirc;t&eacute; ind&eacute;cidable, ordre des coupes
+      inutilisable&nbsp;: <kbd>S</kbd>. Passer est honn&ecirc;te et pas cher.</p>
+
+    <h3>Si tu h&eacute;sites</h3>
+    <p><b>La constance vaut mieux que la justesse.</b> Un d&eacute;calage syst&eacute;matique
+      de quelques millim&egrave;tres, la bo&icirc;te l'absorbe&nbsp;; un d&eacute;calage
+      qui change d'une &eacute;tude &agrave; l'autre est du bruit que le mod&egrave;le ne
+      moyenne jamais compl&egrave;tement.</p>
+    </div>
+
     <div class="row" style="margin-top:18px"><button class="primary" id="closehelp">back to annotating</button></div>
   </div>
 </div>
@@ -310,7 +371,7 @@ kbd{background:#242a31;border:1px solid var(--line);border-radius:4px;padding:0 
 // The storage key is per point on purpose — a meniscus session and a patellofemoral one
 // are different work on the same studies, and sharing one key would let the second
 // overwrite the first in a browser that still held it.
-let TARGET = {id:"lat_centre", color:"#ff6b6b", laterality:true};
+let TARGET = {id:"lat_centre", color:"#ff6b6b", cue:"stack-end"};
 let KEY = "rsna-landmarks-v1";
 
 let M=null, studies=[], si=0, slice=0;
@@ -364,15 +425,40 @@ function sideOf(){
 
 function ends(){
   const s = cur();
-  if (!TARGET.laterality){
-    // An axial stack runs inferior to superior on a left and a right knee alike, and
-    // this point sits on the midline of its own joint — so nothing flips and there is
-    // nothing to declare. Showing a lateral badge here would ask for a declaration that
-    // cannot be wrong, which is how an annotator learns to stop reading badges.
+  if (TARGET.cue !== "stack-end"){
+    // Neither an axial nor a coronal stack runs along the left-right axis, so no END of
+    // it is lateral and there is nothing to declare about its ends. The axis labels say
+    // what the ends actually are; the badge, if any, is about the picture.
     $("endA").textContent = "\u25c0 " + (s.first_end || "?");
     $("endB").textContent = (s.last_end || "?") + " \u25b6";
-    $("latflag").style.display = "none";
     $("declare").hidden = true;
+    if (TARGET.cue === "none"){ $("latflag").style.display = "none"; return; }
+
+    // image-side: the image's horizontal axis IS left-right. Measured over 3815 coronal
+    // series, the columns run toward the patient's left on all of them — so medial is
+    // the picture's right edge on a right knee and its left edge on a left one. The
+    // click cannot recover this, so an unresolved side is shown as unresolved rather
+    // than guessed at.
+    const side = s.side;
+    $("latflag").style.display = "block";
+    const guessed = !s.side_from || s.side_from.indexOf("tag") < 0;
+    $("latflag").className = "lat" + (guessed ? " guess" : "");
+    if (!side){
+      $("latflag").textContent = "CÔTÉ INCONNU — repère-toi au péroné (latéral)";
+      $("latflag").style.left = "10px"; $("latflag").style.right = "auto";
+      return;
+    }
+    const medialRight = side === "R";
+    // Near the midline the geometric rule is close to a coin flip, so a badge derived
+    // there has to say so rather than look like the tagged ones.
+    const m = s.side_margin_mm;
+    const shaky = guessed && (m === null || m === undefined || m < 35);
+    if (shaky) $("latflag").className = "lat guess";
+    $("latflag").textContent = (medialRight ? "MÉDIAL → bord droit" : "MÉDIAL ← bord gauche")
+      + (shaky ? `  (déduit à ${m === null || m === undefined ? "?" : Math.round(m)} mm de l'axe — VÉRIFIE le péroné)`
+               : (guessed ? "  (déduit — vérifie le péroné)" : ""));
+    $("latflag").style.left  = medialRight ? "auto" : "10px";
+    $("latflag").style.right = medialRight ? "10px" : "auto";
     return;
   }
   const e = latEnd();
@@ -536,7 +622,7 @@ fetch("studies.json").then(r=>r.json()).then(m=>{
   if (m.landmark){
     TARGET = {id:m.landmark.id,
               color:m.landmark.colour || m.landmark.color || "#ff6b6b",
-              laterality:!!m.landmark.laterality};
+              cue:m.landmark.side_cue || "stack-end"};
   }
   // The meniscus keeps the name it has always had. Renaming it would be tidier and it
   // would also hide every in-progress session already sitting in a browser under the old

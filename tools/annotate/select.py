@@ -41,7 +41,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from rsna.landmark.series import pick_sagittal            # noqa: E402
+from rsna.dicom.headers import annotate as annotate_headers  # noqa: E402
+from rsna.dicom.headers import walk                          # noqa: E402
+from rsna.dicom.laterality import centre_x                   # noqa: E402
+from rsna.landmark.series import LANDMARKS, pick_sagittal    # noqa: E402
 from tools.atlas.study import series_headers             # noqa: E402
 
 #: The corpus mix, measured over a 200-study draw and recorded in `docs/pipeline_v2.md`.
@@ -72,6 +75,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--scan", required=True, type=Path)
+    ap.add_argument("--dicom-root", default="/data/mgr/rsna-knee/extracted", type=Path,
+                    help="where the headers are, for --min-margin")
     ap.add_argument("--exclude", type=Path, action="append", default=[],
                     help="studies.json of a bundle already built; repeatable")
     ap.add_argument("--total", type=int, default=300,
@@ -86,6 +91,25 @@ def main() -> int:
                          "than a different set of them.")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("-o", "--out", required=True, type=Path)
+    ap.add_argument("--min-margin", type=float, default=0.0,
+                    help="how far from the midline an untagged study's centre must sit "
+                         "before its geometric side is trusted, in millimetres; 0 keeps "
+                         "everything. Measured on 150 tagged studies, the rule agrees "
+                         "with the DICOM tag 140 times and eight of the ten "
+                         "disagreements are within 31 mm of zero, so 40 buys most of "
+                         "the safety. Use it for a point whose side the click cannot "
+                         "recover — anything read on a coronal or axial picture.\n\n"
+                         "Do NOT reach for `--tagged-only`, or for preferring tagged "
+                         "studies inside the quota, to get the same safety. The tag is "
+                         "written by whole manufacturers and, within one, by particular "
+                         "protocols: 84.3 %% of Siemens studies carry it against 4.1 %% "
+                         "of GE, and **every one of those 37 tagged GE studies lacks a "
+                         "fat-suppressed coronal**, against 95.6 %% of GE overall. "
+                         "Preferring the tag inside GE's quota was tried and produced a "
+                         "draw where 26 %% of studies had the sequence the pathology is "
+                         "read on. The margin filter has no such effect: 94.4 %% of "
+                         "studies beyond 40 mm carry a fat-suppressed coronal against "
+                         "95.5 %% of all of them, and that holds vendor by vendor.")
     ap.add_argument("--landmark", default="lat_centre",
                     help="which point the bundle is for. Only changes what is reported "
                          "here — the laterality note is meaningless for a point that "
@@ -105,8 +129,28 @@ def main() -> int:
     print(prior.to_string(), "\n")
 
     pool = scan[~scan.study.isin(already)].copy()
-    rng = np.random.default_rng(args.seed)
     pool = pool.sample(frac=1.0, random_state=args.seed)
+    if args.min_margin > 0:
+        # Measured here rather than read off the scan's `median_x`, which is the x of the
+        # image **corner**: that sits half a field of view from the centre — about 90 mm
+        # in this corpus, and 68 mm from the centre in the median study — so thresholding
+        # it is not a weaker version of this filter, it is a different quantity. It is
+        # also the rule that put a left knee on the right and cost an annotation.
+        # Over every series, because that is what `side_from_geometry` thresholds to
+        # produce the side the annotator will be shown. Restricting it to the point's
+        # own plane was tried: it is a cleaner number and it answers a question nobody
+        # asked, since the badge it would qualify is decided on all of them.
+        print("measuring how far each study sits from the midline — the centre, not the "
+              "corner, over the same series the side rule reads")
+        headers = annotate_headers(walk(Path(args.dicom_root), "train_series"))
+        margin = {s: abs(x) for s, x in centre_x(headers).items()}
+        pool["margin_mm"] = pool.study.map(margin)
+        far = pool.margin_mm.fillna(0) >= args.min_margin
+        dropped = int((~pool.tagged & ~far).sum())
+        pool = pool[pool.tagged | far]
+        print(f"{dropped} untagged studies sit within {args.min_margin:.0f} mm of the "
+              f"midline, where the geometric rule is near a coin flip; left out rather "
+              f"than guessed at\n")
 
     need = quotas(prior, args.total)
     if args.n:
@@ -151,17 +195,34 @@ def main() -> int:
         "already": prior,
     }).fillna(0).astype(int).to_string(), "\n")
     print(f"3D (as rendered): {n_3d}")
-    from rsna.landmark.series import LANDMARKS
-    if LANDMARKS.get(args.landmark, {}).get("laterality", True):
+    print(f"side from the scanner's own record: {int(picked.tagged.sum())}/{len(picked)}"
+          f" ({100 * picked.tagged.mean():.0f} %)")
+    loose = picked[~picked.tagged]
+    if len(loose) and "margin_mm" in pool.columns:
+        m = pool.set_index("study").margin_mm.reindex(loose.index)
+        print(f"the other {len(loose)} rest on the geometric rule, all at "
+              f"{m.min():.0f} mm or more from the midline")
+    elif len(loose):
+        print(f"the other {len(loose)} rest on the geometric rule, at whatever distance "
+              f"from the midline they happen to sit — pass --min-margin to bound it")
+    cue = LANDMARKS.get(args.landmark, {}).get("side_cue", "stack-end")
+    if cue == "stack-end":
         untagged = len(picked) - int(picked.tagged.sum())
         print(f"side from the DICOM tag: {int(picked.tagged.sum())}/{len(picked)} — the "
               f"other {untagged} show no badge, so the annotator orients on the fibular "
               f"head. Nothing extra to enter: the click's own position in the stack "
               f"recovers which end was lateral (161/161 on the first bundle).")
+    elif cue == "image-side":
+        untagged = len(picked) - int(picked.tagged.sum())
+        print(f"side from the DICOM tag: {int(picked.tagged.sum())}/{len(picked)}. For "
+              f"{args.landmark} the side decides which *edge of the picture* is medial, "
+              f"and the click cannot recover it — so the {untagged} untagged ones lean "
+              f"on the geometric rule, and the annotator checks against the fibula, "
+              f"which only exists laterally.")
     else:
-        print(f"laterality is not asked about for {args.landmark}: an axial stack runs "
-              f"inferior to superior on both knees and the point is on the midline of "
-              f"its joint, so tagged and untagged studies cost the annotator the same.")
+        print(f"laterality is not asked about for {args.landmark}: its stack runs the "
+              f"same way on both knees and the point is on the midline of its own "
+              f"joint, so tagged and untagged studies cost the annotator the same.")
 
     args.out.write_text("\n".join(chosen) + "\n")
     print(f"\nwrote {args.out}")
