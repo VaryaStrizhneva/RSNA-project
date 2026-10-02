@@ -35,6 +35,10 @@ class EpochResult:
     median_mm: float
     p90_mm: float
     within_12: float
+    #: Per point, in the order of `config.points`. The scalars above are the mean over
+    #: them, which for a one-point run is the point itself — so a single-point run reads
+    #: exactly as it always did.
+    per_point: tuple[tuple[float, float], ...] = ()
 
 
 @dataclass
@@ -187,16 +191,28 @@ def fit(model, volumes, records: list[dict], targets: np.ndarray,
                 idx = val_index[start:start + batch]
                 v, _ = load(idx)
                 errs.append(_errors(model(to_input(v)), records, volumes, idx, config))
-        e = np.concatenate(errs)[:, 0]
-        r = EpochResult(epoch, total / max(seen, 1), float(np.nanmedian(e)),
-                        float(np.nanpercentile(e, 90)), float(np.nanmean(e < 12)))
+        # Every point, not just the first. Taking column 0 reported a two-point model's
+        # accuracy as its first point's and chose the epoch on that alone, leaving the
+        # second one unmeasured and unoptimised — and the number looked perfectly
+        # healthy either way.
+        all_e = np.concatenate(errs)
+        per = tuple((float(np.nanmedian(all_e[:, k])),
+                     float(np.nanpercentile(all_e[:, k], 90)))
+                    for k in range(all_e.shape[1]))
+        e = all_e
+        r = EpochResult(epoch, total / max(seen, 1),
+                        float(np.mean([m for m, _ in per])),
+                        float(np.mean([q for _, q in per])),
+                        float(np.nanmean(e < 12)), per)
         result.history.append(r)
         if result.best is None or r.p90_mm < result.best.p90_mm:
             result.best = r
             result.state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
             result.errors = e
+        detail = ("  [" + " ".join(f"{q:.1f}" for _, q in r.per_point) + "]"
+                  if len(r.per_point) > 1 else "")
         log(f"  epoch {epoch:3d}  loss {r.loss:.5f}  median {r.median_mm:5.1f} mm  "
-            f"p90 {r.p90_mm:5.1f} mm  within 12 mm {100 * r.within_12:3.0f} %")
+            f"p90 {r.p90_mm:5.1f} mm{detail}  within 12 mm {100 * r.within_12:3.0f} %")
     return result
 
 

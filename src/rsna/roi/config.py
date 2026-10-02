@@ -177,6 +177,41 @@ SPECS = {
     "medial_meniscus": RoiSpec(
         name="medial_meniscus", landmark="med_centre",
         box_w_mm=54.0, box_h_mm=33.0, out_w=252, out_h=154),
+    #: Tibiofemoral osteoarthritis, one spec per compartment, both hanging off the
+    #: meniscus point that compartment already has — **no new annotation**. Projected
+    #: onto a coronal slice the two points land one in each compartment, 57 mm apart on
+    #: the study measured, and a box this size around each frames the joint line with
+    #: bone above and below and the outer margin inside it.
+    #:
+    #: Coronal and not sagittal, because that is the plane the disease is read in: joint
+    #: space narrowing is the height of the gap seen face on, and marginal osteophytes
+    #: grow at the edges of the plateau, which the sagittal view cuts through rather
+    #: than displays.
+    #:
+    #: 54 x 39 rather than the meniscus box's 54 x 33, and **not offset**. The meniscus
+    #: coronal box is shifted 6 mm toward the periphery because it is looking for
+    #: extrusion — the body displaced past the tibial margin. Osteoarthritis is not at
+    #: the margin but across the compartment, and its subchondral oedema and sclerosis
+    #: are *inside* the bone on both sides of the gap, so the box is centred and taller.
+    #:
+    #: Expect little. Lateral OA was tried on the meniscus crops and lost to the wide
+    #: model by 0.028 with the interval excluding zero; the likeliest reason is not the
+    #: region at all but that its pixels add **nothing** over the other eleven labels
+    #: (comorbidity alone 0.8575 against the wide model's 0.8471, a negative margin).
+    #: Medial OA is at +0.021, which is small but positive, and the crop costs one head
+    #: on a region being built anyway.
+    "medial_oa": RoiSpec(
+        name="medial_oa", landmark="med_centre", plane="Coronal",
+        box_w_mm=54.0, box_h_mm=39.0, out_w=252, out_h=182,
+        lateral_mm=14.0, medial_mm=14.0, slots=9,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
+    "lateral_oa": RoiSpec(
+        name="lateral_oa", landmark="lat_centre", plane="Coronal",
+        box_w_mm=54.0, box_h_mm=39.0, out_w=252, out_h=182,
+        lateral_mm=14.0, medial_mm=14.0, slots=9,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
     #: The coronal view of the same compartment, hanging off the same landmark — no new
     #: annotation, because the point is in patient millimetres and the other series of
     #: the study are read in those same millimetres. What it adds is **extrusion**: the

@@ -87,14 +87,21 @@ def main() -> int:
 
     e = np.concatenate(errors)
     log(f"\nOUT OF FOLD over {len(e)} studies")
-    log(f"  median {np.nanmedian(e):.1f} mm   p90 {np.nanpercentile(e, 90):.1f} mm   "
-        f"within 12 mm {100 * np.nanmean(e < 12):.0f} %")
+    for k, name in enumerate(config.points):
+        col = e[:, k]
+        log(f"  {name:12s} median {np.nanmedian(col):.1f} mm   "
+            f"p90 {np.nanpercentile(col, 90):.1f} mm   "
+            f"within 12 mm {100 * np.nanmean(col < 12):.0f} %")
+    if len(config.points) > 1:
+        log(f"  {'both':12s} median {np.nanmedian(e):.1f} mm   "
+            f"p90 {np.nanpercentile(e, 90):.1f} mm")
     log("  the constant predictor, with the side known perfectly: p90 21.2 mm")
 
     (out / "history.json").write_text(json.dumps(
         {"experiment": args.experiment, "config": config.to_dict(), "run": run,
          "history": history,
-         "errors": {s: float(x) for s, x in zip(studies, e)}}, indent=1))
+         "points": list(config.points),
+         "errors": {s: [float(v) for v in row] for s, row in zip(studies, e)}}, indent=1))
     log(f"wrote {out}")
     return 0
 
