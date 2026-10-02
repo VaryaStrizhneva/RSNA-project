@@ -987,7 +987,8 @@ def test_series_choice() -> None:
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     import pandas as pd
-    from rsna.landmark.series import LANDMARKS, PICKERS, pick_axial, pick_sagittal
+    from rsna.landmark.series import (LANDMARKS, PICKERS, pick_axial,
+                                  pick_coronal, pick_sagittal)
 
     print("\nannotate.bundle")
 
@@ -1039,10 +1040,23 @@ def test_series_choice() -> None:
     check("every landmark names a plane that has a picker",
           all(d["plane"] in PICKERS for d in LANDMARKS.values()),
           ", ".join(f"{k} on {v['plane']}" for k, v in LANDMARKS.items()))
-    check("only the sagittal point claims laterality",
-          [k for k, v in LANDMARKS.items() if v["laterality"]] == ["lat_centre"],
-          "an axial stack runs inferior to superior on both knees, so pf_centre has "
-          "nothing to declare and the tool must not ask")
+    check("each point says what the annotator must be told about left and right",
+          {k: v["side_cue"] for k, v in LANDMARKS.items()}
+          == {"lat_centre": "stack-end", "pf_centre": "none",
+              "mcl_centre": "image-side"},
+          "three situations, not degrees of one: a sagittal stack has a lateral END, a "
+          "coronal picture has a medial SIDE, an axial midline point has neither")
+    check("and only the sagittal stack can recover a side from the click",
+          [k for k, v in LANDMARKS.items() if v["side_cue"] == "stack-end"]
+          == ["lat_centre"],
+          "the click's distance to an end means nothing when the ends are front and back")
+    check("the coronal picker prefers fat suppression, like the axial one",
+          pick_coronal(pd.DataFrame([
+              {"plane": "Coronal", "weight": "PD", "fatsat": False, "n_slices": 40,
+               "SeriesInstanceUID": "pd"},
+              {"plane": "Coronal", "weight": "PD", "fatsat": True, "n_slices": 30,
+               "SeriesInstanceUID": "pdfs"}]))["SeriesInstanceUID"] == "pdfs",
+          "a sprain is oedema, and oedema needs the fat gone")
 
     both = sag(("PD", True, 28, "pd"), ("T1", False, 140, "t1"), ("GRE", False, 92, "gre"))
     check("--prefer-3d does not cross the weighting to reach a deeper series",
