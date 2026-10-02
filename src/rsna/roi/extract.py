@@ -102,7 +102,8 @@ def crop_plane(image: np.ndarray, row: float, col: float, spacing, spec: RoiSpec
     hh = spec.box_h_mm / 2 / float(spacing[0])
     col = col + to_lateral * spec.box_offset_mm / float(spacing[1])
     # The other axis, and a different direction: `box_rise_mm` moves the box toward the
-    # front, which is along the rows. Only an axial crop has a front to move toward.
+    # top of the picture, along the rows — anterior on an axial crop, superior on a
+    # coronal one. Negative moves it down.
     row = row + to_front * spec.box_rise_mm / float(spacing[0])
     r0, r1 = int(round(row - hh)), int(round(row + hh))
     c0, c1 = int(round(col - hw)), int(round(col + hw))
@@ -165,14 +166,21 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
         u = _axes(iop)[0]
         to_lateral = float(np.sign(point[0]) * np.sign(u[0])) or 1.0
 
-    # And which way the rows run, for the planes that have a front. DICOM puts the
-    # patient's posterior at positive y, so the anterior is the negative row direction.
-    # Read per series rather than taken from the corpus count: 3342 of 3342 axial series
-    # run their rows toward the posterior, which is a regularity, not a guarantee.
+    # Which way the row index must move to go toward the picture's "up". The two planes
+    # do NOT share a sign, which is the trap: up is the **anterior** on an axial crop and
+    # DICOM puts the posterior at +y, so up is -y; it is the **superior** on a coronal
+    # crop and DICOM puts the superior at +z, so up is +z. One formula for both put the
+    # collateral box 52 mm above the joint line and 28 below — exactly inverted.
+    #
+    # Read from this series' own orientation rather than from the corpus counts (3342 of
+    # 3342 axial rows toward the posterior, 3815 of 3815 coronal rows toward the
+    # inferior), which are regularities and not guarantees of the format.
     to_front = 0.0
-    if spec.plane == "Axial":
+    if spec.plane in ("Axial", "Coronal"):
         v = _axes(iop)[1]
-        to_front = -float(np.sign(v[1])) or 1.0
+        up = np.array([0.0, -1.0, 0.0]) if spec.plane == "Axial" \
+            else np.array([0.0, 0.0, 1.0])
+        to_front = float(np.sign(v @ up)) or 1.0
 
     # In-plane position does not depend on which slice supplies the origin: both
     # orientation vectors are orthogonal to the normal, so a displacement along the

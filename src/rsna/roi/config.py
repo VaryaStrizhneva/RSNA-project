@@ -38,11 +38,15 @@ class RoiSpec:
     #: knee's width from its medial edge, with 28 mm of skin in front of it and 85 mm of
     #: knee behind — so a box centred on it wastes half its width outside the patient.
     box_offset_mm: float = 0.0
-    #: How far the box centre is moved toward the **anterior**, in millimetres. Shifts
-    #: the box along the *row* axis, where `box_offset_mm` shifts it along the column
-    #: axis — two different directions, and a crop needs whichever one its plane makes
-    #: anterior-posterior. Only an axial crop does: on a sagittal or coronal slice the
-    #: rows run superior-inferior and there is no front to rise toward.
+    #: How far the box centre is moved toward the **top of the picture**, in
+    #: millimetres; negative moves it down. Shifts the box along the *row* axis, where
+    #: `box_offset_mm` shifts it along the column axis — two different directions, and a
+    #: crop needs whichever one its plane gives it.
+    #:
+    #: What the top *is* depends on the plane, and both were measured rather than
+    #: assumed: an axial series runs its rows toward the posterior on 3342 of 3342, so up
+    #: is **anterior**; a coronal one runs them toward the inferior on 3815 of 3815, so
+    #: up is **superior**. A sagittal crop has no use for it.
     #:
     #: The patellofemoral box needs it. Its landmark is the joint line, with the patella
     #: in front and the trochlea behind, and the patella is the half that gets clipped:
@@ -50,6 +54,14 @@ class RoiSpec:
     #: on the studies where it sits high. Raising it 8 mm costs an empty strip past the
     #: skin on 60 % of studies, but a **median of 3.1 mm** of one — 6 % of the box, 14 %
     #: at the 90th centile — against losing the bone the osteophytes grow on.
+    #:
+    #: The collateral ligament box needs it the other way, hence the sign. Its landmark
+    #: is the joint line; the femoral origin is two to three centimetres above and the
+    #: tibial insertion five to seven below — but the field of view does not reach that
+    #: far down. Measured over 209 annotated studies, a box descending 30 mm below the
+    #: click stays inside the image on 100 % of them, 40 mm on 98.1 %, 50 mm on 89 % and
+    #: 60 mm on **67 %**. So it is given most of its height downward, and no more than
+    #: was actually imaged.
     box_rise_mm: float = 0.0
     out_w: int = 224
     out_h: int = 126
@@ -199,6 +211,35 @@ SPECS = {
         box_rise_mm=8.0,
         lateral_mm=16.0, medial_mm=16.0, slots=9,
         series=(("Axial", "PD", True), ("Axial", "T2", True))),
+    #: The medial collateral ligament, on the coronal plane, hanging off its own point
+    #: — `mcl_centre`, the ligament where it crosses the joint line. Nothing else this
+    #: project has collected is within 50 mm of it: placing it from the lateral meniscus
+    #: landmark and the limb's medial skin edge was tried and lands in the subcutaneous
+    #: fat, because the thickness between skin and ligament varies from patient to
+    #: patient. See docs/atlas/mcl.html.
+    #:
+    #: 32 x 80 mm, **taller than wide** — the inverse of the meniscus and patellar boxes,
+    #: because the ligament is a long thin band rather than a thing to frame. Dropped
+    #: 12 mm toward the tibia, so 28 mm above the joint line and 52 below: the femoral
+    #: origin is two to three centimetres up, the tibial insertion five to seven down,
+    #: and the field of view runs out before the latter on a third of studies.
+    #:
+    #: Shifted 5 mm **toward the knee** — that is what `box_offset_mm` does from a
+    #: medial landmark, since lateral is the way back to the joint. Centred exactly on
+    #: the click, half the width sits in subcutaneous fat; 5 mm buys bone and loses
+    #: nothing the ligament occupies.
+    #:
+    #: 112 x 280 px: both divide by 14, the aspect matches 32:80 exactly so the pixels
+    #: are square, and 0.286 mm/px is already finer than the 0.31 mm/px median coronal
+    #: acquisition.
+    #:
+    #: **The depth is a guess and is meant to be swept**, like the two before it.
+    "mcl": RoiSpec(
+        name="mcl", landmark="mcl_centre", plane="Coronal",
+        box_w_mm=32.0, box_h_mm=80.0, out_w=112, out_h=280,
+        box_offset_mm=5.0, box_rise_mm=-12.0,
+        lateral_mm=12.0, medial_mm=12.0, slots=7,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
     #: The depth sweep for the patellofemoral box, which the annotations cannot settle:
     #: a point says nothing about how far the joint extends around it. What *was*
     #: measured, over the 200 annotated stacks, is how many slots each fills --

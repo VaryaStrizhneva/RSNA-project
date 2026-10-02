@@ -1578,6 +1578,34 @@ def test_expert() -> None:
           f"on a ramp brightening with the row index, a series whose front is -row "
           f"gives {low.mean():.0f} and one whose front is +row gives {high.mean():.0f}")
 
+    # The two planes do not share an "up": anterior is -y on an axial crop, superior is
+    # +z on a coronal one. One formula for both inverted the collateral box — 52 mm above
+    # the joint line where 28 was asked for — and the crop still looked like a knee.
+    mcl = SPECS["mcl"]
+    check("the collateral box is taller than wide, and hangs below its point",
+          mcl.box_h_mm > mcl.box_w_mm and mcl.box_rise_mm < 0,
+          f"{mcl.box_w_mm:.0f}x{mcl.box_h_mm:.0f} mm, "
+          f"{mcl.box_h_mm/2 + mcl.box_rise_mm:.0f} above and "
+          f"{mcl.box_h_mm/2 - mcl.box_rise_mm:.0f} below — the tibial insertion is the "
+          f"far end, and the field of view stops before it on a third of studies")
+    check("and it is shifted back toward the joint, off the skin",
+          mcl.box_offset_mm > 0,
+          "a medial landmark centred exactly puts half the width in subcutaneous fat")
+    ramp = np.tile(np.arange(400, dtype=np.uint8)[:, None], (1, 400))
+    for plane, name, ow, oh in (("Axial", "pf_oa", 14, 12), ("Coronal", "mcl", 14, 35)):
+        s = SPECS[name].replace(out_w=ow, out_h=oh, patch=1)
+        v = np.array([0., 1., 0.]) if plane == "Axial" else np.array([0., 0., -1.])
+        up = np.array([0., -1., 0.]) if plane == "Axial" else np.array([0., 0., 1.])
+        tf = float(np.sign(v @ up))
+        up_crop = crop_plane(ramp, 200., 200., (1., 1.),
+                             s.replace(box_rise_mm=+20.), 1., tf)
+        down = crop_plane(ramp, 200., 200., (1., 1.),
+                          s.replace(box_rise_mm=-20.), 1., tf)
+        check(f"a positive rise goes up the picture on a {plane.lower()} crop",
+              float(up_crop.mean()) < float(down.mean()),
+              f"on a ramp brightening downward: {up_crop.mean():.0f} against "
+              f"{down.mean():.0f} — anterior on axial, superior on coronal")
+
     cor = SPECS["lateral_meniscus_coronal"]
     wide = ExpertConfig(rois=("lateral_meniscus", "lateral_meniscus_coronal"))
     big = ExpertNet(wide, pretrained=False)
