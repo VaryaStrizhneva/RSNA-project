@@ -121,6 +121,13 @@ PICKERS = {"Sagittal": pick_sagittal, "Axial": pick_axial, "Coronal": pick_coron
 #:   a badge there would ask for a declaration that cannot be wrong, which teaches an
 #:   annotator to stop reading badges.
 #:
+#: `click_near` says which end of a sagittal stack the point lands nearest, and it is
+#: what lets the click recover the side without a second question. It is **not** the same
+#: for the two menisci: a lateral point is near the lateral end, a medial one near the
+#: medial end, so the same click position implies opposite sides. Reading `med_centre`
+#: under the lateral rule would report every knee as the other one — silently, since both
+#: answers are valid sides.
+#:
 #: `prefer_deep` has to be read at **inference** as well as at annotation, and has to be
 #: the same both times. It decides which series of a study the model is shown, so a run
 #: that predicts on a 320-slice acquisition for a point annotated on a 30-slice one is
@@ -130,17 +137,22 @@ PICKERS = {"Sagittal": pick_sagittal, "Axial": pick_axial, "Coronal": pick_coron
 LANDMARKS = {
     "lat_centre": {
         "id": "lat_centre", "plane": "Sagittal", "colour": "#ff6b6b",
-        "side_cue": "stack-end", "prefer_deep": True,
+        "side_cue": "stack-end", "prefer_deep": True, "click_near": "lateral",
         "what": "the centre of the lateral meniscus",
+    },
+    "med_centre": {
+        "id": "med_centre", "plane": "Sagittal", "colour": "#6ea8fe",
+        "side_cue": "stack-end", "prefer_deep": True, "click_near": "medial",
+        "what": "the centre of the medial meniscus",
     },
     "pf_centre": {
         "id": "pf_centre", "plane": "Axial", "colour": "#ffb24d",
-        "side_cue": "none", "prefer_deep": False,
+        "side_cue": "none", "prefer_deep": False, "click_near": None,
         "what": "the middle of the patellofemoral joint space",
     },
     "mcl_centre": {
         "id": "mcl_centre", "plane": "Coronal", "colour": "#7fc98b",
-        "side_cue": "image-side", "prefer_deep": False,
+        "side_cue": "image-side", "prefer_deep": False, "click_near": None,
         "what": "the medial collateral ligament where it crosses the joint line",
     },
 }

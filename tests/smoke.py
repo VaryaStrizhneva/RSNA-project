@@ -1042,14 +1042,30 @@ def test_series_choice() -> None:
           ", ".join(f"{k} on {v['plane']}" for k, v in LANDMARKS.items()))
     check("each point says what the annotator must be told about left and right",
           {k: v["side_cue"] for k, v in LANDMARKS.items()}
-          == {"lat_centre": "stack-end", "pf_centre": "none",
-              "mcl_centre": "image-side"},
+          == {"lat_centre": "stack-end", "med_centre": "stack-end",
+              "pf_centre": "none", "mcl_centre": "image-side"},
           "three situations, not degrees of one: a sagittal stack has a lateral END, a "
           "coronal picture has a medial SIDE, an axial midline point has neither")
-    check("and only the sagittal stack can recover a side from the click",
-          [k for k, v in LANDMARKS.items() if v["side_cue"] == "stack-end"]
-          == ["lat_centre"],
-          "the click's distance to an end means nothing when the ends are front and back")
+    check("and only a sagittal stack can recover a side from the click",
+          {k for k, v in LANDMARKS.items() if v["click_near"]}
+          == {k for k, v in LANDMARKS.items() if v["plane"] == "Sagittal"},
+          "the click's distance to an end means nothing when the ends are front and "
+          "back, or bottom and top")
+
+    # The two menisci sit at OPPOSITE ends of the same stack, so the same click position
+    # implies opposite sides. Reading one under the other's rule reports every knee as
+    # the other one — and both answers are valid sides, so nothing complains.
+    from tools.annotate.to_mm import lateral_end_from_click
+    near_end = {"slice": 3}
+    check("a click near one end means opposite sides for the two menisci",
+          lateral_end_from_click({"n": 30}, near_end, "lateral") == "first"
+          and lateral_end_from_click({"n": 30}, near_end, "medial") == "last",
+          "lat_centre sits near the lateral end, med_centre near the medial one")
+    check("and every sagittal point declares which end it sits near",
+          all(v["click_near"] in ("lateral", "medial")
+              for v in LANDMARKS.values() if v["plane"] == "Sagittal"),
+          ", ".join(f"{k}:{v['click_near']}" for k, v in LANDMARKS.items()
+                    if v["plane"] == "Sagittal"))
     check("the coronal picker prefers fat suppression, like the axial one",
           pick_coronal(pd.DataFrame([
               {"plane": "Coronal", "weight": "PD", "fatsat": False, "n_slices": 40,
