@@ -53,6 +53,9 @@ def main() -> int:
     ap.add_argument("--scratch", default=None, type=Path,
                     help="where the regions are cut; a temp directory by default. "
                          "Files already there are reused and never deleted.")
+    ap.add_argument("--blend", type=float, default=None,
+                    help="weight the expert carries against the wide model, both as "
+                         "ranks; omit to hand it the column outright, 0.5 to average")
     ap.add_argument("--keep-cache", action="store_true",
                     help="leave the regions on disk — 10 GB for 1300 studies")
     ap.add_argument("--workers", type=int, default=8)
@@ -63,7 +66,8 @@ def main() -> int:
         expert_runs=args.expert, landmark_runs=args.landmark, package=args.package,
         data_root=args.dicom_root or args.data_root, split=args.split,
         encoder=args.encoder, out=args.out, scratch=args.scratch,
-        device=args.device, workers=args.workers, keep_cache=args.keep_cache, log=log)
+        device=args.device, workers=args.workers, keep_cache=args.keep_cache,
+        blend=args.blend, log=log)
     log(f"done -> {out}")
     return 0
 
