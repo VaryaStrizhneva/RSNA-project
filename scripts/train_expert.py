@@ -125,6 +125,21 @@ def main() -> int:
 
     gold_index, gold_y, excluded = np.array([], int), None, np.zeros(len(studies), bool)
     holdout_gold = args.holdout_gold or bool(run.get("holdout_gold"))
+    # The expert readings, kept whether or not they are held out. With `holdout_gold`
+    # they are an external set every fold scores and the five are averaged; without it
+    # they are ordinary training studies — carrying a radiologist's label at
+    # `gold_weight` rather than the extractor's — and the honest way to score them is the
+    # one every other study already gets: by the single fold that did not train on it.
+    #
+    # The two numbers are **not interchangeable**. Five models averaged beat one, so the
+    # out-of-fold figure sits below the held-out one for a reason that has nothing to do
+    # with the model. Comparing a run of one kind against a run of the other reads that
+    # gap as quality.
+    _all_gold = train_csv.set_index("StudyInstanceUID")[TARGETS]
+    _all_gold = _all_gold[_all_gold.notna().all(axis=1)]
+    gold_truth = {s: row for s, row in
+                  zip(_all_gold.index,
+                      (_all_gold[list(config.targets)].to_numpy(float) > 0.5).astype(int))}
     if holdout_gold:
         gold = train_csv.set_index("StudyInstanceUID")[TARGETS]
         gold = gold[gold.notna().all(axis=1)]
@@ -151,6 +166,7 @@ def main() -> int:
 
     history, scores, truth, seen, gold_scores = {}, [], [], [], []
     ema_scores: list = []
+    oof_gold: list = []
     for f in range(config.folds):
         if args.fold is not None and f != args.fold:
             continue
@@ -174,6 +190,12 @@ def main() -> int:
         seen += result.studies
         if result.gold_scores is not None:
             gold_scores.append(result.gold_scores)
+        if not holdout_gold:
+            for position, study in enumerate(result.studies):
+                if study in gold_truth:
+                    oof_gold.append((gold_truth[study], result.scores[position],
+                                     None if result.ema_scores is None
+                                     else result.ema_scores[position]))
         log(f"fold {f} kept: epoch {result.best.epoch}, auc {result.best.auc:.4f} "
             f"[{' '.join(f'{x:.3f}' for x in result.best.per_target)}]"
             + (f", gold {result.best.gold_auc:.4f}"
@@ -222,6 +244,28 @@ def main() -> int:
     log("  that is agreement with the label extractor, which is itself worth 0.841 "
         "against the 58 expert studies with 10 % UNK")
     gold_line = {}
+    if oof_gold:
+        gy = np.stack([a for a, _, _ in oof_gold])
+        gp = np.stack([b for _, b, _ in oof_gold])
+        gper = aucs(gy, gp)
+        log(f"\nagainst the {len(gy)} expert readings, each scored by the one fold that "
+            f"did not train on it:")
+        for j, name in enumerate(config.targets):
+            pos = int(gy[:, j].sum())
+            lo, hi = auc_interval(float(gper[j]), pos, len(gy) - pos)
+            log(f"  {name:20s} auc {gper[j]:.4f}  [{lo:.3f}, {hi:.3f}]  ({pos} positive)")
+        log("  not comparable with a held-out gold number: that one averages five "
+            "models, this one is a single fold per study")
+        gold_line = {"per_target": {n: float(v) for n, v in zip(config.targets, gper)},
+                     "mean": float(np.nanmean(gper)), "n": int(len(gy)),
+                     "protocol": "out-of-fold, gold in training"}
+        if all(c is not None for _, _, c in oof_gold):
+            ge = aucs(gy, np.stack([c for _, _, c in oof_gold]))
+            log(f"  the moving average, same studies: "
+                + " ".join(f"{n} {v:.4f} ({v - gper[j]:+.4f})"
+                           for j, (n, v) in enumerate(zip(config.targets, ge))))
+            gold_line["ema_per_target"] = {n: float(v)
+                                           for n, v in zip(config.targets, ge)}
     if gold_scores:
         gp = np.mean(gold_scores, axis=0)
         gper = aucs(gold_y, gp)
