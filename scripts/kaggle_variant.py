@@ -267,7 +267,13 @@ else:
     from rsna.infer import run_expert_submission
 
     shutil.copy2("submission.csv", "/kaggle/working/_public_before_experts.csv")
-    root = next((c for c, _, f in _walk(INPUT) if "test.csv" in f), None)
+    # The pipeline resolved the competition root at startup and published it; asking it
+    # beats walking the mounts again, and walking found nothing here.
+    root = os.environ.get("RSNA_COMP_ROOT") or next(
+        (str(c) for c, _, f in _walk(INPUT) if "test.csv" in f), None)
+    if root is None:
+        raise SystemExit("no competition root: neither RSNA_COMP_ROOT nor a mount with test.csv")
+    print(f"[ours] competition root: {{root}}", flush=True)
     scratch = "/kaggle/working/roi" if Path("/kaggle/working").is_dir() else None
     # No try/except: a leg that swallows its failure leaves the public file in place and
     # reports success, which is indistinguishable from a graft that did nothing.

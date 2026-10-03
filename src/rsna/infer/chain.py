@@ -100,6 +100,9 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
     public leaderboard can resolve at all.
     """
 
+    if data_root is None:
+        raise ValueError("data_root is None — the caller did not resolve the competition "
+                         "root, and pathlib's error for that is three frames deep")
     data_root, out = Path(data_root), Path(out)
     expert_runs = [Path(r) for r in expert_runs]
     landmark_runs = [Path(r) for r in landmark_runs]
