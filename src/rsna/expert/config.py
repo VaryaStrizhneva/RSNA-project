@@ -26,6 +26,19 @@ class ExpertConfig:
 
     #: A timm model name. Convolutional on purpose; see `network.py`.
     encoder: str = "resnet18"
+    #: Where the trunk starts from, when not from ImageNet. A path to a state dict, or
+    #: "" for timm's own pretrained weights.
+    #:
+    #: The one that exists is RadImageNet — a ResNet-50 fitted on ~1.35 M radiological
+    #: images rather than on photographs. The case for it is stronger here than for the
+    #: wide model: a 48 x 27 mm crop of fibrocartilage in greyscale has none of the
+    #: statistics that make ImageNet worth anything, no colour, no objects, no scene,
+    #: while a whole knee at 336 px at least looks like a picture.
+    #:
+    #: Changing this usually changes `encoder` too, so a run that sets it is testing two
+    #: things at once — capacity and pretraining. Which of the two paid needs the third
+    #: run, the same architecture on ImageNet.
+    encoder_weights: str = ""
     #: Neighbouring slices per window, as the encoder's channels.
     group: int = 3
     dropout: float = 0.2
@@ -33,6 +46,22 @@ class ExpertConfig:
     #: the same rate — Lateral Meniscus 25.1 %, Lateral OA 24.6 % — and log(0.25/0.75)
     #: is -1.1. A group whose rates differ would need one per target.
     prior_logit: float = -1.1
+
+    #: Decay of an exponential moving average of the weights, kept alongside training
+    #: and evaluated beside it. 0 turns it off.
+    #:
+    #: It decides nothing: what a fold saves and ships is still its last epoch. The
+    #: average is a passenger, measured every epoch on the held-out fold and on the gold,
+    #: so one batch of runs answers whether it is worth preferring instead of a coin
+    #: toss before them.
+    #:
+    #: The window is what is being chosen, not the number: it spans about 1/(1-decay)
+    #: steps. At 109 steps an epoch, 0.999 averages over roughly nine epochs — a stretch
+    #: where this model genuinely still moves (0.065 of held-out AUC across epochs 6-30)
+    #: rather than the last five, where it has already converged under `OneCycleLR` and
+    #: varies by 0.004. Averaging five copies of one point is what made plain SWA
+    #: pointless here.
+    ema_decay: float = 0.0
 
     epochs: int = 30
     batch: int = 32

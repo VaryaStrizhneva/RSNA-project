@@ -1,0 +1,23 @@
+{
+  "config": {
+    "rois": [
+      "medial_meniscus"
+    ],
+    "encoder": "resnet18",
+    "epochs": 30,
+    "batch": 32,
+    "lr": 0.0003,
+    "folds": 5,
+    "seed": 0,
+    "prior_logit": -0.158,
+    "ema_decay": 0.999,
+    "targets": [
+      "Medial Meniscus"
+    ]
+  },
+  "run": {
+    "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+    "weights": "assertedness",
+    "holdout_gold": true
+  }
+}

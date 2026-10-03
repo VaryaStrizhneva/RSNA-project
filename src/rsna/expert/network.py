@@ -77,8 +77,15 @@ class ExpertNet(nn.Module):
         import timm
 
         self.config = config
-        self.trunk = timm.create_model(config.encoder, pretrained=pretrained,
-                                       num_classes=0, global_pool="avg")
+        # ImageNet is not fetched when the trunk is about to be overwritten anyway: the
+        # scored notebook has no network, and a download that is then discarded is a
+        # crash dressed as a dependency.
+        self.trunk = timm.create_model(
+            config.encoder, pretrained=pretrained and not config.encoder_weights,
+            num_classes=0, global_pool="avg")
+        if config.encoder_weights:
+            from .pretrained import load_encoder_weights
+            load_encoder_weights(self.trunk, config.encoder_weights)
         dim = self.trunk.num_features
         self.attend = Attention(dim, heads=len(config.targets))
         self.drop = nn.Dropout(config.dropout)

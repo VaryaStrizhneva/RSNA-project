@@ -150,6 +150,7 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     history, scores, truth, seen, gold_scores = {}, [], [], [], []
+    ema_scores: list = []
     for f in range(config.folds):
         if args.fold is not None and f != args.fold:
             continue
@@ -162,8 +163,12 @@ def main() -> int:
                      gold_index=gold_index, gold_y=gold_y, log=log)
         torch.save({"config": config.to_dict(),
                     "specs": [sp.to_dict() for sp in config.specs], "fold": f,
-                    "state": result.state}, out / f"fold{f}.pt")
+                    "state": result.state,
+                    # Beside the weights, never instead of them: `load_experts` reads
+                    # `state`. Preferring the average later is then a reload, not a run.
+                    "ema_state": result.ema_state}, out / f"fold{f}.pt")
         history[str(f)] = [vars(e) for e in result.history]
+        ema_scores.append(result.ema_scores)
         scores.append(result.scores)
         truth.append(result.truth)
         seen += result.studies
@@ -191,6 +196,15 @@ def main() -> int:
         has_pixels |= m.any(axis=(1, 2))
     seen_index = {s: i for i, s in enumerate(studies)}
     covered_scored = np.array([bool(has_pixels[seen_index[s]]) for s in seen])
+
+    if any(e is not None for e in ema_scores):
+        ep = np.concatenate([e for e in ema_scores if e is not None])
+        if len(ep) == len(t):
+            eper = aucs(t, ep)
+            log(f"\nthe moving average of the weights, over the same studies:")
+            for j, name in enumerate(config.targets):
+                log(f"  {name:20s} auc {eper[j]:.4f}  "
+                    f"({eper[j] - aucs(t, p)[j]:+.4f} against the weights kept)")
 
     log(f"\nOUT OF FOLD over {len(t)} studies")
     for j, name in enumerate(config.targets):

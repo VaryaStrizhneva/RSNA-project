@@ -1856,6 +1856,60 @@ def test_epoch_choice() -> None:
           and len(result.scores) == 2)
 
 
+def test_encoder_weights() -> None:
+    """Starting a trunk from radiology instead of from photographs.
+
+    RadImageNet publishes a torchvision ResNet-50 cut off at its classifier and wrapped
+    in a `Sequential`, so its keys are `backbone.<index>.…` where timm wants `conv1` and
+    `layer1`. The translation is `torchvision.models.resnet50().children()`, and getting
+    it wrong is the quiet kind of wrong: a trunk half-initialised from radiology and half
+    from `kaiming_normal_` trains perfectly well and answers a question nobody asked.
+    """
+
+    import tempfile
+
+    from rsna.expert.pretrained import _remap, load_encoder_weights
+
+    print("\nexpert encoder weights")
+
+    renamed = _remap({
+        "backbone.0.weight": torch.zeros(1),
+        "backbone.1.running_mean": torch.zeros(1),
+        "backbone.4.0.conv1.weight": torch.zeros(1),
+        "backbone.7.2.bn3.bias": torch.zeros(1),
+    })
+    check("torchvision child indices become timm attribute names",
+          sorted(renamed) == ["bn1.running_mean", "conv1.weight",
+                              "layer1.0.conv1.weight", "layer4.2.bn3.bias"],
+          f"{sorted(renamed)}")
+
+    refused = False
+    try:
+        _remap({"backbone.8.weight": torch.zeros(1)})     # avgpool: not a trunk layer
+    except ValueError:
+        refused = True
+    check("a file carrying children a trunk does not keep is refused",
+          refused, "index 8 is the pooling layer, so the file is not the published encoder")
+
+    missing_file = False
+    try:
+        load_encoder_weights(nn.Linear(1, 1), "models/does-not-exist.pt")
+    except FileNotFoundError as exc:
+        missing_file = "kaggle datasets download" in str(exc)
+    check("a missing file says how to fetch it",
+          missing_file, "94 MB of someone else's weights are not in git")
+
+    with tempfile.NamedTemporaryFile(suffix=".pt", delete=False) as handle:
+        torch.save({"backbone.0.weight": torch.zeros(3, 3)}, handle.name)
+        mismatch = False
+        try:
+            load_encoder_weights(nn.Linear(1, 1), handle.name)
+        except ValueError:
+            mismatch = True
+    check("weights that do not fit the trunk raise rather than load half-way",
+          mismatch)
+
+
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
                  test_laterality, test_model, test_stems, test_encoders, test_encoder_unchanged,
@@ -1864,6 +1918,7 @@ def main() -> int:
                  test_submission, test_figures, test_eval, test_annotation_side, test_series_choice, test_annotation_side_rule,
                  test_excluded_list, test_roi, test_expert,
                  test_expert_inference, test_epoch_choice,
+                 test_encoder_weights,
                  test_cache_shorten,
                  test_landmark_geometry):
         test()

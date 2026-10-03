@@ -1,0 +1,23 @@
+{
+  "config": {
+    "encoder": "resnet50",
+    "epochs": 30,
+    "batch": 32,
+    "lr": 0.0003,
+    "folds": 5,
+    "seed": 0,
+    "prior_logit": -1.229,
+    "targets": [
+      "Lateral Meniscus"
+    ],
+    "rois": [
+      "lateral_meniscus_d32"
+    ],
+    "encoder_weights": "models/radimagenet/ResNet50.pt"
+  },
+  "run": {
+    "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+    "weights": "assertedness",
+    "holdout_gold": true
+  }
+}
