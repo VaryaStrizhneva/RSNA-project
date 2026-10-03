@@ -2,7 +2,7 @@
 
     python -m scripts.kaggle_variant --list
     python -m scripts.kaggle_variant bench --push
-    python -m scripts.kaggle_variant trim coat --push
+    python -m scripts.kaggle_variant nocoat raptor2 --push
 
 The notebook under `kaggle/public-d4/` is 254 KB of someone else's code, and every
 ablation of it differs by a few dozen lines. Committing one copy per ablation would put
@@ -114,8 +114,8 @@ print(f"[bench] cohort of {{BENCH_N}} training studies at {{_bench}}", flush=Tru
                            "metadata": {}, "outputs": [], "source": [cell]})
 
 
-def patch_trim(nb: dict) -> None:
-    """Keep only the Raptor arms that share their decoding.
+def patch_raptor2(nb: dict) -> None:
+    """Drop the two Raptor arms that do not share their decoding — 4 arms become 2.
 
     Raptor is the heaviest stage by a wide margin — 62+62+62+42 forward passes of a
     CoAtNet at 384 px per study, against six windows for the DINO ensemble. The two arms
@@ -162,8 +162,8 @@ def patch_trim(nb: dict) -> None:
         "                run_single(_index, torch.device('cuda:1'))"), "trim:scheduler")
 
 
-def patch_coat(nb: dict) -> None:
-    """Skip the four CoAtNet readers.
+def patch_nocoat(nb: dict) -> None:
+    """Drop all four CoAtNet readers — 55 % of the pipeline's compute, worth +0.001.
 
     They are subprocesses, each reloading its own weights, and they run strictly one
     after another on any cohort over 48 studies — `RSNA_PARALLEL_COAT_READERS` defaults
@@ -192,7 +192,9 @@ def patch_coat(nb: dict) -> None:
 #: `globals()['V18_CALIBRATOR_APPLIED']=True`, and that flag is not bookkeeping: the cell
 #: that sets it fits a learned linear calibrator over the Rad ranks and folds it into 40 %
 #: of several columns. The final checks refuse the run without it, correctly.
-PATCHES = {"bench": patch_bench, "trim": patch_trim, "coat": patch_coat}
+#: Named for what they *remove*, not for what they touch: a kernel called
+#: `rsna-knee-coat` reads as "the one with CoAt" when it is the one without.
+PATCHES = {"bench": patch_bench, "raptor2": patch_raptor2, "nocoat": patch_nocoat}
 
 
 def main() -> int:
