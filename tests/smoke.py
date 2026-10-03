@@ -1814,6 +1814,33 @@ def test_expert_inference() -> None:
           bool(np.allclose(after[4:], before[4:])),
           "they keep the wide model's answer rather than a prior")
 
+    # Grafting onto someone else's submission: the host can be our own wide model or a
+    # public ensemble, and the difference must not be a silent one.
+    import tempfile as _tf
+
+    from rsna.infer.chain import run_expert_submission
+
+    refused = ""
+    try:
+        run_expert_submission([], [], None, ".", out=Path(_tf.mkdtemp()) / "absent.csv")
+    except FileNotFoundError as exc:
+        refused = str(exc)
+    check("grafting onto a submission that does not exist is refused",
+          "expected to hold the submission" in refused,
+          "package=None means someone else wrote the floor; if nobody did, say so")
+
+    with _tf.TemporaryDirectory() as room:
+        thin = Path(room) / "thin.csv"
+        pd.DataFrame({"StudyInstanceUID": ["a"], "ACL": [0.5]}).to_csv(thin, index=False)
+        wrong = ""
+        try:
+            run_expert_submission([], [], None, ".", out=thin)
+        except ValueError as exc:
+            wrong = str(exc)
+        check("a file that is not a submission is refused by name",
+              "does not carry" in wrong and "Fracture" in wrong,
+              "eleven missing columns should not become eleven silent defaults")
+
 
 def test_epoch_choice() -> None:
     """The expert keeps its last epoch, and does not go looking for its best one.

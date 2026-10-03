@@ -110,10 +110,25 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
 
     # The wide model first: it writes the benchmark fallback before anything expensive,
     # and its twelve columns are the floor every expert improves on rather than replaces.
-    run_submission(package, data_root, split, encoder=encoder, out=out,
-                   device=device, log=log)
+    #
+    # `package=None` says that floor already exists at `out` — someone else's pipeline
+    # wrote it, and the experts are grafting onto it rather than onto ours. The whole
+    # machinery below is indifferent to which: it reads twelve columns of ranks and
+    # replaces the seven it owns, so the host can be our five folds of DINOv2 or a
+    # thirty-model public ensemble.
+    if package is not None:
+        run_submission(package, data_root, split, encoder=encoder, out=out,
+                       device=device, log=log)
+    elif not out.is_file():
+        raise FileNotFoundError(
+            f"package is None, so {out} was expected to hold the submission the experts "
+            f"graft onto — nothing wrote it")
     frame = pd.read_csv(out, dtype={"StudyInstanceUID": str}).set_index("StudyInstanceUID")
-    log(f"wide model: {len(frame)} studies, {len(frame.columns)} columns")
+    missing = [t for t in TARGETS if t not in frame.columns]
+    if missing:
+        raise ValueError(f"{out} does not carry {missing}; it is not a submission")
+    log(f"{'wide model' if package is not None else 'host submission'}: "
+        f"{len(frame)} studies, {len(frame.columns)} columns")
 
     headers = _headers(data_root, split)
     log(f"{len(headers)} series over {headers.StudyInstanceUID.nunique()} studies")
