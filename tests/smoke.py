@@ -1815,6 +1815,47 @@ def test_expert_inference() -> None:
           "they keep the wide model's answer rather than a prior")
 
 
+def test_epoch_choice() -> None:
+    """The expert keeps its last epoch, and does not go looking for its best one.
+
+    Replayed over the 35 fold-runs already trained, the argmax of the held-out AUC bought
+    +0.018 of that AUC and lost 0.003 against the 58 gold studies — it was selecting
+    noise in the weak labels. The schedule explains it: `OneCycleLR` anneals the learning
+    rate toward zero, so a mid-schedule epoch is a model whose weights have not settled.
+    """
+
+    from rsna.expert import ExpertConfig, ExpertNet
+    from rsna.expert.loop import fit
+
+    print("\nexpert epoch choice")
+
+    config = ExpertConfig(targets=("ACL",), rois=("acl",), encoder="resnet18",
+                          epochs=3, batch=2)
+    model = ExpertNet(config, pretrained=False)
+
+    rng = np.random.default_rng(0)
+    n, slots = 8, 5
+    volumes = rng.integers(0, 255, (n, 1, slots, 32, 32), dtype=np.uint8)
+    mask = np.ones((n, 1, slots), bool)
+    y = np.zeros((n, 1), np.float32)
+    y[::2] = 1.0
+    w = np.ones_like(y)
+    studies = [f"s{i}" for i in range(n)]
+
+    result = fit(model, [(volumes, mask)], y, w, studies,
+                 np.arange(0, 6), np.arange(6, n), config, device="cpu", log=lambda *_: None)
+
+    check("the epoch kept is the last one, whatever the held-out curve did",
+          result.best is not None and result.best.epoch == config.epochs,
+          f"kept epoch {result.best.epoch} of {config.epochs}")
+    check("every epoch is still recorded, so a divergence stays visible",
+          len(result.history) == config.epochs,
+          "the rule drops the safety net, not the evidence")
+    check("the weights kept are the ones that produced the scores kept",
+          result.state is not None and result.scores is not None
+          and len(result.scores) == 2)
+
+
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
                  test_laterality, test_model, test_stems, test_encoders, test_encoder_unchanged,
@@ -1822,7 +1863,7 @@ def main() -> int:
                  test_augment, test_loop, test_windows,
                  test_submission, test_figures, test_eval, test_annotation_side, test_series_choice, test_annotation_side_rule,
                  test_excluded_list, test_roi, test_expert,
-                 test_expert_inference,
+                 test_expert_inference, test_epoch_choice,
                  test_cache_shorten,
                  test_landmark_geometry):
         test()

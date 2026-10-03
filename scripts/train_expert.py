@@ -169,7 +169,7 @@ def main() -> int:
         seen += result.studies
         if result.gold_scores is not None:
             gold_scores.append(result.gold_scores)
-        log(f"fold {f} best: epoch {result.best.epoch}, auc {result.best.auc:.4f} "
+        log(f"fold {f} kept: epoch {result.best.epoch}, auc {result.best.auc:.4f} "
             f"[{' '.join(f'{x:.3f}' for x in result.best.per_target)}]"
             + (f", gold {result.best.gold_auc:.4f}"
                if np.isfinite(result.best.gold_auc) else ""))

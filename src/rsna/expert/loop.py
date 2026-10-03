@@ -82,7 +82,7 @@ def fit(model, groups, y: np.ndarray, w: np.ndarray,
         config: ExpertConfig, device="cuda", seed: int = 0,
         gold_index: np.ndarray | None = None, gold_y: np.ndarray | None = None,
         log=print) -> FitResult:
-    """Fit one fold. Keeps the epoch with the best held-out AUC, and its weights.
+    """Fit one fold. Keeps the **last** epoch and its weights, not the best one.
 
     `gold_index` names studies a radiologist read, kept out of training by the caller.
     They are scored every epoch and reported, never selected on: the weak-label AUC says
@@ -154,12 +154,25 @@ def fit(model, groups, y: np.ndarray, w: np.ndarray,
                         [float(x) for x in per], int((y[val_index] > 0.5).sum()),
                         float(np.nanmean(gper)), [float(x) for x in gper])
         result.history.append(r)
-        if result.best is None or (np.isfinite(r.auc) and r.auc > result.best.auc):
-            result.best = r
-            result.state = {k: v.detach().cpu().clone()
-                            for k, v in model.state_dict().items()}
-            result.scores = p
-            result.gold_scores = gold_p
+        # The last epoch, not the best one. Replayed over the 35 fold-runs already
+        # trained, taking the argmax of this curve bought **+0.018 of held-out AUC and
+        # lost 0.003 against the 58 gold studies** — it was selecting noise in the weak
+        # labels, not a better model. Keeping the last epoch also cut the spread of the
+        # gold score across folds, from 0.055 to 0.052.
+        #
+        # The schedule is why. `OneCycleLR` raises the learning rate and anneals it back
+        # toward zero, so a mid-schedule epoch is a model whose weights have not settled:
+        # `expert_acl_v4` kept epoch 7 of 30, at a learning rate near its peak. The last
+        # epochs are the annealed ones, and they are the stable ones by construction.
+        #
+        # What this gives up is the safety net: a run that genuinely diverges is no
+        # longer rescued by an earlier epoch. The history still records every epoch, so
+        # a divergence is visible — it is just no longer silently repaired.
+        result.best = r
+        result.state = {k: v.detach().cpu().clone()
+                        for k, v in model.state_dict().items()}
+        result.scores = p
+        result.gold_scores = gold_p
         detail = " ".join(f"{x:.3f}" for x in r.per_target)
         log(f"  epoch {epoch:3d}  loss {r.loss:.4f}  auc {r.auc:.4f} [{detail}]"
             + (f"  gold {r.gold_auc:.4f}" if np.isfinite(r.gold_auc) else ""))
