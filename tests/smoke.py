@@ -1593,9 +1593,19 @@ def test_expert() -> None:
     unknown = {s.name: s.landmark for s in SPECS.values() if s.landmark not in _POINTS}
     check("every ROI spec hangs off a landmark this project collects",
           not unknown, f"{unknown or 'all of them'}")
-    check("and the axial specs hang off the axial point",
-          all(s.landmark == "pf_centre" for s in SPECS.values() if s.plane == "Axial"),
-          "a spec left on the default asked for lat_centre and silently cut nothing")
+    # The guard here is against a spec left on the dataclass default: `RoiSpec()` names
+    # `lat_centre`, so an axial box that forgot to say otherwise asks for the lateral
+    # meniscus point and cuts a plausible-looking crop of the wrong place. Which point an
+    # axial box *should* use is a per-target decision, not a plane-wide one — `pf_oa`
+    # hangs off the patellofemoral point, `baker_axial` off the medial meniscus one,
+    # 36 mm posterior, because that is where the popliteal bursa was measured.
+    AXIAL_POINTS = {"pf_centre", "med_centre"}
+    stray = {s.name: s.landmark for s in SPECS.values()
+             if s.plane == "Axial" and s.landmark not in AXIAL_POINTS}
+    check("no axial spec is left on the default landmark",
+          not stray,
+          f"{stray or 'none'} — the default is lat_centre, which on an axial crop cuts "
+          f"the wrong compartment without failing")
 
     pf = SPECS["pf_oa"]
     check("the patellofemoral box rises instead of shifting sideways",

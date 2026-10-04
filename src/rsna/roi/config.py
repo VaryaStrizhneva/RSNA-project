@@ -506,6 +506,46 @@ SPECS = {
     # the opposite test: more peripheral margin, nothing else changed
     "lateral_meniscus_l6": RoiSpec(name="lateral_meniscus_l6",
                                    lateral_mm=6.0, medial_mm=12.0, slots=5),
+    #: The popliteal cyst, in the plane the first attempt never gave it.
+    #:
+    #: **Why axial.** The sagittal `baker` spec dismissed this plane in one line — *axial
+    #: needs no expert, the cyst falls at 0.50 of that stack* — which argues that the
+    #: **wide model** already sees it, not that an expert would read it no better. Two
+    #: different questions, and the first was answered in place of the second. The axial
+    #: plane is also the only one that shows the neck between the semimembranosus tendon
+    #: and the medial head of gastrocnemius, which is what separates a true Baker's cyst
+    #: from any other popliteal fluid.
+    #:
+    #: **Located, not guessed.** An axial difference map over 250 studies with a reported
+    #: cyst against 250 without — bright-voxel frequency on fat-suppressed fluid-sensitive
+    #: images, thresholded per slice at its own 97th percentile — puts the excess at
+    #: **36 mm posterior** of `med_centre`, at the landmark's own medial position
+    #: (**within ±6 mm at every height**, which is the axis the sagittal map could not
+    #: resolve), spanning **−20 to +50 mm** in height and peaking at +10 to +30. The cyst
+    #: is not at the joint line; it is above it, in the popliteal fossa.
+    #:
+    #: 56 x 56 mm holds **82.5 %** of that excess against 71 % for the sagittal 90 x 75,
+    #: and stays wholly inside the image on **97.6 %** of studies against 98.8 % — so it
+    #: is not a trade. The same box with its depth window shrunk to the joint line keeps
+    #: 48.3 %: nearly half the signal is in the 40 mm a joint-centred window would miss.
+    #:
+    #: **Three signs, all read off the series rather than assumed.** `box_rise_mm` moves
+    #: the box along the rows, which is *anterior* on an axial crop, so a **negative**
+    #: value is what goes posterior. `box_offset_mm` is zero because the measurement said
+    #: no medial correction was needed. And the depth window is asymmetric, so
+    #: `bowtie_direction` picks its direction — measured on 150 axial stacks it points
+    #: **inferior 99.3 %** of the time, which makes `lateral_mm` the inferior reach and
+    #: `medial_mm` the superior one.
+    #:
+    #: Fat-suppressed only, and PD before T2: axial PD fat-sat covers 72.2 % of studies
+    #: and T2 fat-sat takes the pair to **98.6 %**. Axial T1 exists on 12.4 % and is not
+    #: worth a fallback level.
+    "baker_axial": RoiSpec(
+        name="baker_axial", landmark="med_centre", plane="Axial",
+        box_w_mm=56.0, box_h_mm=56.0, out_w=196, out_h=196,
+        box_offset_mm=0.0, box_rise_mm=-36.0,
+        lateral_mm=20.0, medial_mm=50.0, slots=18, decimate_to_mm=4.0,
+        series=(("Axial", "PD", True), ("Axial", "T2", True))),
     #: The whole knee, for the five targets no compartment box covers — effusion,
     #: synovitis, the popliteal cyst, contusion, fracture. Pipeline v3's wide branches.
     #:
