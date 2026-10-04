@@ -157,14 +157,23 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
     toward = 1.0 if spec.symmetric_depth else bowtie_direction(
         volume[thinned], t[thinned], t_point)[0]
     if point2_mm is not None:
-        # Between the two points rather than around one, inset at each end. The window
-        # then follows the knee: 27 mm across on the narrowest of the 294 studies
-        # carrying both meniscus points, 48 on the widest.
+        # Two landmarks place the box between them; what they do to the *depth* window
+        # depends on whether the spec brought one of its own.
         t2 = through_plane(np.asarray(point2_mm, float), n)
-        half = max(abs(t2 - t_point) / 2.0 - spec.depth_inset_mm, 1e-6)
         centre_t = (t_point + t2) / 2.0
-        span = spec.replace(lateral_mm=half, medial_mm=half)
-        keep = thinned[choose_slices(t[thinned], centre_t, 1.0, span)]
+        if spec.lateral_mm or spec.medial_mm:
+            # The spec has an extent, so the two points only say where the centre is.
+            # This is what a whole-knee box needs: the midpoint of the two menisci is
+            # the joint centre, but its depth window has to reach the whole knee —
+            # 90 mm — not the 27 to 48 mm that happen to separate the two points.
+            keep = thinned[choose_slices(t[thinned], centre_t, toward, spec)]
+        else:
+            # No extent of its own: derive it from the points, inset at each end. The
+            # window then follows the knee — 27 mm across on the narrowest of the 294
+            # studies carrying both meniscus points, 48 on the widest.
+            half = max(abs(t2 - t_point) / 2.0 - spec.depth_inset_mm, 1e-6)
+            span = spec.replace(lateral_mm=half, medial_mm=half)
+            keep = thinned[choose_slices(t[thinned], centre_t, 1.0, span)]
     else:
         keep = thinned[choose_slices(t[thinned], t_point, toward, spec)]
 
