@@ -1,0 +1,84 @@
+{
+  "config": {
+    "encoder": "resnet18",
+    "epochs": 30,
+    "batch": 8,
+    "lr": 0.0003,
+    "folds": 5,
+    "seed": 0,
+    "targets": [
+      "ACL",
+      "MCL",
+      "Medial Meniscus",
+      "Lateral Meniscus",
+      "Medial OA",
+      "Lateral OA",
+      "PF OA",
+      "Effusion",
+      "Synovitis",
+      "Baker's",
+      "Contusion",
+      "Fracture"
+    ],
+    "rois": [
+      "lateral_meniscus_d32",
+      "medial_meniscus",
+      "pf_oa",
+      "mcl",
+      "lateral_oa",
+      "medial_oa",
+      "acl",
+      "knee_sagittal",
+      "knee_coronal"
+    ],
+    "one_channel": true,
+    "channel_order": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        1,
+        2
+      ]
+    ]
+  },
+  "run": {
+    "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+    "weights": "assertedness",
+    "holdout_gold": true
+  }
+}
