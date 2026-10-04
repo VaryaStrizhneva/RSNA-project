@@ -9,9 +9,14 @@ property of the configuration a member was fitted under, so training and inferen
 cannot disagree about it.
 """
 
+from .chain import run_expert_submission
+from .experts import load_experts, score_experts
+from .landmarks import load_landmarks, predict_landmarks
 from .predict import blend_members, predict_member
 from .run import run_submission
 from .submission import benchmark_submission, write_submission
 
 __all__ = ["predict_member", "blend_members", "benchmark_submission",
-           "write_submission", "run_submission"]
+           "write_submission", "run_submission",
+           "load_landmarks", "predict_landmarks", "load_experts", "score_experts",
+           "run_expert_submission"]

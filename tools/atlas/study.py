@@ -89,7 +89,13 @@ def series_headers(study: str) -> pd.DataFrame:
         files = sorted(series.glob("*.dcm"))
         if not files:
             continue
-        ds = pydicom.dcmread(str(files[0]), force=True, stop_before_pixels=True)
+        # The MIDDLE slice, which is what `rsna.dicom.headers.probe` reads. Not a
+        # detail: a sagittal series steps along x, so its first slice sits half a stack
+        # from its middle — measured, up to 24.7 mm apart on this corpus. Reading the
+        # first one here made this table disagree with the package's about where a study
+        # sits in the patient, and `side_from_geometry` was measured under the middle.
+        ds = pydicom.dcmread(str(files[len(files) // 2]), force=True,
+                             stop_before_pixels=True)
         row = {"StudyInstanceUID": study, "SeriesInstanceUID": series.name,
                "n_slices": len(files), "dir": str(series)}
         row.update({t: _tag(ds, t) for t in HEADER_TAGS})

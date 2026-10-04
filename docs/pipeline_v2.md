@@ -1,8 +1,15 @@
 # Pipeline v2 — one input specification per pathology
 
-**Status: design in progress.** Nothing here is implemented yet except the annotation
-tooling. This document is the decision record: what we are building, why, and which
-claims are measured rather than assumed.
+**Status: the ROI work shipped; the architecture did not.** The seven per-pathology
+experts described here were built, trained and submitted — they are worth **+0.004** on a
+0.940 host **[m, public leaderboard]**. The twelve-target architecture in §2 was never
+built, and [`pipeline_v3.md`](pipeline_v3.md) supersedes it: reading the public pipeline
+changed where the attention should sit and a trunk constraint settled the encoder choice.
+Everything else here — the ROI specifications, the landmark work, the annotation protocol
+— is still the record of what runs.
+
+This document is the decision record: what we are building, why, and which claims are
+measured rather than assumed.
 
 Every number below is marked **[m]** when it was measured on this corpus, with the
 sample size. Anything unmarked is a proposal or a judgement.

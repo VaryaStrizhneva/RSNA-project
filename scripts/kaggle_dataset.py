@@ -31,6 +31,9 @@ KAGGLE = str(Path(sys.executable).with_name("kaggle"))
 OWNER = "mathysgouverneur"
 SOURCE_SLUG = "rsna-src"
 WEIGHTS_SLUG = "rsna-knee-weights"
+#: The expert and landmark runs, which are not packages: they have no manifest, they
+#: carry their own config inside each `fold*.pt`, and the chain reads them by directory.
+RUNS_SLUG = "rsna-knee-experts"
 
 
 def owns(slug: str) -> bool:
@@ -92,26 +95,56 @@ def stage_package(into: Path, package: Path) -> str:
     return WEIGHTS_SLUG
 
 
+def stage_runs(into: Path, runs: list[Path]) -> str:
+    """Whole run directories, one subdirectory each, keeping their names.
+
+    Unlike a weights package there is no manifest to read: an expert or landmark run is
+    a directory of `fold*.pt`, each carrying the config and the regions it was fitted
+    under. The chain is handed the directory and reads the rest off the weights, so the
+    name is the only thing that has to survive the trip — `out/expert_acl` must arrive
+    as `expert_acl`, not as a pile of `fold0.pt` that have lost which run they are.
+    """
+
+    total = 0
+    for run in runs:
+        folds = sorted(run.glob("fold*.pt"))
+        if not folds:
+            raise SystemExit(f"{run} holds no fold weights")
+        (into / run.name).mkdir(parents=True)
+        for fold in folds:
+            shutil.copy2(fold, into / run.name / fold.name)
+            total += fold.stat().st_size
+        print(f"  {run.name}: {len(folds)} fold(s)")
+    print(f"{len(runs)} run(s), {total / 1e6:.0f} MB staged")
+    return RUNS_SLUG
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", action="store_true",
                         help="Publish src/rsna as the code dataset.")
     parser.add_argument("--package", type=Path,
                         help="Publish this weights package.")
+    parser.add_argument("--runs", type=Path, nargs="+",
+                        help="Publish these expert/landmark run directories.")
     parser.add_argument("--slug", default=None, help="Override the dataset slug.")
     parser.add_argument("--message", default="update", help="Version message.")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    if bool(args.source) == bool(args.package):
-        raise SystemExit("pass exactly one of --source or --package")
+    chosen = [bool(args.source), bool(args.package), bool(args.runs)]
+    if sum(chosen) != 1:
+        raise SystemExit("pass exactly one of --source, --package or --runs")
 
     with tempfile.TemporaryDirectory() as tmp:
         staged = Path(tmp)
-        slug = (stage_source(staged) if args.source
-                else stage_package(staged, args.package))
+        if args.source:
+            slug, title = stage_source(staged), "RSNA Knee source"
+        elif args.runs:
+            slug, title = stage_runs(staged, args.runs), "RSNA Knee experts"
+        else:
+            slug, title = stage_package(staged, args.package), "RSNA Knee weights"
         slug = args.slug or slug
-        title = ("RSNA Knee source" if args.source else "RSNA Knee weights")
 
         (staged / "dataset-metadata.json").write_text(json.dumps({
             "title": title,

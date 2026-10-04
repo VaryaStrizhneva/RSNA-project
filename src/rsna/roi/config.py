@@ -31,18 +31,24 @@ class RoiSpec:
     #: Box height, along the superior-inferior axis. 27 rather than a rounder number so
     #: the pixels come out isotropic at the output size below: 48/224 = 27/126.
     box_h_mm: float = 27.0
-    #: How far the box centre sits toward the **lateral** side of the landmark, in
-    #: millimetres; negative is toward the midline. Zero on a sagittal crop, where the
-    #: horizontal axis is anterior-posterior and there is no lateral to shift toward.
+    #: How far the box centre is moved along the **column** axis, in millimetres. What
+    #: that axis *is* depends on the plane, and all three were measured: a coronal or
+    #: axial series runs its columns toward the patient's left, so the shift is toward
+    #: the **lateral** side and negative goes toward the midline; a sagittal series runs
+    #: them toward the **posterior** on 5563 of 5563, so there the shift is backwards.
     #: A coronal crop needs it: measured on 70 studies, the landmark sits at 95 % of the
     #: knee's width from its medial edge, with 28 mm of skin in front of it and 85 mm of
     #: knee behind — so a box centred on it wastes half its width outside the patient.
     box_offset_mm: float = 0.0
-    #: How far the box centre is moved toward the **anterior**, in millimetres. Shifts
-    #: the box along the *row* axis, where `box_offset_mm` shifts it along the column
-    #: axis — two different directions, and a crop needs whichever one its plane makes
-    #: anterior-posterior. Only an axial crop does: on a sagittal or coronal slice the
-    #: rows run superior-inferior and there is no front to rise toward.
+    #: How far the box centre is moved toward the **top of the picture**, in
+    #: millimetres; negative moves it down. Shifts the box along the *row* axis, where
+    #: `box_offset_mm` shifts it along the column axis — two different directions, and a
+    #: crop needs whichever one its plane gives it.
+    #:
+    #: What the top *is* depends on the plane, and all were measured rather than
+    #: assumed: an axial series runs its rows toward the posterior on 3342 of 3342, so up
+    #: is **anterior**; a coronal one runs them toward the inferior on 3815 of 3815 and a
+    #: sagittal one on 5563 of 5563, so on both of those up is **superior**.
     #:
     #: The patellofemoral box needs it. Its landmark is the joint line, with the patella
     #: in front and the trochlea behind, and the patella is the half that gets clipped:
@@ -50,6 +56,14 @@ class RoiSpec:
     #: on the studies where it sits high. Raising it 8 mm costs an empty strip past the
     #: skin on 60 % of studies, but a **median of 3.1 mm** of one — 6 % of the box, 14 %
     #: at the 90th centile — against losing the bone the osteophytes grow on.
+    #:
+    #: The collateral ligament box needs it the other way, hence the sign. Its landmark
+    #: is the joint line; the femoral origin is two to three centimetres above and the
+    #: tibial insertion five to seven below — but the field of view does not reach that
+    #: far down. Measured over 209 annotated studies, a box descending 30 mm below the
+    #: click stays inside the image on 100 % of them, 40 mm on 98.1 %, 50 mm on 89 % and
+    #: 60 mm on **67 %**. So it is given most of its height downward, and no more than
+    #: was actually imaged.
     box_rise_mm: float = 0.0
     out_w: int = 224
     out_h: int = 126
@@ -71,6 +85,22 @@ class RoiSpec:
     #: A 3D series is thinned towards this before anything else, by an integer stride —
     #: otherwise 16 mm at 0.4 mm spacing is forty slices for five slots.
     decimate_to_mm: float = 3.3
+
+    #: A second landmark, when the region is defined **between two points** rather than
+    #: around one. The crop then centres on their midpoint and the depth window spans
+    #: from one to the other, inset by `depth_inset_mm` at each end — so its width
+    #: follows the knee rather than being fixed.
+    #:
+    #: The cruciate needs this and nothing before it did. It sits in the notch, between
+    #: the compartments, so no single point this project collects is near it — but the
+    #: two meniscus points bracket it. Measured over the 294 studies carrying both, they
+    #: are 50.8 mm apart in the median (p2.5 42.5, p97.5 64.3), so a window inset 8 mm
+    #: at each end spans 35 mm in the median and ranges from 27 to 48. A fixed +/- 17 mm
+    #: would be too wide on a small knee and too narrow on a large one.
+    landmark2: str | None = None
+    #: Millimetres dropped at each end of a two-landmark depth window. Ignored without
+    #: `landmark2`.
+    depth_inset_mm: float = 0.0
 
     #: Which series the ROI is taken from, as (plane, weighting, fat-suppressed).
     #: Several at once, each with its own presence mask: SAG_PD_FS covers 81.3 % of
@@ -138,6 +168,112 @@ class RoiSpec:
 #: point says nothing about how far the meniscus extends around it.
 SPECS = {
     "lateral_meniscus": RoiSpec(),
+    #: The other compartment, and nothing else changes. Every number in `RoiSpec`'s
+    #: defaults describes the size of a meniscus and the useful thickness around it, and
+    #: a medial meniscus is of the same order — so the box, the depth and the series are
+    #: taken verbatim from the lateral one.
+    #:
+    #: The asymmetry **did** look like it would have to flip. The depth is short toward
+    #: the bowtie and long toward the notch because the landmark sits a slice or two off
+    #: the peripheral end, and the medial compartment's periphery is the opposite edge
+    #: of the knee. But `bowtie_direction` does not hardcode a side: it measures how far
+    #: the imaged knee extends either way **from the point it is given**, and the nearer
+    #: end wins. Measured on 70 studies carrying both points, it returns opposite
+    #: directions for the two, **70 times out of 70**, with a comparable margin — median
+    #: separation 3.15 against the lateral's 3.50, minimum 2.00 against 2.10. So it
+    #: corrects itself and no field was needed.
+    #: A little larger than the lateral box in both directions, because the medial
+    #: meniscus is the larger of the two — a wide C against a nearly closed O — and its
+    #: posterior horn is the broader one.
+    #:
+    #: 54 x 33 rather than the 52 x 30 that was asked for, because the sizes are
+    #: quantised. Holding the lateral crop's resolution (48/224 = 3/14 mm per pixel) and
+    #: requiring both output sides to divide by 14 leaves `box = 3 * patches`: the boxes
+    #: available near 52 x 30 are 51 x 30, 54 x 30, 51 x 33 and 54 x 33, and nothing in
+    #: between. Choosing the same millimetres per pixel is what makes this box
+    #: comparable to the lateral one at all — what differs is extent, not sharpness.
+    "medial_meniscus": RoiSpec(
+        name="medial_meniscus", landmark="med_centre",
+        box_w_mm=54.0, box_h_mm=33.0, out_w=252, out_h=154),
+    #: The anterior cruciate ligament, defined **between** the two meniscus points
+    #: rather than around one — the first region here that needs two. It sits in the
+    #: intercondylar notch, between the compartments, so nothing this project collects
+    #: is near it; but the two meniscus points bracket it, 50.8 mm apart in the median.
+    #:
+    #: The depth window starts 12 mm inside each of them and keeps everything between:
+    #: measured over the 294 studies carrying both points, **26.8 mm in the median**,
+    #: 18.5 on the narrowest knee and 40.3 on the widest, and never empty. A fixed
+    #: half-extent cannot do that — it would be too wide on a small knee and too narrow
+    #: on a large one.
+    #:
+    #: 12 rather than 8: at 8 the window ran to 48 mm on the widest knees, which is more
+    #: than the notch is deep and spends slots on compartment rather than on cruciate.
+    #:
+    #: An adaptive window cannot fill a fixed number of slots, and 11 is the least bad of
+    #: them. Measured over 120 studies, the window holds 4 to 12 acquired slices, median
+    #: 8 — so 9 slots would fill on 42 % of studies but **throw acquired slices away on
+    #: 26 %**, while 13 would fill on none. 11 pads 88 % and thins 3 %, and padding is
+    #: the cheaper mistake: a window whose centre slot is padding never reaches the
+    #: encoder, where a thinned stack has lost pixels that existed.
+    #:
+    #: 60 x 52 mm, 8 mm up and 4 mm back from the midpoint. "Up" and "back" are
+    #: measurable and not figurative: a sagittal series runs its columns toward the
+    #: posterior and its rows toward the inferior on 5563 of 5563, so up is superior and
+    #: a positive column offset is backwards. The ligament runs from the back of the
+    #: notch down and forwards, so its middle sits above the joint line the two meniscus
+    #: points lie on.
+    #:
+    #: 210 x 182 px at 0.286 mm/px, not the meniscus crop's 0.214. The cruciate is a
+    #: 10 mm structure, not a 1.5 mm tear, and the finer grid would cost 78 % more
+    #: pixels to resolve something that does not need it. It also makes the box land on
+    #: whole patches: at 4/14 mm per pixel the available sizes step by 4 mm, and 60 and
+    #: 52 are both multiples of 4.
+    #:
+    #: **Expect little.** The rule the first three experts suggest — a crop helps when
+    #: the lesion is small against the whole-knee view — puts this on the wrong side:
+    #: the cruciate bundle is 26 px at the wide model's 0.387 mm/px, against 4 px for a
+    #: meniscal tear that worked and 10 px for the collateral band that did not.
+    "acl": RoiSpec(
+        name="acl", landmark="lat_centre", landmark2="med_centre", plane="Sagittal",
+        box_w_mm=60.0, box_h_mm=52.0, out_w=210, out_h=182,
+        box_offset_mm=4.0, box_rise_mm=8.0, depth_inset_mm=12.0,
+        lateral_mm=0.0, medial_mm=0.0, slots=11,
+        series=(("Sagittal", "PD", True), ("Sagittal", "PD", False))),
+    #: Tibiofemoral osteoarthritis, one spec per compartment, both hanging off the
+    #: meniscus point that compartment already has — **no new annotation**. Projected
+    #: onto a coronal slice the two points land one in each compartment, 57 mm apart on
+    #: the study measured, and a box this size around each frames the joint line with
+    #: bone above and below and the outer margin inside it.
+    #:
+    #: Coronal and not sagittal, because that is the plane the disease is read in: joint
+    #: space narrowing is the height of the gap seen face on, and marginal osteophytes
+    #: grow at the edges of the plateau, which the sagittal view cuts through rather
+    #: than displays.
+    #:
+    #: 54 x 39 rather than the meniscus box's 54 x 33, and **not offset**. The meniscus
+    #: coronal box is shifted 6 mm toward the periphery because it is looking for
+    #: extrusion — the body displaced past the tibial margin. Osteoarthritis is not at
+    #: the margin but across the compartment, and its subchondral oedema and sclerosis
+    #: are *inside* the bone on both sides of the gap, so the box is centred and taller.
+    #:
+    #: Expect little. Lateral OA was tried on the meniscus crops and lost to the wide
+    #: model by 0.028 with the interval excluding zero; the likeliest reason is not the
+    #: region at all but that its pixels add **nothing** over the other eleven labels
+    #: (comorbidity alone 0.8575 against the wide model's 0.8471, a negative margin).
+    #: Medial OA is at +0.021, which is small but positive, and the crop costs one head
+    #: on a region being built anyway.
+    "medial_oa": RoiSpec(
+        name="medial_oa", landmark="med_centre", plane="Coronal",
+        box_w_mm=54.0, box_h_mm=39.0, out_w=252, out_h=182,
+        lateral_mm=14.0, medial_mm=14.0, slots=9,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
+    "lateral_oa": RoiSpec(
+        name="lateral_oa", landmark="lat_centre", plane="Coronal",
+        box_w_mm=54.0, box_h_mm=39.0, out_w=252, out_h=182,
+        lateral_mm=14.0, medial_mm=14.0, slots=9,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
     #: The coronal view of the same compartment, hanging off the same landmark — no new
     #: annotation, because the point is in patient millimetres and the other series of
     #: the study are read in those same millimetres. What it adds is **extrusion**: the
@@ -199,6 +335,145 @@ SPECS = {
         box_rise_mm=8.0,
         lateral_mm=16.0, medial_mm=16.0, slots=9,
         series=(("Axial", "PD", True), ("Axial", "T2", True))),
+    #: The medial collateral ligament, on the coronal plane, hanging off its own point
+    #: — `mcl_centre`, the ligament where it crosses the joint line. Nothing else this
+    #: project has collected is within 50 mm of it: placing it from the lateral meniscus
+    #: landmark and the limb's medial skin edge was tried and lands in the subcutaneous
+    #: fat, because the thickness between skin and ligament varies from patient to
+    #: patient. See docs/atlas/mcl.html.
+    #:
+    #: 32 x 80 mm, **taller than wide** — the inverse of the meniscus and patellar boxes,
+    #: because the ligament is a long thin band rather than a thing to frame. Dropped
+    #: 12 mm toward the tibia, so 28 mm above the joint line and 52 below: the femoral
+    #: origin is two to three centimetres up, the tibial insertion five to seven down,
+    #: and the field of view runs out before the latter on a third of studies.
+    #:
+    #: Shifted 5 mm **toward the knee** — that is what `box_offset_mm` does from a
+    #: medial landmark, since lateral is the way back to the joint. Centred exactly on
+    #: the click, half the width sits in subcutaneous fat; 5 mm buys bone and loses
+    #: nothing the ligament occupies.
+    #:
+    #: 112 x 280 px: both divide by 14, the aspect matches 32:80 exactly so the pixels
+    #: are square, and 0.286 mm/px is already finer than the 0.31 mm/px median coronal
+    #: acquisition.
+    #:
+    #: **The depth is a guess and is meant to be swept**, like the two before it.
+    "mcl": RoiSpec(
+        name="mcl", landmark="mcl_centre", plane="Coronal",
+        box_w_mm=32.0, box_h_mm=80.0, out_w=112, out_h=280,
+        box_offset_mm=5.0, box_rise_mm=-12.0,
+        lateral_mm=12.0, medial_mm=12.0, slots=7,
+        #: Three, and the third is NOT fat-suppressed. The pair of fat-suppressed
+        #: sequences leaves 197 studies (4.5 %) with no coronal at all, and a study with
+        #: no pixels still gets scored: every window is masked, the attention falls back
+        #: to zero and the head emits its bias, so they arrive as one block of ties.
+        #: Measured on the patellofemoral run, 1.5 % uncovered cost 0.0032 of AUC.
+        #:
+        #: **96.4 % of those 197 have a coronal PD without fat suppression**, and adding
+        #: it takes coverage to 99.8 %. It is the right sequence to fall back on rather
+        #: than merely the common one: PD without suppression is where the band itself
+        #: reads best, the surrounding fat giving it contrast, so the ligament's
+        #: thickness and continuity are plain. What it shows less well is oedema, which
+        #: is the low-grade sprain — it is a worse sequence than the fat-suppressed ones
+        #: and a far better one than nothing.
+        #:
+        #: Coronal T1 was the other candidate and was refused: +1.0 point of coverage,
+        #: and T1 does not show oedema at all, so it would add a slot in which the thing
+        #: being looked for is largely invisible.
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
+    #: What the first collateral run was actually cut under — the two fat-suppressed
+    #: series only, 95.5 % of studies. Kept so `experiments/expert_mcl_fsonly.json`
+    #: still reproduces the number it published.
+    "mcl_fsonly": RoiSpec(
+        name="mcl_fsonly", landmark="mcl_centre", plane="Coronal",
+        box_w_mm=32.0, box_h_mm=80.0, out_w=112, out_h=280,
+        box_offset_mm=5.0, box_rise_mm=-12.0,
+        lateral_mm=12.0, medial_mm=12.0, slots=7,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
+    #: The popliteal cyst, and the first region here cut for **coverage** rather than
+    #: resolution. A cyst is 25 mm across, 64 px in the wide model's view — six times the
+    #: 10 px where the collateral expert failed — so nothing is gained by zooming. What is
+    #: gained is the slices the wide model's sampler throws away: its `band` keeps the
+    #: central 60 % of each stack, which leaves a **median of 5.3 mm** of tissue medial of
+    #: `med_centre` out of **26.4 mm acquired**, and 19.9 % of studies with 10 mm or more
+    #: against 97.6 % acquired. A cyst hangs off the posteromedial capsule, between the
+    #: semimembranosus and the medial head of the gastrocnemius, which is exactly there.
+    #:
+    #: Measured, not recalled. Over 72 reported-positive against 118 reported-negative
+    #: studies, the frequency of bright voxels — fluid being the brightest thing on a
+    #: fat-suppressed fluid-sensitive image, thresholded per study against its own
+    #: distribution — peaks **44 mm posterior and 17 mm superior** to the landmark. The
+    #: first draft of this box was put 12 mm *below* it by analogy with the collateral
+    #: ligament, which the map contradicts.
+    #:
+    #: 90 x 75 mm at 252 x 210 holds **71 %** of that excess. Bigger holds more — 96 x 84
+    #: holds 78.5 % — but at 0.429 mm/px, coarser than the wide model's own 0.387, and its
+    #: posterior edge leaves the acquisition on a few per cent of studies. The box is
+    #: forgiving, which matters once the landmark comes from a model rather than a click:
+    #: moving it 6 mm in any direction costs under 2 points of capture.
+    #:
+    #: The depth window [-8, +20] mm holds **88 %** of the excess against 72 % for
+    #: [-8, +12]; at the 3.3 mm median sagittal spacing that is 9 slices. `lateral_mm` is
+    #: the distance toward the nearer end of the stack, which `bowtie_direction` finds on
+    #: its own — from `med_centre` that end is the medial edge, so it is the field that
+    #: opens the window onto the discarded slices.
+    #:
+    #: One number says whether the box is worth cutting at all: the bright-voxel fraction
+    #: inside it, with nothing fitted, scores **0.6847**. The same count restricted to the
+    #: slices the band keeps scores **0.5500**, and over the whole slice 0.6323. The signal
+    #: is in what is thrown away, and it is specific to this region.
+    #:
+    #: Sagittal only, and fat-suppressed first: popliteal fat is abundant exactly here, so
+    #: suppression is what separates the cyst from it. Coronal is cut worse than sagittal
+    #: — the cyst sits at 0.78 of a coronal stack, outside the band on 43.3 % of studies —
+    #: but its depth window would have to be offset 22 mm posteriorly, which this dataclass
+    #: cannot express and `bowtie_direction` must not be asked to do. Axial needs no
+    #: expert: the cyst falls at 0.50 of that stack, outside the band on 0.6 %.
+    "baker": RoiSpec(
+        name="baker", landmark="med_centre", plane="Sagittal",
+        box_w_mm=90.0, box_h_mm=75.0, out_w=252, out_h=210,
+        box_offset_mm=16.0, box_rise_mm=20.0,
+        lateral_mm=20.0, medial_mm=8.0, slots=9,
+        series=(("Sagittal", "PD", True), ("Sagittal", "PD", False))),
+    #: The cyst again, larger in every direction the measurement allowed, and on the
+    #: sequence the first spec forgot.
+    #:
+    #: **The forgotten slot.** `baker` took its two series straight from the meniscus
+    #: specs — sagittal PD fat-suppressed, then PD without. That is right for a meniscus,
+    #: where PD *is* the sequence, and wrong for a fluid collection sitting in popliteal
+    #: fat: 766 studies (17.4 %) carry no sagittal PD fat-sat, and **478 of them do carry
+    #: a sagittal T2 fat-sat** the spec never asked for, so they were read on a sequence
+    #: where the fat is as bright as the cyst. Adding the slot moves 11 % of the corpus
+    #: onto a suppressed sequence; it buys almost no coverage (99.8 % to 99.9 %), which
+    #: is the opposite of why the collateral ligament got its third series.
+    #:
+    #: **The size.** Measured against the acquisition over 292 annotated studies, a box
+    #: centred 16 mm behind and 20 mm above the landmark fits entirely inside the image
+    #: on 100 % of studies at 90 x 75, **95.5 % at 110 x 95**, and 86.3 % at 120 x 100 —
+    #: the posterior edge is what runs out, at a median of 81 mm of knee behind the
+    #: point. 110 x 95 is the last size that does not pad an eighth of the corpus.
+    #:
+    #: It is deliberately past what the trivial probe prefers. That probe — the
+    #: bright-voxel fraction in the box — falls monotonically as the box grows, from
+    #: 0.716 at 64 x 56 to 0.664 at 126 x 105, because it is a **mean** and empty area
+    #: dilutes it. The network is not a mean: it attends over windows, masked, once per
+    #: target. What the probe measures that does transfer is the per-study capture, and
+    #: that rises with size: at 90 x 75 no reported-positive study has under 20 % of its
+    #: excess in the box, at 64 x 56 one in ten has under 10 %.
+    #:
+    #: **The depth.** [-8, +28] mm against the first spec's [-8, +20]: 93 % of the
+    #: measured excess against 88 %, and the p10 of per-study capture rises from 0.26 to
+    #: 0.29. Eleven slices at the 3.3 mm median spacing. This is the axis where growing
+    #: is safest, because the attention can drop a window it does not want and the
+    #: encoder's global average pool cannot drop a corner of an image.
+    "baker_wide": RoiSpec(
+        name="baker_wide", landmark="med_centre", plane="Sagittal",
+        box_w_mm=110.0, box_h_mm=95.0, out_w=308, out_h=266,
+        box_offset_mm=16.0, box_rise_mm=20.0,
+        lateral_mm=28.0, medial_mm=8.0, slots=11,
+        series=(("Sagittal", "PD", True), ("Sagittal", "T2", True),
+                ("Sagittal", "PD", False))),
     #: The depth sweep for the patellofemoral box, which the annotations cannot settle:
     #: a point says nothing about how far the joint extends around it. What *was*
     #: measured, over the 200 annotated stacks, is how many slots each fills --
@@ -231,4 +506,46 @@ SPECS = {
     # the opposite test: more peripheral margin, nothing else changed
     "lateral_meniscus_l6": RoiSpec(name="lateral_meniscus_l6",
                                    lateral_mm=6.0, medial_mm=12.0, slots=5),
+    #: The whole knee, for the five targets no compartment box covers — effusion,
+    #: synovitis, the popliteal cyst, contusion, fracture. Pipeline v3's wide branches.
+    #:
+    #: **Not a wide slot: a wide box.** The distinction is the point. Every leg of the
+    #: public pipeline crops 130 mm around the *image* centre, and measured over all
+    #: 4407 studies the knee sits a median 17 mm off it, with half the corpus having
+    #: joint anatomy outside the window. Centred on the joint, 100 mm is enough — a
+    #: half-knee is about 48 mm — and the 30 mm they spend on being off-centre buys
+    #: resolution instead: 0.357 mm/px against their 0.387.
+    #:
+    #: **Two landmarks, for the centre only.** The midpoint of the two meniscus points
+    #: is the joint centre, and both are already predicted for every study, so this
+    #: needs no new annotation. The non-zero depth window is what tells `extract` to
+    #: take the extent from the spec rather than from the gap between the points —
+    #: 27 to 48 mm, which is a compartment and not a knee.
+    #:
+    #: **Depth is symmetric in both planes, and that is a decision.** Measured over 120
+    #: series per plane, the joint centre sits 49 mm from each end of a sagittal stack
+    #: and 60/41 mm in a coronal one. The coronal asymmetry is tempting and declined:
+    #: an asymmetric window makes `symmetric_depth` false, which sends `extract` to
+    #: `bowtie_direction` — a rule measured on the medial-lateral axis, applied to an
+    #: anterior-posterior one. ±40 mm is what both coronal ends support, and since the
+    #: window holds ~90% of the stack either way, the slot cap decides, not the window.
+    #:
+    #: **Coarser than a compartment box, deliberately.** 0.357 mm/px and 4.5 mm between
+    #: slots, against 0.214 and 3.3 for a meniscus. These branches are for diffuse
+    #: findings, which are large; the budget is better spent on reaching the whole knee
+    #: than on resolving a tear the compartment boxes already resolve.
+    "knee_sagittal": RoiSpec(
+        name="knee_sagittal", landmark="lat_centre", landmark2="med_centre",
+        plane="Sagittal", box_w_mm=100.0, box_h_mm=100.0, out_w=280, out_h=280,
+        lateral_mm=45.0, medial_mm=45.0, slots=20, decimate_to_mm=4.5,
+        series=(("Sagittal", "PD", True), ("Sagittal", "T2", True),
+                ("Sagittal", "PD", False))),
+    #: The same box in the plane osteoarthritis and the collaterals are read in, and the
+    #: one the public pipeline never crops at all on two of its three layouts.
+    "knee_coronal": RoiSpec(
+        name="knee_coronal", landmark="lat_centre", landmark2="med_centre",
+        plane="Coronal", box_w_mm=100.0, box_h_mm=100.0, out_w=280, out_h=280,
+        lateral_mm=40.0, medial_mm=40.0, slots=20, decimate_to_mm=4.5,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
 }

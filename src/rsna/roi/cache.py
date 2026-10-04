@@ -80,15 +80,23 @@ def build(landmarks: str | Path, series: pd.DataFrame, out: str | Path, spec: Ro
 
     points = pd.read_csv(landmarks)
     have = sorted(points["point"].dropna().unique())
+    # A region defined between two landmarks needs both, so a study carrying only one is
+    # not a study this spec can cut.
+    second = None
+    if spec.landmark2:
+        second = points[points["point"] == spec.landmark2].set_index("study")
     points = points[points["point"] == spec.landmark].set_index("study")
+    if second is not None:
+        points = points[points.index.isin(second.index)]
     studies = list(points.index)
     if not studies:
         # It used to write the empty cache and report `nan %` coverage, which the next
         # stage would then happily train on. A spec asking for a point the table does
         # not carry is the likely cause and is invisible otherwise: both names are
         # valid, they just come from different annotation passes.
+        wanted = spec.landmark + (f" and {spec.landmark2}" if spec.landmark2 else "")
         raise ValueError(
-            f"{Path(landmarks).name} holds no rows for {spec.landmark!r}, which "
+            f"{Path(landmarks).name} holds no study with {wanted}, which "
             f"{spec.name} hangs off — it carries {have}. Point the spec at the right "
             f"landmark, or the build at the right table.")
     by_study = {s: g for s, g in series.groupby("StudyInstanceUID")}
@@ -104,6 +112,10 @@ def build(landmarks: str | Path, series: pd.DataFrame, out: str | Path, spec: Ro
         i, study = index_study
         point = points.loc[study, ["x_mm", "y_mm", "z_mm"]].to_numpy(float)
         group = by_study.get(study)
+        point2 = None
+        if second is not None:
+            r2 = second.loc[study]
+            point2 = (float(r2.x_mm), float(r2.y_mm), float(r2.z_mm))
         found = []
         for k, (plane, weight, fatsat) in enumerate(spec.series):
             if group is None:
@@ -115,7 +127,7 @@ def build(landmarks: str | Path, series: pd.DataFrame, out: str | Path, spec: Ro
             row = hit.sort_values("n_slices", ascending=False).iloc[0]
             try:
                 volume, geom = read_series(Path(row["dir"]), config)
-                stack = extract(volume, geom, point, spec)
+                stack = extract(volume, geom, point, spec, point2)
             except Exception as exc:  # noqa: BLE001
                 found.append((k, None, f"{type(exc).__name__}: {exc}"))
                 continue
@@ -151,6 +163,73 @@ def build(landmarks: str | Path, series: pd.DataFrame, out: str | Path, spec: Ro
         log(f"  {plane} {weight}{' FS' if fatsat else ''}: {100 * share:.1f} % of studies")
     log(f"  at least one: {100 * mask.any(axis=(1, 2)).mean():.1f} %")
     return out
+
+
+class OneChannel:
+    """A cache read as **one series per study**, chosen by a priority list.
+
+    The caches carry two or three series on their own axis, and most studies fill only
+    the first: measured over the seven shipped boxes, the leading series is present for
+    83-84% of studies and the others for 13-37%. Feeding the rest as extra channels was
+    tested once and cost: dropping the coronal non-fat-suppressed series from the MCL
+    expert gained **+0.0118**. Using it only where nothing better exists is a different
+    thing entirely, and it takes coverage from 84% to 99.8%.
+
+    So this collapses the series axis to one, per study, by taking the first entry of
+    `order` whose slot mask is not empty. Lazily: `fit` indexes a batch at a time, the
+    underlying array is a memmap of up to 19.3 GB, and materialising the gather would
+    copy 22 GB across nine groups for no gain.
+    """
+
+    def __init__(self, volumes, mask: np.ndarray, order):
+        n, series = mask.shape[:2]
+        self._v = volumes
+        self.order = tuple(int(i) for i in order)
+        if sorted(self.order) != list(range(series)):
+            raise ValueError(
+                f"priority {self.order} is not a permutation of the {series} series this "
+                f"cache carries; a missing index would make that series unreachable")
+        filled = mask.reshape(n, series, -1).any(axis=2)
+        # -1 where no series has a slot, which `has_pixels` and the slot mask both read
+        # as a study with nothing; the row is still returned, as zeros.
+        chosen = np.full(n, -1, np.int64)
+        for index in reversed(self.order):
+            chosen = np.where(filled[:, index], index, chosen)
+        self.chosen = chosen
+        self.shape = (n, 1) + tuple(mask.shape[2:]) + tuple(volumes.shape[3:])
+        self.dtype = volumes.dtype
+        self.nbytes = int(np.prod(self.shape)) * volumes.dtype.itemsize
+
+    def __len__(self) -> int:
+        return self.shape[0]
+
+    def __getitem__(self, idx):
+        rows = np.atleast_1d(np.asarray(idx))
+        pick = self.chosen[rows]
+        out = np.zeros((len(rows),) + self.shape[1:], self.dtype)
+        for k, (row, series) in enumerate(zip(rows, pick)):
+            if series >= 0:
+                out[k, 0] = self._v[row, series]
+        return out
+
+
+def collapse(volumes, mask: np.ndarray, order=None):
+    """`(volumes, mask)` read as one series per study. Returns them and the choice.
+
+    `order` is best-first indices into the cache's series axis; `None` keeps the order
+    the spec declared. It is a **read-time** decision and deliberately not a `RoiSpec`
+    field: the cache cuts every series it was asked for, and which one a model reads is
+    the model's business. Putting it in the spec would also make `cache.load` refuse the
+    cache, since it compares the whole spec for equality.
+    """
+
+    series = mask.shape[1]
+    view = OneChannel(volumes, mask, range(series) if order is None else order)
+    rows = np.arange(len(view))
+    one = np.zeros((len(view), 1) + mask.shape[2:], bool)
+    got = view.chosen >= 0
+    one[got, 0] = mask[rows[got], view.chosen[got]]
+    return view, one, view.chosen
 
 
 def load(out: str | Path, spec: RoiSpec):

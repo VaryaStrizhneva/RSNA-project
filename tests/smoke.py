@@ -974,6 +974,32 @@ def test_annotation_side() -> None:
           "both are kept; merging them would hide the disagreement")
 
 
+def test_cache_shorten() -> None:
+    """Trimming a cache array must keep what it keeps.
+
+    The obvious version — `np.save(path, np.asarray(memmap[:keep]))` — reads from a
+    **view** into the file it is truncating, and raised `OSError: 924844032 requested
+    and 3968 written` the first time any study was ever dropped. The branch had never
+    run before, so nothing had caught it.
+    """
+
+    import tempfile
+    from rsna.landmark.cache import shorten
+
+    print("\nlandmark.cache")
+
+    for n, keep in ((10, 6), (100, 97), (5, 5), (70, 1)):
+        path = Path(tempfile.mkdtemp()) / "v.npy"
+        a = (np.arange(n * 4 * 4) % 251).astype(np.uint8).reshape(n, 4, 4)
+        np.save(path, a)
+        shorten(path, keep)
+        back = np.load(path)
+        check(f"{n} studies trimmed to {keep}",
+              back.shape == (keep, 4, 4) and bool((back == a[:keep]).all()),
+              "shape and content, not just shape — a truncating save gets the first "
+              "right and the second wrong")
+
+
 def test_series_choice() -> None:
     """Which sagittal series an annotation bundle shows, and what `--prefer-3d` may not do.
 
@@ -987,7 +1013,8 @@ def test_series_choice() -> None:
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     import pandas as pd
-    from rsna.landmark.series import LANDMARKS, PICKERS, pick_axial, pick_sagittal
+    from rsna.landmark.series import (LANDMARKS, PICKERS, pick_axial,
+                                  pick_coronal, pick_sagittal)
 
     print("\nannotate.bundle")
 
@@ -1039,10 +1066,44 @@ def test_series_choice() -> None:
     check("every landmark names a plane that has a picker",
           all(d["plane"] in PICKERS for d in LANDMARKS.values()),
           ", ".join(f"{k} on {v['plane']}" for k, v in LANDMARKS.items()))
-    check("only the sagittal point claims laterality",
-          [k for k, v in LANDMARKS.items() if v["laterality"]] == ["lat_centre"],
-          "an axial stack runs inferior to superior on both knees, so pf_centre has "
-          "nothing to declare and the tool must not ask")
+    check("each point says what the annotator must be told about left and right",
+          {k: v["side_cue"] for k, v in LANDMARKS.items()}
+          == {"lat_centre": "stack-end", "med_centre": "stack-end",
+              "acl_centre": "stack-end", "pf_centre": "none",
+              "mcl_centre": "image-side"},
+          "three situations, not degrees of one: a sagittal stack has a lateral END, a "
+          "coronal picture has a medial SIDE, an axial midline point has neither")
+    check("only a sagittal stack can recover a side from the click",
+          {k for k, v in LANDMARKS.items() if v["click_near"]}
+          <= {k for k, v in LANDMARKS.items() if v["plane"] == "Sagittal"},
+          "the click's distance to an end means nothing when the ends are front and "
+          "back, or bottom and top")
+    check("and being sagittal is not enough — the point must sit off centre",
+          LANDMARKS["acl_centre"]["click_near"] is None,
+          "the cruciate sits in the notch, near the middle of the left-right axis, so "
+          "which end of the stack it is nearest says nothing about which knee it is")
+
+    # The two menisci sit at OPPOSITE ends of the same stack, so the same click position
+    # implies opposite sides. Reading one under the other's rule reports every knee as
+    # the other one — and both answers are valid sides, so nothing complains.
+    from tools.annotate.to_mm import lateral_end_from_click
+    near_end = {"slice": 3}
+    check("a click near one end means opposite sides for the two menisci",
+          lateral_end_from_click({"n": 30}, near_end, "lateral") == "first"
+          and lateral_end_from_click({"n": 30}, near_end, "medial") == "last",
+          "lat_centre sits near the lateral end, med_centre near the medial one")
+    check("and a point that does declare it names an end, not a guess",
+          all(v["click_near"] in ("lateral", "medial")
+              for v in LANDMARKS.values() if v["click_near"] is not None),
+          ", ".join(f"{k}:{v['click_near']}" for k, v in LANDMARKS.items()
+                    if v["click_near"]))
+    check("the coronal picker prefers fat suppression, like the axial one",
+          pick_coronal(pd.DataFrame([
+              {"plane": "Coronal", "weight": "PD", "fatsat": False, "n_slices": 40,
+               "SeriesInstanceUID": "pd"},
+              {"plane": "Coronal", "weight": "PD", "fatsat": True, "n_slices": 30,
+               "SeriesInstanceUID": "pdfs"}]))["SeriesInstanceUID"] == "pdfs",
+          "a sprain is oedema, and oedema needs the fat gone")
 
     both = sag(("PD", True, 28, "pd"), ("T1", False, 140, "t1"), ("GRE", False, 92, "gre"))
     check("--prefer-3d does not cross the weighting to reach a deeper series",
@@ -1564,6 +1625,127 @@ def test_expert() -> None:
           f"on a ramp brightening with the row index, a series whose front is -row "
           f"gives {low.mean():.0f} and one whose front is +row gives {high.mean():.0f}")
 
+    # The two planes do not share an "up": anterior is -y on an axial crop, superior is
+    # +z on a coronal one. One formula for both inverted the collateral box — 52 mm above
+    # the joint line where 28 was asked for — and the crop still looked like a knee.
+    mcl = SPECS["mcl"]
+    check("the collateral box is taller than wide, and hangs below its point",
+          mcl.box_h_mm > mcl.box_w_mm and mcl.box_rise_mm < 0,
+          f"{mcl.box_w_mm:.0f}x{mcl.box_h_mm:.0f} mm, "
+          f"{mcl.box_h_mm/2 + mcl.box_rise_mm:.0f} above and "
+          f"{mcl.box_h_mm/2 - mcl.box_rise_mm:.0f} below — the tibial insertion is the "
+          f"far end, and the field of view stops before it on a third of studies")
+    check("and it is shifted back toward the joint, off the skin",
+          mcl.box_offset_mm > 0,
+          "a medial landmark centred exactly puts half the width in subcutaneous fat")
+    ramp = np.tile(np.arange(400, dtype=np.uint8)[:, None], (1, 400))
+    for plane, name, ow, oh in (("Axial", "pf_oa", 14, 12), ("Coronal", "mcl", 14, 35)):
+        s = SPECS[name].replace(out_w=ow, out_h=oh, patch=1)
+        v = np.array([0., 1., 0.]) if plane == "Axial" else np.array([0., 0., -1.])
+        up = np.array([0., -1., 0.]) if plane == "Axial" else np.array([0., 0., 1.])
+        tf = float(np.sign(v @ up))
+        up_crop = crop_plane(ramp, 200., 200., (1., 1.),
+                             s.replace(box_rise_mm=+20.), 1., tf)
+        down = crop_plane(ramp, 200., 200., (1., 1.),
+                          s.replace(box_rise_mm=-20.), 1., tf)
+        check(f"a positive rise goes up the picture on a {plane.lower()} crop",
+              float(up_crop.mean()) < float(down.mean()),
+              f"on a ramp brightening downward: {up_crop.mean():.0f} against "
+              f"{down.mean():.0f} — anterior on axial, superior on coronal")
+
+    # A region between two landmarks. The cruciate is the first that needs it: it sits
+    # in the notch, where no collected point is, and the two meniscus points bracket it.
+    acl = SPECS["acl"]
+    check("the cruciate region is defined between two points",
+          acl.landmark2 is not None and acl.depth_inset_mm > 0,
+          f"{acl.landmark} + {acl.landmark2}, inset {acl.depth_inset_mm:.0f} mm")
+    check("and its window follows the knee instead of a fixed extent",
+          acl.lateral_mm == 0 and acl.medial_mm == 0,
+          "the fixed half-extent is unused when a second point sets the span: 18.5 mm "
+          "across on the narrowest of 294 knees, 40.3 on the widest")
+
+    from rsna.roi.extract import extract
+    # Sixty slices a millimetre apart, a point at 10 and another at 50: the window must
+    # start and end 8 mm inside each, so it spans 18..42 and not 10..50.
+    vol = np.full((60, 40, 40), 120, np.uint8)
+    geom = [{"sop": f"s{i}", "ipp": [0.0, 0.0, float(i)],
+             "iop": [1, 0, 0, 0, 1, 0], "ps": [1.0, 1.0]} for i in range(60)]
+    spec = acl.replace(out_w=14, out_h=14, patch=1, box_w_mm=10.0, box_h_mm=10.0,
+                       slots=40, box_offset_mm=0.0, box_rise_mm=0.0,
+                       plane="Axial", decimate_to_mm=0.1)
+    got = extract(vol, geom, (0.0, 0.0, 10.0), spec, (0.0, 0.0, 50.0))
+    kept = sorted(int(s[1:]) for s in got.sop if s)
+    inset = acl.depth_inset_mm
+    check("the window starts and ends inside each point",
+          kept and kept[0] >= 10 + inset and kept[-1] <= 50 - inset,
+          f"slices {kept[0]}..{kept[-1]} of a 10..50 gap inset by {inset:.0f} mm")
+    wide = extract(vol, geom, (0.0, 0.0, 5.0), spec, (0.0, 0.0, 55.0))
+    kw = sorted(int(s[1:]) for s in wide.sop if s)
+    check("and a wider gap gives a wider window",
+          (kw[-1] - kw[0]) > (kept[-1] - kept[0]),
+          f"{kw[-1]-kw[0]} slices against {kept[-1]-kept[0]} — a fixed extent would "
+          f"have given the same both times")
+
+    # The whole-knee boxes use the same two landmarks for the *centre* and bring their
+    # own depth extent. A knee is 90 mm along a sagittal stack; the gap between the two
+    # meniscus points is 27 to 48 mm, so deriving the window from the points would make
+    # a wide box a compartment box wearing a wide box's name.
+    own = spec.replace(lateral_mm=25.0, medial_mm=25.0)
+    got2 = extract(vol, geom, (0.0, 0.0, 10.0), own, (0.0, 0.0, 50.0))
+    k2 = sorted(int(s[1:]) for s in got2.sop if s)
+    check("a spec with its own depth extent keeps it when given two landmarks",
+          k2[0] <= 7 and k2[-1] >= 53,
+          f"slices {k2[0]}..{k2[-1]}: ±25 mm around the 30 mm midpoint, not the "
+          f"{kept[0]}..{kept[-1]} the gap between the points would give")
+    check("...and the two points still set the centre",
+          abs((k2[0] + k2[-1]) / 2 - 30) <= 1,
+          "the box sits on the midpoint of the two, which is the joint centre")
+
+    # Reading a cache as one series per study, by priority. The caches carry two or
+    # three; as separate channels the extras cost the MCL expert 0.0118, as a fallback
+    # they take coverage from 84 % to 99.8 %.
+    from rsna.roi.cache import collapse
+
+    vols = np.arange(5 * 3 * 4 * 2 * 2, dtype=np.uint8).reshape(5, 3, 4, 2, 2)
+    present = np.zeros((5, 3, 4), bool)
+    present[0, 0] = present[1, 1] = present[2, 2] = True
+    present[3, 0] = present[3, 1] = True              # two to choose between
+    view, one, chosen = collapse(vols, present)
+    check("one channel takes the first series that is present",
+          list(chosen) == [0, 1, 2, 0, -1],
+          "declared order; -1 is a study no series covers")
+    other = collapse(vols, present, order=(1, 0, 2))[2]
+    check("...and the priority decides when more than one is",
+          other[3] == 1 and list(other) == [0, 1, 2, 1, -1],
+          "the only row that moves is the one with a choice to make")
+    check("the collapsed batch has one series axis",
+          view[[0, 3, 4]].shape == (3, 1, 4, 2, 2),
+          "so the attention sees one vector per box rather than one per series")
+    check("a study no series covers comes back as zeros, not as a neighbour",
+          bool((view[[4]] == 0).all()) and not one[4].any(),
+          "has_pixels() then withholds it and the wide model keeps the row")
+    check("the gather is lazy, not a 22 GB copy",
+          not isinstance(view, np.ndarray) and view.nbytes < vols.nbytes,
+          f"{view.nbytes} bytes against the cache's {vols.nbytes}")
+    try:
+        collapse(vols, present, order=(0, 1))
+        check("a priority that cannot reach every series is refused", False)
+    except ValueError as exc:
+        check("a priority that cannot reach every series is refused",
+              "permutation" in str(exc),
+              "an index left out would make that series unreachable in silence")
+
+    for name in ("knee_sagittal", "knee_coronal"):
+        wide_spec = SPECS[name]
+        check(f"{name} is symmetric in depth",
+              wide_spec.symmetric_depth,
+              "an asymmetric window sends extract to bowtie_direction, a rule measured "
+              "on the medial-lateral axis — wrong for a coronal stack's depth")
+        check(f"{name} centres on both meniscus points and brings its own extent",
+              wide_spec.landmark2 is not None
+              and (wide_spec.lateral_mm or wide_spec.medial_mm),
+              f"±{wide_spec.lateral_mm:.0f} mm, against the 27-48 mm between the points")
+
     cor = SPECS["lateral_meniscus_coronal"]
     wide = ExpertConfig(rois=("lateral_meniscus", "lateral_meniscus_coronal"))
     big = ExpertNet(wide, pretrained=False)
@@ -1586,6 +1768,261 @@ def test_expert() -> None:
           "common case, not the edge one")
 
 
+def test_expert_inference() -> None:
+    """Reading an expert back the way the scored notebook will have to.
+
+    The one that matters is the first: `ExpertNet` defaults to `pretrained=True`, which
+    asks timm for ImageNet weights over the network. The Kaggle notebook has no network,
+    so the default is not a slow path, it is a crash at model construction — before a
+    pixel is read and after the mounts have cost minutes. Every weight the model needs is
+    in the checkpoint and would overwrite the download on the next line anyway.
+    """
+
+    import tempfile
+
+    import timm
+
+    from rsna.expert import ExpertConfig, ExpertNet
+    from rsna.infer.experts import load_experts, score_experts
+    from rsna.roi import SPECS
+
+    print("\nexpert inference")
+
+    config = ExpertConfig(targets=("Lateral Meniscus",), rois=("lateral_meniscus",),
+                          encoder="resnet18")
+    spec = SPECS["lateral_meniscus"]
+
+    asked = []
+    real = timm.create_model
+
+    def spy(name, pretrained=True, **kw):
+        asked.append(pretrained)
+        return real(name, pretrained=False, **kw)
+
+    net = ExpertNet(config, pretrained=False)
+    timm.create_model = spy
+    try:
+        with tempfile.TemporaryDirectory() as folder:
+            for fold in range(2):
+                torch.save({"config": config.to_dict(), "specs": [spec.to_dict()],
+                            "fold": fold, "state": net.state_dict()},
+                           Path(folder) / f"fold{fold}.pt")
+            models, got_config, got_specs = load_experts(folder, "cpu")
+
+            check("the trunk is built without reaching for ImageNet weights",
+                  bool(asked) and not any(asked),
+                  "internet is off in the scored notebook: pretrained=True is a crash, "
+                  "not a slow path")
+            check("the config and the regions are read off the weights",
+                  got_config == config and got_specs == [spec],
+                  "rebuilding either from a module default is how a run gets read under "
+                  "the wrong point, which loads cleanly and scores badly")
+
+            # A run assembled from two trainings is not one model.
+            other = config.replace(prior_logit=config.prior_logit + 1.0)
+            torch.save({"config": other.to_dict(), "specs": [spec.to_dict()],
+                        "fold": 2, "state": ExpertNet(other, pretrained=False).state_dict()},
+                       Path(folder) / "fold2.pt")
+            refused = False
+            try:
+                load_experts(folder, "cpu")
+            except ValueError:
+                refused = True
+            check("folds fitted under different configs are refused, not averaged",
+                  refused,
+                  "averaging two models trained to answer different questions produces "
+                  "a number that is neither")
+
+        n = 2
+        rng = np.random.default_rng(0)
+        volumes = rng.integers(0, 255, (n, len(spec.series), spec.slots,
+                                        spec.out_h, spec.out_w), dtype=np.uint8)
+        mask = np.ones((n, len(spec.series), spec.slots), bool)
+        one = score_experts(models[:1], [(volumes, mask)], batch=2, device="cpu")
+        both = score_experts(models, [(volumes, mask)], batch=2, device="cpu")
+        check("one probability per study per target",
+              one.shape == (n, len(config.targets)), f"{one.shape}")
+        check("identical folds average to themselves",
+              float(np.max(np.abs(one - both))) < 1e-6,
+              "the average is over probabilities, matching how the gold scores were "
+              "pooled when the run was fitted")
+    finally:
+        timm.create_model = real
+
+    # The scale the expert's answer has to be written on.
+    from rsna.config import TARGETS
+    from rsna.infer.chain import _overwrite
+
+    studies = [f"s{i}" for i in range(6)]
+    frame = pd.DataFrame({t: np.linspace(0.1, 1.0, 6) for t in TARGETS},
+                         index=pd.Index(studies, name="StudyInstanceUID"))
+    before = frame["ACL"].to_numpy().copy()
+    # The expert reads four of the six, and ranks them backwards.
+    scored = studies[:4]
+    expert = np.array([[0.9], [0.8], [0.7], [0.6]])
+    _overwrite(frame, scored, ["ACL"], expert, lambda *_: None)
+    after = frame["ACL"].to_numpy()
+
+    check("the column keeps the values it had, so one scale survives",
+          sorted(np.round(after, 9)) == sorted(np.round(before, 9)),
+          "a column holding ranks for some studies and probabilities for others is "
+          "scored as one ordering that neither half belongs to")
+    check("inside the scored group the ordering becomes the expert's",
+          list(np.argsort(after[:4])) == list(np.argsort(expert[:, 0])),
+          "which is the only reason to run an expert at all")
+    check("the studies it could not read are left alone",
+          bool(np.allclose(after[4:], before[4:])),
+          "they keep the wide model's answer rather than a prior")
+
+    # Abstention: a study cut over no pixels at all must keep the host's answer rather
+    # than the constant the model returns for an all-zero tensor. 299 of 4407 studies
+    # are in this position across the seven shipped experts.
+    from rsna.infer.chain import has_pixels
+
+    # Two regions, three slots each, over four studies. Study 0 has pixels in the first
+    # region only, study 1 in the second only, study 2 in both, study 3 in neither.
+    first = np.array([[[1, 0, 0]], [[0, 0, 0]], [[1, 1, 0]], [[0, 0, 0]]], bool)
+    second = np.array([[[0, 0, 0]], [[0, 1, 0]], [[1, 0, 0]], [[0, 0, 0]]], bool)
+    seen = has_pixels([(None, first), (None, second)], 4)
+    check("a study with pixels in any one region is scored",
+          list(seen) == [True, True, True, False],
+          "an expert reads its regions together, so one empty region is not nothing")
+
+    frame2 = pd.DataFrame({t: np.linspace(0.1, 1.0, 4) for t in TARGETS},
+                          index=pd.Index([f"s{i}" for i in range(4)],
+                                         name="StudyInstanceUID"))
+    kept = frame2["ACL"].to_numpy().copy()
+    names = [f"s{i}" for i in range(4)]
+    _overwrite(frame2, [n for n, k in zip(names, seen) if k], ["ACL"],
+               np.array([[0.9], [0.1], [0.5]]), lambda *_: None)
+    check("the study that saw nothing keeps the host's value exactly",
+          float(frame2["ACL"].to_numpy()[3]) == float(kept[3]),
+          "the model answers an all-zero tensor with a constant, and a constant written "
+          "into a column is a tie where there was an ordering")
+
+    # Grafting onto someone else's submission: the host can be our own wide model or a
+    # public ensemble, and the difference must not be a silent one.
+    import tempfile as _tf
+
+    from rsna.infer.chain import run_expert_submission
+
+    refused = ""
+    try:
+        run_expert_submission([], [], None, ".", out=Path(_tf.mkdtemp()) / "absent.csv")
+    except FileNotFoundError as exc:
+        refused = str(exc)
+    check("grafting onto a submission that does not exist is refused",
+          "expected to hold the submission" in refused,
+          "package=None means someone else wrote the floor; if nobody did, say so")
+
+    with _tf.TemporaryDirectory() as room:
+        thin = Path(room) / "thin.csv"
+        pd.DataFrame({"StudyInstanceUID": ["a"], "ACL": [0.5]}).to_csv(thin, index=False)
+        wrong = ""
+        try:
+            run_expert_submission([], [], None, ".", out=thin)
+        except ValueError as exc:
+            wrong = str(exc)
+        check("a file that is not a submission is refused by name",
+              "does not carry" in wrong and "Fracture" in wrong,
+              "eleven missing columns should not become eleven silent defaults")
+
+
+def test_epoch_choice() -> None:
+    """The expert keeps its last epoch, and does not go looking for its best one.
+
+    Replayed over the 35 fold-runs already trained, the argmax of the held-out AUC bought
+    +0.018 of that AUC and lost 0.003 against the 58 gold studies — it was selecting
+    noise in the weak labels. The schedule explains it: `OneCycleLR` anneals the learning
+    rate toward zero, so a mid-schedule epoch is a model whose weights have not settled.
+    """
+
+    from rsna.expert import ExpertConfig, ExpertNet
+    from rsna.expert.loop import fit
+
+    print("\nexpert epoch choice")
+
+    config = ExpertConfig(targets=("ACL",), rois=("acl",), encoder="resnet18",
+                          epochs=3, batch=2)
+    model = ExpertNet(config, pretrained=False)
+
+    rng = np.random.default_rng(0)
+    n, slots = 8, 5
+    volumes = rng.integers(0, 255, (n, 1, slots, 32, 32), dtype=np.uint8)
+    mask = np.ones((n, 1, slots), bool)
+    y = np.zeros((n, 1), np.float32)
+    y[::2] = 1.0
+    w = np.ones_like(y)
+    studies = [f"s{i}" for i in range(n)]
+
+    result = fit(model, [(volumes, mask)], y, w, studies,
+                 np.arange(0, 6), np.arange(6, n), config, device="cpu", log=lambda *_: None)
+
+    check("the epoch kept is the last one, whatever the held-out curve did",
+          result.best is not None and result.best.epoch == config.epochs,
+          f"kept epoch {result.best.epoch} of {config.epochs}")
+    check("every epoch is still recorded, so a divergence stays visible",
+          len(result.history) == config.epochs,
+          "the rule drops the safety net, not the evidence")
+    check("the weights kept are the ones that produced the scores kept",
+          result.state is not None and result.scores is not None
+          and len(result.scores) == 2)
+
+
+def test_encoder_weights() -> None:
+    """Starting a trunk from radiology instead of from photographs.
+
+    RadImageNet publishes a torchvision ResNet-50 cut off at its classifier and wrapped
+    in a `Sequential`, so its keys are `backbone.<index>.…` where timm wants `conv1` and
+    `layer1`. The translation is `torchvision.models.resnet50().children()`, and getting
+    it wrong is the quiet kind of wrong: a trunk half-initialised from radiology and half
+    from `kaiming_normal_` trains perfectly well and answers a question nobody asked.
+    """
+
+    import tempfile
+
+    from rsna.expert.pretrained import _remap, load_encoder_weights
+
+    print("\nexpert encoder weights")
+
+    renamed = _remap({
+        "backbone.0.weight": torch.zeros(1),
+        "backbone.1.running_mean": torch.zeros(1),
+        "backbone.4.0.conv1.weight": torch.zeros(1),
+        "backbone.7.2.bn3.bias": torch.zeros(1),
+    })
+    check("torchvision child indices become timm attribute names",
+          sorted(renamed) == ["bn1.running_mean", "conv1.weight",
+                              "layer1.0.conv1.weight", "layer4.2.bn3.bias"],
+          f"{sorted(renamed)}")
+
+    refused = False
+    try:
+        _remap({"backbone.8.weight": torch.zeros(1)})     # avgpool: not a trunk layer
+    except ValueError:
+        refused = True
+    check("a file carrying children a trunk does not keep is refused",
+          refused, "index 8 is the pooling layer, so the file is not the published encoder")
+
+    missing_file = False
+    try:
+        load_encoder_weights(nn.Linear(1, 1), "models/does-not-exist.pt")
+    except FileNotFoundError as exc:
+        missing_file = "kaggle datasets download" in str(exc)
+    check("a missing file says how to fetch it",
+          missing_file, "94 MB of someone else's weights are not in git")
+
+    with tempfile.NamedTemporaryFile(suffix=".pt", delete=False) as handle:
+        torch.save({"backbone.0.weight": torch.zeros(3, 3)}, handle.name)
+        mismatch = False
+        try:
+            load_encoder_weights(nn.Linear(1, 1), handle.name)
+        except ValueError:
+            mismatch = True
+    check("weights that do not fit the trunk raise rather than load half-way",
+          mismatch)
+
+
 def main() -> int:
     for test in (test_config, test_headers, test_folds, test_pixels, test_cache,
                  test_laterality, test_model, test_stems, test_encoders, test_encoder_unchanged,
@@ -1593,6 +2030,9 @@ def main() -> int:
                  test_augment, test_loop, test_windows,
                  test_submission, test_figures, test_eval, test_annotation_side, test_series_choice, test_annotation_side_rule,
                  test_excluded_list, test_roi, test_expert,
+                 test_expert_inference, test_epoch_choice,
+                 test_encoder_weights,
+                 test_cache_shorten,
                  test_landmark_geometry):
         test()
     print(f"\n{len(PASSED)} passed, {len(FAILED)} failed")

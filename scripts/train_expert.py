@@ -78,7 +78,7 @@ def main() -> int:
 
     groups, studies, total = [], None, 0
     log(f"{args.experiment}: {', '.join(config.targets)}")
-    for spec in config.specs:
+    for spec, order in zip(config.specs, config.orders):
         volumes, mask, records = cache.load(args.roi_cache, spec)
         names = [r["study"] for r in records]
         if studies is None:
@@ -86,11 +86,25 @@ def main() -> int:
         elif names != studies:
             raise SystemExit(f"{spec.name} was cut over a different set of studies; "
                              f"rebuild it from the same landmark table")
+        note = ""
+        if config.one_channel:
+            # One series per study, the first of the priority that is present. Lazy:
+            # the knee boxes are 19 GB memmaps and `fit` reads a batch at a time.
+            volumes, mask, chosen = cache.collapse(volumes, mask, order)
+            tags = [f"{w}{'-FS' if fs else ''}" for _, w, fs in spec.series]
+            counts = [int((chosen == i).sum()) for i in range(len(spec.series))]
+            note = ("  one channel from " + ", ".join(
+                f"{t} {100 * c / len(chosen):.0f}%"
+                for t, c in zip(tags, counts) if c)
+                + (f", nothing {100 * (chosen < 0).mean():.1f}%"
+                   if (chosen < 0).any() else ""))
         groups.append((volumes, mask))
         total += volumes.nbytes
         log(f"  {spec.name}: {spec.plane} {spec.box_w_mm:.0f}x{spec.box_h_mm:.0f} mm on "
             f"{spec.out_w}x{spec.out_h} px, {spec.slots} slots, "
             f"{100 * mask.any(axis=(1, 2)).mean():.1f} % of studies covered")
+        if note:
+            log(note)
     log(f"  {len(studies)} studies, {total / 1e9:.2f} GB in all")
 
     # The twelve-target machinery builds all twelve, then one column is taken. Cheaper
@@ -125,6 +139,21 @@ def main() -> int:
 
     gold_index, gold_y, excluded = np.array([], int), None, np.zeros(len(studies), bool)
     holdout_gold = args.holdout_gold or bool(run.get("holdout_gold"))
+    # The expert readings, kept whether or not they are held out. With `holdout_gold`
+    # they are an external set every fold scores and the five are averaged; without it
+    # they are ordinary training studies — carrying a radiologist's label at
+    # `gold_weight` rather than the extractor's — and the honest way to score them is the
+    # one every other study already gets: by the single fold that did not train on it.
+    #
+    # The two numbers are **not interchangeable**. Five models averaged beat one, so the
+    # out-of-fold figure sits below the held-out one for a reason that has nothing to do
+    # with the model. Comparing a run of one kind against a run of the other reads that
+    # gap as quality.
+    _all_gold = train_csv.set_index("StudyInstanceUID")[TARGETS]
+    _all_gold = _all_gold[_all_gold.notna().all(axis=1)]
+    gold_truth = {s: row for s, row in
+                  zip(_all_gold.index,
+                      (_all_gold[list(config.targets)].to_numpy(float) > 0.5).astype(int))}
     if holdout_gold:
         gold = train_csv.set_index("StudyInstanceUID")[TARGETS]
         gold = gold[gold.notna().all(axis=1)]
@@ -150,6 +179,8 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     history, scores, truth, seen, gold_scores = {}, [], [], [], []
+    ema_scores: list = []
+    oof_gold: list = []
     for f in range(config.folds):
         if args.fold is not None and f != args.fold:
             continue
@@ -162,29 +193,93 @@ def main() -> int:
                      gold_index=gold_index, gold_y=gold_y, log=log)
         torch.save({"config": config.to_dict(),
                     "specs": [sp.to_dict() for sp in config.specs], "fold": f,
-                    "state": result.state}, out / f"fold{f}.pt")
+                    "state": result.state,
+                    # Beside the weights, never instead of them: `load_experts` reads
+                    # `state`. Preferring the average later is then a reload, not a run.
+                    "ema_state": result.ema_state}, out / f"fold{f}.pt")
         history[str(f)] = [vars(e) for e in result.history]
+        ema_scores.append(result.ema_scores)
         scores.append(result.scores)
         truth.append(result.truth)
         seen += result.studies
         if result.gold_scores is not None:
             gold_scores.append(result.gold_scores)
-        log(f"fold {f} best: epoch {result.best.epoch}, auc {result.best.auc:.4f} "
+        if not holdout_gold:
+            for position, study in enumerate(result.studies):
+                if study in gold_truth:
+                    oof_gold.append((gold_truth[study], result.scores[position],
+                                     None if result.ema_scores is None
+                                     else result.ema_scores[position]))
+        log(f"fold {f} kept: epoch {result.best.epoch}, auc {result.best.auc:.4f} "
             f"[{' '.join(f'{x:.3f}' for x in result.best.per_target)}]"
             + (f", gold {result.best.gold_auc:.4f}"
                if np.isfinite(result.best.gold_auc) else ""))
 
     p, t = np.concatenate(scores), np.concatenate(truth)
     per = aucs(t, p)
+    # Which of the studies scored actually had pixels in any of the ROI's series. A
+    # study with none still gets a score — every window is masked, the attention falls
+    # back to zero and the head emits its bias — so they arrive as one block of ties and
+    # drag the AUC toward 0.5 in proportion to how many of them there are. Measured on
+    # the patellofemoral run, 1.5 % of studies uncovered cost 0.0032; a region of
+    # interest read from scarcer series costs correspondingly more.
+    #
+    # Both numbers are reported because they answer different questions: the first is
+    # what this branch alone would score on the whole corpus, the second is what it does
+    # where it can see anything at all.
+    has_pixels = np.zeros(len(studies), bool)
+    for _, m in groups:
+        has_pixels |= m.any(axis=(1, 2))
+    seen_index = {s: i for i, s in enumerate(studies)}
+    covered_scored = np.array([bool(has_pixels[seen_index[s]]) for s in seen])
+
+    if any(e is not None for e in ema_scores):
+        ep = np.concatenate([e for e in ema_scores if e is not None])
+        if len(ep) == len(t):
+            eper = aucs(t, ep)
+            log(f"\nthe moving average of the weights, over the same studies:")
+            for j, name in enumerate(config.targets):
+                log(f"  {name:20s} auc {eper[j]:.4f}  "
+                    f"({eper[j] - aucs(t, p)[j]:+.4f} against the weights kept)")
+
     log(f"\nOUT OF FOLD over {len(t)} studies")
     for j, name in enumerate(config.targets):
         pos = int((t[:, j] > 0.5).sum())
         lo, hi = auc_interval(float(per[j]), pos, len(t) - pos)
         log(f"  {name:20s} auc {per[j]:.4f}  [{lo:.3f}, {hi:.3f}]  ({pos} positive)")
     log(f"  {'mean':20s}     {np.nanmean(per):.4f}")
+    if not covered_scored.all():
+        sub = aucs(t[covered_scored], p[covered_scored])
+        log(f"  over the {int(covered_scored.sum())} with pixels in this ROI "
+            f"({100 * covered_scored.mean():.1f} %), ignoring the "
+            f"{int((~covered_scored).sum())} that have none and all score the prior:")
+        for j, name in enumerate(config.targets):
+            log(f"  {name:20s} auc {sub[j]:.4f}  ({sub[j] - per[j]:+.4f})")
     log("  that is agreement with the label extractor, which is itself worth 0.841 "
         "against the 58 expert studies with 10 % UNK")
     gold_line = {}
+    if oof_gold:
+        gy = np.stack([a for a, _, _ in oof_gold])
+        gp = np.stack([b for _, b, _ in oof_gold])
+        gper = aucs(gy, gp)
+        log(f"\nagainst the {len(gy)} expert readings, each scored by the one fold that "
+            f"did not train on it:")
+        for j, name in enumerate(config.targets):
+            pos = int(gy[:, j].sum())
+            lo, hi = auc_interval(float(gper[j]), pos, len(gy) - pos)
+            log(f"  {name:20s} auc {gper[j]:.4f}  [{lo:.3f}, {hi:.3f}]  ({pos} positive)")
+        log("  not comparable with a held-out gold number: that one averages five "
+            "models, this one is a single fold per study")
+        gold_line = {"per_target": {n: float(v) for n, v in zip(config.targets, gper)},
+                     "mean": float(np.nanmean(gper)), "n": int(len(gy)),
+                     "protocol": "out-of-fold, gold in training"}
+        if all(c is not None for _, _, c in oof_gold):
+            ge = aucs(gy, np.stack([c for _, _, c in oof_gold]))
+            log(f"  the moving average, same studies: "
+                + " ".join(f"{n} {v:.4f} ({v - gper[j]:+.4f})"
+                           for j, (n, v) in enumerate(zip(config.targets, ge))))
+            gold_line["ema_per_target"] = {n: float(v)
+                                           for n, v in zip(config.targets, ge)}
     if gold_scores:
         gp = np.mean(gold_scores, axis=0)
         gper = aucs(gold_y, gp)

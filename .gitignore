@@ -27,6 +27,10 @@ models/
 # a few hundred patient MRI slices as data URIs, and this repo has a GitHub remote.
 docs/atlas/*.html
 
+# And the measurement one of those builders caches beside its page, so a rerun does not
+# re-read 292 studies. Derived from the DICOM, not from anything a reader wrote.
+docs/atlas/*.npz
+
 # Annotation exports land here from the browser's download directory. The copy that
 # counts is in data/manual_annotations/, named after who made it and when. The tool now
 # names the file after the point it collected, so this matches any of them rather than

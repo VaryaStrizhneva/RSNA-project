@@ -102,7 +102,8 @@ def crop_plane(image: np.ndarray, row: float, col: float, spacing, spec: RoiSpec
     hh = spec.box_h_mm / 2 / float(spacing[0])
     col = col + to_lateral * spec.box_offset_mm / float(spacing[1])
     # The other axis, and a different direction: `box_rise_mm` moves the box toward the
-    # front, which is along the rows. Only an axial crop has a front to move toward.
+    # top of the picture, along the rows — anterior on an axial crop, superior on a
+    # coronal one. Negative moves it down.
     row = row + to_front * spec.box_rise_mm / float(spacing[0])
     r0, r1 = int(round(row - hh)), int(round(row + hh))
     c0, c1 = int(round(col - hw)), int(round(col + hw))
@@ -124,7 +125,7 @@ def crop_plane(image: np.ndarray, row: float, col: float, spacing, spec: RoiSpec
 
 
 def extract(volume: np.ndarray, geometry: list[dict], point_mm,
-            spec: RoiSpec) -> RoiStack:
+            spec: RoiSpec, point2_mm=None) -> RoiStack:
     """Crop one series around one landmark.
 
     `geometry` is one dict per slice of `volume`, in the same order, each carrying
@@ -155,7 +156,26 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
     # medial-lateral one.
     toward = 1.0 if spec.symmetric_depth else bowtie_direction(
         volume[thinned], t[thinned], t_point)[0]
-    keep = thinned[choose_slices(t[thinned], t_point, toward, spec)]
+    if point2_mm is not None:
+        # Two landmarks place the box between them; what they do to the *depth* window
+        # depends on whether the spec brought one of its own.
+        t2 = through_plane(np.asarray(point2_mm, float), n)
+        centre_t = (t_point + t2) / 2.0
+        if spec.lateral_mm or spec.medial_mm:
+            # The spec has an extent, so the two points only say where the centre is.
+            # This is what a whole-knee box needs: the midpoint of the two menisci is
+            # the joint centre, but its depth window has to reach the whole knee —
+            # 90 mm — not the 27 to 48 mm that happen to separate the two points.
+            keep = thinned[choose_slices(t[thinned], centre_t, toward, spec)]
+        else:
+            # No extent of its own: derive it from the points, inset at each end. The
+            # window then follows the knee — 27 mm across on the narrowest of the 294
+            # studies carrying both meniscus points, 48 on the widest.
+            half = max(abs(t2 - t_point) / 2.0 - spec.depth_inset_mm, 1e-6)
+            span = spec.replace(lateral_mm=half, medial_mm=half)
+            keep = thinned[choose_slices(t[thinned], centre_t, 1.0, span)]
+    else:
+        keep = thinned[choose_slices(t[thinned], t_point, toward, spec)]
 
     # Which way the image's columns run, relative to the midline. DICOM puts the
     # patient's left at positive x, so lateral is +x on a left knee and -x on a right
@@ -164,20 +184,33 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
     if spec.plane in ("Coronal", "Axial"):
         u = _axes(iop)[0]
         to_lateral = float(np.sign(point[0]) * np.sign(u[0])) or 1.0
+    elif spec.plane == "Sagittal":
+        # No lateral to shift toward here — the column axis is anterior-posterior. A
+        # positive offset goes **backwards**, and the sign is read from this series
+        # rather than from the 5563 of 5563 that run their columns posterior.
+        to_lateral = float(np.sign(_axes(iop)[0][1])) or 1.0
 
-    # And which way the rows run, for the planes that have a front. DICOM puts the
-    # patient's posterior at positive y, so the anterior is the negative row direction.
-    # Read per series rather than taken from the corpus count: 3342 of 3342 axial series
-    # run their rows toward the posterior, which is a regularity, not a guarantee.
+    # Which way the row index must move to go toward the picture's "up". The two planes
+    # do NOT share a sign, which is the trap: up is the **anterior** on an axial crop and
+    # DICOM puts the posterior at +y, so up is -y; it is the **superior** on a coronal
+    # crop and DICOM puts the superior at +z, so up is +z. One formula for both put the
+    # collateral box 52 mm above the joint line and 28 below — exactly inverted.
+    #
+    # Read from this series' own orientation rather than from the corpus counts (3342 of
+    # 3342 axial rows toward the posterior, 3815 of 3815 coronal rows toward the
+    # inferior), which are regularities and not guarantees of the format.
     to_front = 0.0
-    if spec.plane == "Axial":
+    if spec.plane in ("Axial", "Coronal", "Sagittal"):
         v = _axes(iop)[1]
-        to_front = -float(np.sign(v[1])) or 1.0
+        up = np.array([0.0, -1.0, 0.0]) if spec.plane == "Axial" \
+            else np.array([0.0, 0.0, 1.0])
+        to_front = float(np.sign(v @ up)) or 1.0
 
     # In-plane position does not depend on which slice supplies the origin: both
     # orientation vectors are orthogonal to the normal, so a displacement along the
     # stack projects to zero on each.
-    row, col = pixel_of(geometry[usable[0]]["ipp"], iop, ps, point)
+    centre = point if point2_mm is None else (point + np.asarray(point2_mm, float)) / 2.0
+    row, col = pixel_of(geometry[usable[0]]["ipp"], iop, ps, centre)
 
     out = np.zeros((spec.slots, spec.out_h, spec.out_w), np.uint8)
     valid = np.zeros(spec.slots, bool)

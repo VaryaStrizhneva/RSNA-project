@@ -75,6 +75,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
            letter-spacing:.06em}
 .danger{border:1px solid #6b2f2c;background:#1f1413;border-radius:8px;padding:16px 18px;
         margin:22px 0}
+/* The row a table is making its case for. `.danger` already marks the row that argues
+   against; without its opposite the eye reads an unmarked winner as an also-ran. */
+.report tr.good td{background:#13201a;color:var(--good)}
+.report tr.danger td{background:#1f1413;border:0;padding:6px 10px}
 .danger h4{margin:0 0 8px;color:var(--bad);font-size:.86rem;text-transform:uppercase;
            letter-spacing:.06em}
 .panel3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}

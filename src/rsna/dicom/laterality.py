@@ -37,6 +37,22 @@ def side_from_geometry(headers: pd.DataFrame, config: Config) -> dict[str, str |
     is right 97% of the time overall and no better than chance inside 20 mm.
     """
 
+    return {study: (None if abs(x) < config.lat_min_offset_mm
+                    else ("R" if x < 0 else "L"))
+            for study, x in centre_x(headers).items()}
+
+
+def centre_x(headers: pd.DataFrame) -> dict[str, float]:
+    """Study -> the median patient x of its images' **centres**, in millimetres.
+
+    The quantity `side_from_geometry` thresholds, exposed on its own because how far a
+    study sits from the midline is worth knowing even once the side has been decided:
+    it is the rule's own confidence. Measured against the tagged half of one 299-study
+    draw, the rule agrees with the DICOM tag 140 times out of 150, and eight of the ten
+    disagreements sit within 31 mm of zero. A caller that shows a side to a human should
+    show this beside it.
+    """
+
     centres: dict[str, list[float]] = {}
     for row in headers.itertuples(index=False):
         ipp = hdr_vec(getattr(row, "ImagePositionPatient", None), 3)
@@ -53,14 +69,7 @@ def side_from_geometry(headers: pd.DataFrame, config: Config) -> dict[str, str |
             continue
         centres.setdefault(row.StudyInstanceUID, []).append(float(centre[0]))
 
-    out: dict[str, str | None] = {}
-    for study, xs in centres.items():
-        median = float(np.median(xs))
-        if abs(median) < config.lat_min_offset_mm:
-            out[study] = None
-        else:
-            out[study] = "R" if median < 0 else "L"
-    return out
+    return {study: float(np.median(xs)) for study, xs in centres.items()}
 
 
 def side_from_corner_x(headers: pd.DataFrame, config: Config) -> dict[str, str | None]:

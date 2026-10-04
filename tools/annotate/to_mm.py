@@ -28,10 +28,11 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from rsna.landmark.series import LANDMARKS   # noqa: E402
 from tools.annotate.bundle import patient_mm   # noqa: E402
 
 
-def lateral_end_from_click(a: dict, point: dict) -> str | None:
+def lateral_end_from_click(a: dict, point: dict, near: str = "lateral") -> str | None:
     """Which end of the stack is lateral, read off the click itself.
 
     The lateral meniscus sits about 25 mm from the lateral edge of a knee roughly 80 mm
@@ -47,7 +48,12 @@ def lateral_end_from_click(a: dict, point: dict) -> str | None:
     n = a.get("n")
     if not n or n < 2 or point is None:
         return None
-    return "first" if point["slice"] < (n - 1) / 2 else "last"
+    nearer = "first" if point["slice"] < (n - 1) / 2 else "last"
+    # Which end the click is nearest is not the lateral end for every point: a medial
+    # meniscus click is nearest the MEDIAL end, so the lateral one is the other.
+    if near == "medial":
+        return "last" if nearer == "first" else "first"
+    return nearer
 
 
 def side_at(a: dict, lat_end: str | None) -> str | None:
@@ -86,8 +92,13 @@ def rows(export: dict, annotator: str) -> list[dict]:
             # one. An axial stack runs inferior to superior and the click says nothing
             # about laterality — running it anyway would read the x of an image corner
             # and report a side with the same confidence as a real one.
+            # Only a sagittal stack runs along the left-right axis, so only there does
+            # the end a click is nearest say which side it is. A coronal stack runs
+            # front to back: its image is lateralised but its *ends* are not.
             sagittal = export.get("plane", "Sagittal") == "Sagittal"
-            lat_end = lateral_end_from_click(a, p) if sagittal else None
+            near = (LANDMARKS.get(export.get("landmark", "lat_centre"), {})
+                    .get("click_near") or "lateral")
+            lat_end = lateral_end_from_click(a, p, near) if sagittal else None
             from_click = side_at(a, lat_end) if sagittal else None
             side = a.get("side") or from_click
             side_from = (a.get("side_from") if a.get("side")

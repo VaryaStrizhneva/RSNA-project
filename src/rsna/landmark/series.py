@@ -74,11 +74,64 @@ def pick_axial(headers: pd.DataFrame, prefer_deep: bool = False):
     return ax.sort_values("n_slices", ascending=False).iloc[0]
 
 
+def pick_coronal(headers: pd.DataFrame, prefer_deep: bool = False):
+    """The coronal series a collateral ligament is read on: fat-suppressed first.
+
+    Same preference as the axial patellofemoral rule and for the same reason: a ligament
+    sprain is oedema in and around the band, and oedema is only visible once the fat
+    around it is suppressed. PD fat-suppressed covers 84.0 % of studies and T2
+    fat-suppressed 17.0 %; at least one of the two covers **95.5 %**.
+    """
+
+    cor = headers[headers["plane"] == "Coronal"]
+    if not len(cor):
+        return None
+    for weight, fat in (("PD", True), ("T2", True), ("PD", False), ("T1", False)):
+        hit = cor[(cor["weight"] == weight) & (cor["fatsat"].astype(bool) == fat)]
+        if not len(hit):
+            continue
+        if prefer_deep:
+            deep = hit[hit["n_slices"] > 100]
+            if len(deep):
+                return deep.sort_values("n_slices", ascending=False).iloc[0]
+        return hit.sort_values("n_slices", ascending=False).iloc[0]
+    return cor.sort_values("n_slices", ascending=False).iloc[0]
+
+
 #: Which picker each landmark needs, by the plane it is annotated on.
-PICKERS = {"Sagittal": pick_sagittal, "Axial": pick_axial}
+PICKERS = {"Sagittal": pick_sagittal, "Axial": pick_axial, "Coronal": pick_coronal}
 
 
 #: The points this project collects, and what each needs to be annotated correctly.
+#:
+#: `side_cue` says what the annotator has to be told about left and right, and the three
+#: values are three different situations rather than degrees of one:
+#:
+#: * **stack-end** -- a sagittal stack runs along the left-right axis, so which *end* of
+#:   it is lateral decides which meniscus is being pointed at. The tool badges the ends
+#:   and lets the annotator declare them, and the click's own position recovers the side
+#:   afterwards (161/161 on the first bundle).
+#: * **image-side** -- a coronal stack runs front to back, so no end is lateral; but the
+#:   image's horizontal axis *is* left-right, so which **side of the picture** is medial
+#:   flips with the knee. Measured, 3815 of 3815 coronal series run their columns toward
+#:   the patient's left, so medial is the image's right on a right knee and its left on a
+#:   left one. The tool has to say which, and the click cannot recover it.
+#: * **none** -- an axial stack runs bottom to top and `pf_centre` sits on the midline of
+#:   its own joint, so nothing about left or right changes where the click goes. Showing
+#:   a badge there would ask for a declaration that cannot be wrong, which teaches an
+#:   annotator to stop reading badges.
+#:
+#: `click_near` may be None even on a sagittal stack: `acl_centre` sits in the notch,
+#: near the middle of the left-right axis, so which end of the stack it is nearest says
+#: nothing about the side. It is the meniscus points' distance from the periphery that
+#: makes the trick work, not the plane.
+#:
+#: `click_near` says which end of a sagittal stack the point lands nearest, and it is
+#: what lets the click recover the side without a second question. It is **not** the same
+#: for the two menisci: a lateral point is near the lateral end, a medial one near the
+#: medial end, so the same click position implies opposite sides. Reading `med_centre`
+#: under the lateral rule would report every knee as the other one — silently, since both
+#: answers are valid sides.
 #:
 #: `prefer_deep` has to be read at **inference** as well as at annotation, and has to be
 #: the same both times. It decides which series of a study the model is shown, so a run
@@ -86,23 +139,30 @@ PICKERS = {"Sagittal": pick_sagittal, "Axial": pick_axial}
 #: asking the model about pixels it never trained on. The meniscus bundles were built
 #: with it and the patellofemoral one without, so it lives here rather than being passed
 #: separately to each script and eventually passed differently.
-#:
-#: `laterality` is the one that changes the annotation tool rather than the model: a
-#: sagittal stack runs along the left-right axis, so which end is lateral decides which
-#: meniscus is being pointed at and the annotator has to be told. An axial stack runs
-#: inferior to superior, and `pf_centre` sits on the midline of its joint, so nothing
-#: about left or right changes where the click goes. Showing a lateral badge there would
-#: be asking for a declaration that cannot be wrong, which teaches an annotator to stop
-#: reading badges.
 LANDMARKS = {
     "lat_centre": {
         "id": "lat_centre", "plane": "Sagittal", "colour": "#ff6b6b",
-        "laterality": True, "prefer_deep": True,
+        "side_cue": "stack-end", "prefer_deep": True, "click_near": "lateral",
         "what": "the centre of the lateral meniscus",
+    },
+    "med_centre": {
+        "id": "med_centre", "plane": "Sagittal", "colour": "#6ea8fe",
+        "side_cue": "stack-end", "prefer_deep": True, "click_near": "medial",
+        "what": "the centre of the medial meniscus",
+    },
+    "acl_centre": {
+        "id": "acl_centre", "plane": "Sagittal", "colour": "#c58af9",
+        "side_cue": "stack-end", "prefer_deep": True, "click_near": None,
+        "what": "the mid-substance of the anterior cruciate ligament",
     },
     "pf_centre": {
         "id": "pf_centre", "plane": "Axial", "colour": "#ffb24d",
-        "laterality": False, "prefer_deep": False,
+        "side_cue": "none", "prefer_deep": False, "click_near": None,
         "what": "the middle of the patellofemoral joint space",
+    },
+    "mcl_centre": {
+        "id": "mcl_centre", "plane": "Coronal", "colour": "#7fc98b",
+        "side_cue": "image-side", "prefer_deep": False, "click_near": None,
+        "what": "the medial collateral ligament where it crosses the joint line",
     },
 }

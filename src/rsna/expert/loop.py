@@ -14,6 +14,7 @@ signal for a model to beat chance on a target the wide pipeline barely sees at a
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -41,6 +42,10 @@ class EpochResult:
     #: interval 0.22 wide, so selecting on it would be selecting on noise.
     gold_auc: float = float("nan")
     gold_per_target: list = field(default_factory=list)
+    #: The same two numbers for the moving average of the weights, when one is kept.
+    #: Recorded, never selected on — see `ExpertConfig.ema_decay`.
+    ema_auc: float = float("nan")
+    ema_gold_auc: float = float("nan")
 
 
 @dataclass
@@ -48,6 +53,10 @@ class FitResult:
     history: list[EpochResult] = field(default_factory=list)
     best: EpochResult | None = None
     state: dict | None = None
+    #: The moving average's weights and its held-out scores, when one was kept. Saved so
+    #: that preferring it later costs a reload rather than a retraining.
+    ema_state: dict | None = None
+    ema_scores: np.ndarray | None = None
     scores: np.ndarray | None = None
     truth: np.ndarray | None = None
     studies: list[str] = field(default_factory=list)
@@ -82,7 +91,7 @@ def fit(model, groups, y: np.ndarray, w: np.ndarray,
         config: ExpertConfig, device="cuda", seed: int = 0,
         gold_index: np.ndarray | None = None, gold_y: np.ndarray | None = None,
         log=print) -> FitResult:
-    """Fit one fold. Keeps the epoch with the best held-out AUC, and its weights.
+    """Fit one fold. Keeps the **last** epoch and its weights, not the best one.
 
     `gold_index` names studies a radiologist read, kept out of training by the caller.
     They are scored every epoch and reported, never selected on: the weak-label AUC says
@@ -102,6 +111,26 @@ def fit(model, groups, y: np.ndarray, w: np.ndarray,
                        truth=y[val_index].copy())
     counts = " ".join(str(int(c)) for c in (y[val_index] > 0.5).sum(axis=0))
     log(f"  {len(val_index)} held out, positives per target: {counts}")
+
+    # The moving average rides alongside and decides nothing. Integer buffers —
+    # `num_batches_tracked` is one — are copied rather than averaged: a fractional count
+    # of batches is not a number, and `lerp_` on an integer tensor raises.
+    ema = None
+    if config.ema_decay > 0:
+        ema = copy.deepcopy(model).eval()
+        for parameter in ema.parameters():
+            parameter.requires_grad_(False)
+
+    @torch.no_grad()
+    def update_ema():
+        live = model.state_dict()
+        for key, value in ema.state_dict().items():
+            other = live[key]
+            if value.dtype.is_floating_point:
+                value.mul_(config.ema_decay).add_(other.detach(),
+                                                  alpha=1.0 - config.ema_decay)
+            else:
+                value.copy_(other)
 
     def load(idx):
         """One batch of every ROI group, in the order the model expects them.
@@ -133,34 +162,62 @@ def fit(model, groups, y: np.ndarray, w: np.ndarray,
             nn.utils.clip_grad_norm_(model.parameters(), 5.0)
             opt.step()
             sched.step()
+            if ema is not None:
+                update_ema()
             total += float(loss.detach()) * len(idx)
             seen += len(idx)
 
         model.eval()
 
-        def score(index):
+        def score(index, module=None):
+            module = model if module is None else module
             out = []
             with torch.no_grad():
                 for start in range(0, len(index), config.batch):
                     out.append(torch.sigmoid(
-                        model(load(index[start:start + config.batch]))).cpu().numpy())
+                        module(load(index[start:start + config.batch]))).cpu().numpy())
             return np.concatenate(out) if out else np.array([])
 
         p = score(val_index)
         gold_p = score(gold_index) if gold_index is not None and len(gold_index) else None
         per = aucs(y[val_index], p)
         gper = aucs(gold_y, gold_p) if gold_p is not None else np.array([np.nan])
+        ema_auc = ema_gold = float("nan")
+        if ema is not None:
+            ema_p = score(val_index, ema)
+            ema_auc = float(np.nanmean(aucs(y[val_index], ema_p)))
+            if gold_index is not None and len(gold_index):
+                ema_gold = float(np.nanmean(aucs(gold_y, score(gold_index, ema))))
+            result.ema_scores = ema_p
+            result.ema_state = {k: v.detach().cpu().clone()
+                                for k, v in ema.state_dict().items()}
         r = EpochResult(epoch, total / max(seen, 1), float(np.nanmean(per)),
                         [float(x) for x in per], int((y[val_index] > 0.5).sum()),
-                        float(np.nanmean(gper)), [float(x) for x in gper])
+                        float(np.nanmean(gper)), [float(x) for x in gper],
+                        ema_auc, ema_gold)
         result.history.append(r)
-        if result.best is None or (np.isfinite(r.auc) and r.auc > result.best.auc):
-            result.best = r
-            result.state = {k: v.detach().cpu().clone()
-                            for k, v in model.state_dict().items()}
-            result.scores = p
-            result.gold_scores = gold_p
+        # The last epoch, not the best one. Replayed over the 35 fold-runs already
+        # trained, taking the argmax of this curve bought **+0.018 of held-out AUC and
+        # lost 0.003 against the 58 gold studies** — it was selecting noise in the weak
+        # labels, not a better model. Keeping the last epoch also cut the spread of the
+        # gold score across folds, from 0.055 to 0.052.
+        #
+        # The schedule is why. `OneCycleLR` raises the learning rate and anneals it back
+        # toward zero, so a mid-schedule epoch is a model whose weights have not settled:
+        # `expert_acl_v4` kept epoch 7 of 30, at a learning rate near its peak. The last
+        # epochs are the annealed ones, and they are the stable ones by construction.
+        #
+        # What this gives up is the safety net: a run that genuinely diverges is no
+        # longer rescued by an earlier epoch. The history still records every epoch, so
+        # a divergence is visible — it is just no longer silently repaired.
+        result.best = r
+        result.state = {k: v.detach().cpu().clone()
+                        for k, v in model.state_dict().items()}
+        result.scores = p
+        result.gold_scores = gold_p
         detail = " ".join(f"{x:.3f}" for x in r.per_target)
         log(f"  epoch {epoch:3d}  loss {r.loss:.4f}  auc {r.auc:.4f} [{detail}]"
-            + (f"  gold {r.gold_auc:.4f}" if np.isfinite(r.gold_auc) else ""))
+            + (f"  gold {r.gold_auc:.4f}" if np.isfinite(r.gold_auc) else "")
+            + (f"  ema {r.ema_auc:.4f}" if np.isfinite(r.ema_auc) else "")
+            + (f"/{r.ema_gold_auc:.4f}" if np.isfinite(r.ema_gold_auc) else ""))
     return result
