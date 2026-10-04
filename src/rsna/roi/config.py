@@ -506,4 +506,46 @@ SPECS = {
     # the opposite test: more peripheral margin, nothing else changed
     "lateral_meniscus_l6": RoiSpec(name="lateral_meniscus_l6",
                                    lateral_mm=6.0, medial_mm=12.0, slots=5),
+    #: The whole knee, for the five targets no compartment box covers — effusion,
+    #: synovitis, the popliteal cyst, contusion, fracture. Pipeline v3's wide branches.
+    #:
+    #: **Not a wide slot: a wide box.** The distinction is the point. Every leg of the
+    #: public pipeline crops 130 mm around the *image* centre, and measured over all
+    #: 4407 studies the knee sits a median 17 mm off it, with half the corpus having
+    #: joint anatomy outside the window. Centred on the joint, 100 mm is enough — a
+    #: half-knee is about 48 mm — and the 30 mm they spend on being off-centre buys
+    #: resolution instead: 0.357 mm/px against their 0.387.
+    #:
+    #: **Two landmarks, for the centre only.** The midpoint of the two meniscus points
+    #: is the joint centre, and both are already predicted for every study, so this
+    #: needs no new annotation. The non-zero depth window is what tells `extract` to
+    #: take the extent from the spec rather than from the gap between the points —
+    #: 27 to 48 mm, which is a compartment and not a knee.
+    #:
+    #: **Depth is symmetric in both planes, and that is a decision.** Measured over 120
+    #: series per plane, the joint centre sits 49 mm from each end of a sagittal stack
+    #: and 60/41 mm in a coronal one. The coronal asymmetry is tempting and declined:
+    #: an asymmetric window makes `symmetric_depth` false, which sends `extract` to
+    #: `bowtie_direction` — a rule measured on the medial-lateral axis, applied to an
+    #: anterior-posterior one. ±40 mm is what both coronal ends support, and since the
+    #: window holds ~90% of the stack either way, the slot cap decides, not the window.
+    #:
+    #: **Coarser than a compartment box, deliberately.** 0.357 mm/px and 4.5 mm between
+    #: slots, against 0.214 and 3.3 for a meniscus. These branches are for diffuse
+    #: findings, which are large; the budget is better spent on reaching the whole knee
+    #: than on resolving a tear the compartment boxes already resolve.
+    "knee_sagittal": RoiSpec(
+        name="knee_sagittal", landmark="lat_centre", landmark2="med_centre",
+        plane="Sagittal", box_w_mm=100.0, box_h_mm=100.0, out_w=280, out_h=280,
+        lateral_mm=45.0, medial_mm=45.0, slots=20, decimate_to_mm=4.5,
+        series=(("Sagittal", "PD", True), ("Sagittal", "T2", True),
+                ("Sagittal", "PD", False))),
+    #: The same box in the plane osteoarthritis and the collaterals are read in, and the
+    #: one the public pipeline never crops at all on two of its three layouts.
+    "knee_coronal": RoiSpec(
+        name="knee_coronal", landmark="lat_centre", landmark2="med_centre",
+        plane="Coronal", box_w_mm=100.0, box_h_mm=100.0, out_w=280, out_h=280,
+        lateral_mm=40.0, medial_mm=40.0, slots=20, decimate_to_mm=4.5,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
 }
