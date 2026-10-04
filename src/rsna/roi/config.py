@@ -506,6 +506,56 @@ SPECS = {
     # the opposite test: more peripheral margin, nothing else changed
     "lateral_meniscus_l6": RoiSpec(name="lateral_meniscus_l6",
                                    lateral_mm=6.0, medial_mm=12.0, slots=5),
+    #: The joint effusion, in the recess it actually fills.
+    #:
+    #: **Clinically there is no doubt where to look.** Fluid collects first and most in
+    #: the suprapatellar recess, above the patella between the quadriceps tendon and the
+    #: femur, and the standard grading is its antero-posterior depth there. So the anchor
+    #: is `pf_centre` and the direction is up — not `med_centre`, which sits at the joint
+    #: line 40 mm below the signal.
+    #:
+    #: **The plane follows from an asymmetry, and it is the mirror of Baker's.** What
+    #: matters for a structure *above* the patella is whether "up" is an axis of the image
+    #: or of the stack. Measured over 250 series per plane: in **axial** up is
+    #: through-plane and the acquisition reaches a median **13 mm** above `pf_centre`, so
+    #: the recess is largely not acquired; in **sagittal** up is in-plane with a median
+    #: **70 mm** of headroom, and +42 mm is reachable on **100 %** of studies. The cyst is
+    #: posteromedial and gets the opposite answer, which is why its box is axial.
+    #:
+    #: **And the capture curve says the opposite of Baker's too.** A difference map over
+    #: 200 reported effusions against 200 without puts the sagittal peak at **+0.339,
+    #: 42 mm above `pf_centre`** on 99 % coverage. But capture only climbs with size:
+    #: 56 x 70 mm holds 43.6 %, 70 x 84 holds 66.9 %, and **84 x 84 holds 94.4 %**. A cyst
+    #: sits and can be framed tightly; a recess fills and cannot. So this box is large on
+    #: purpose, and at 0.353 mm/px it is barely finer than the wide model's 0.387 — its
+    #: advantage is **where it is centred**, not how closely it looks.
+    #:
+    #: Depth is symmetric, so `symmetric_depth` holds and `bowtie_direction` is never
+    #: asked: its "nearer end" heuristic was calibrated on a meniscus and means nothing
+    #: for a recess.
+    "effusion_sagittal": RoiSpec(
+        name="effusion_sagittal", landmark="pf_centre", plane="Sagittal",
+        box_w_mm=84.0, box_h_mm=84.0, out_w=238, out_h=238,
+        box_offset_mm=0.0, box_rise_mm=28.0,
+        lateral_mm=24.0, medial_mm=24.0, slots=15, decimate_to_mm=3.3,
+        series=(("Sagittal", "PD", True), ("Sagittal", "T2", True))),
+    #: The same recess seen transversely, as high as the acquisition allows.
+    #:
+    #: Its depth window is capped by the 13 mm of median headroom above `pf_centre`, which
+    #: is the whole reason the sagittal box leads. Asymmetric, so `bowtie_direction` picks
+    #: the sign — measured on 150 axial stacks it points **inferior 99.3 %** of the time,
+    #: making `lateral_mm` the inferior reach and `medial_mm` the superior one.
+    #:
+    #: 84 x 56 mm holds **91.6 %** of the axial excess. Coverage is what argues for it:
+    #: axial PD fat-sat reaches 72.2 % of studies and T2 fat-sat takes the pair to
+    #: **98.6 %**, so the two boxes together cover **99.14 %** where the sagittal one alone
+    #: covers 93.5 %.
+    "effusion_axial": RoiSpec(
+        name="effusion_axial", landmark="pf_centre", plane="Axial",
+        box_w_mm=84.0, box_h_mm=56.0, out_w=294, out_h=196,
+        box_offset_mm=0.0, box_rise_mm=0.0,
+        lateral_mm=18.0, medial_mm=24.0, slots=11, decimate_to_mm=4.0,
+        series=(("Axial", "PD", True), ("Axial", "T2", True))),
     #: The popliteal cyst, in the plane the first attempt never gave it.
     #:
     #: **Why axial.** The sagittal `baker` spec dismissed this plane in one line — *axial

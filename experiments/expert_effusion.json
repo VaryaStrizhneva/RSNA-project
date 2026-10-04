@@ -1,0 +1,33 @@
+{
+  "config": {
+    "encoder": "resnet18",
+    "epochs": 30,
+    "batch": 32,
+    "lr": 0.0003,
+    "folds": 5,
+    "seed": 0,
+    "targets": [
+      "Effusion"
+    ],
+    "rois": [
+      "effusion_sagittal",
+      "effusion_axial"
+    ],
+    "one_channel": true,
+    "channel_order": [
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        1
+      ]
+    ]
+  },
+  "run": {
+    "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+    "weights": "assertedness",
+    "holdout_gold": true
+  }
+}
