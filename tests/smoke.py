@@ -1686,6 +1686,66 @@ def test_expert() -> None:
           f"{kw[-1]-kw[0]} slices against {kept[-1]-kept[0]} — a fixed extent would "
           f"have given the same both times")
 
+    # The whole-knee boxes use the same two landmarks for the *centre* and bring their
+    # own depth extent. A knee is 90 mm along a sagittal stack; the gap between the two
+    # meniscus points is 27 to 48 mm, so deriving the window from the points would make
+    # a wide box a compartment box wearing a wide box's name.
+    own = spec.replace(lateral_mm=25.0, medial_mm=25.0)
+    got2 = extract(vol, geom, (0.0, 0.0, 10.0), own, (0.0, 0.0, 50.0))
+    k2 = sorted(int(s[1:]) for s in got2.sop if s)
+    check("a spec with its own depth extent keeps it when given two landmarks",
+          k2[0] <= 7 and k2[-1] >= 53,
+          f"slices {k2[0]}..{k2[-1]}: ±25 mm around the 30 mm midpoint, not the "
+          f"{kept[0]}..{kept[-1]} the gap between the points would give")
+    check("...and the two points still set the centre",
+          abs((k2[0] + k2[-1]) / 2 - 30) <= 1,
+          "the box sits on the midpoint of the two, which is the joint centre")
+
+    # Reading a cache as one series per study, by priority. The caches carry two or
+    # three; as separate channels the extras cost the MCL expert 0.0118, as a fallback
+    # they take coverage from 84 % to 99.8 %.
+    from rsna.roi.cache import collapse
+
+    vols = np.arange(5 * 3 * 4 * 2 * 2, dtype=np.uint8).reshape(5, 3, 4, 2, 2)
+    present = np.zeros((5, 3, 4), bool)
+    present[0, 0] = present[1, 1] = present[2, 2] = True
+    present[3, 0] = present[3, 1] = True              # two to choose between
+    view, one, chosen = collapse(vols, present)
+    check("one channel takes the first series that is present",
+          list(chosen) == [0, 1, 2, 0, -1],
+          "declared order; -1 is a study no series covers")
+    other = collapse(vols, present, order=(1, 0, 2))[2]
+    check("...and the priority decides when more than one is",
+          other[3] == 1 and list(other) == [0, 1, 2, 1, -1],
+          "the only row that moves is the one with a choice to make")
+    check("the collapsed batch has one series axis",
+          view[[0, 3, 4]].shape == (3, 1, 4, 2, 2),
+          "so the attention sees one vector per box rather than one per series")
+    check("a study no series covers comes back as zeros, not as a neighbour",
+          bool((view[[4]] == 0).all()) and not one[4].any(),
+          "has_pixels() then withholds it and the wide model keeps the row")
+    check("the gather is lazy, not a 22 GB copy",
+          not isinstance(view, np.ndarray) and view.nbytes < vols.nbytes,
+          f"{view.nbytes} bytes against the cache's {vols.nbytes}")
+    try:
+        collapse(vols, present, order=(0, 1))
+        check("a priority that cannot reach every series is refused", False)
+    except ValueError as exc:
+        check("a priority that cannot reach every series is refused",
+              "permutation" in str(exc),
+              "an index left out would make that series unreachable in silence")
+
+    for name in ("knee_sagittal", "knee_coronal"):
+        wide_spec = SPECS[name]
+        check(f"{name} is symmetric in depth",
+              wide_spec.symmetric_depth,
+              "an asymmetric window sends extract to bowtie_direction, a rule measured "
+              "on the medial-lateral axis — wrong for a coronal stack's depth")
+        check(f"{name} centres on both meniscus points and brings its own extent",
+              wide_spec.landmark2 is not None
+              and (wide_spec.lateral_mm or wide_spec.medial_mm),
+              f"±{wide_spec.lateral_mm:.0f} mm, against the 27-48 mm between the points")
+
     cor = SPECS["lateral_meniscus_coronal"]
     wide = ExpertConfig(rois=("lateral_meniscus", "lateral_meniscus_coronal"))
     big = ExpertNet(wide, pretrained=False)
@@ -1813,6 +1873,32 @@ def test_expert_inference() -> None:
     check("the studies it could not read are left alone",
           bool(np.allclose(after[4:], before[4:])),
           "they keep the wide model's answer rather than a prior")
+
+    # Abstention: a study cut over no pixels at all must keep the host's answer rather
+    # than the constant the model returns for an all-zero tensor. 299 of 4407 studies
+    # are in this position across the seven shipped experts.
+    from rsna.infer.chain import has_pixels
+
+    # Two regions, three slots each, over four studies. Study 0 has pixels in the first
+    # region only, study 1 in the second only, study 2 in both, study 3 in neither.
+    first = np.array([[[1, 0, 0]], [[0, 0, 0]], [[1, 1, 0]], [[0, 0, 0]]], bool)
+    second = np.array([[[0, 0, 0]], [[0, 1, 0]], [[1, 0, 0]], [[0, 0, 0]]], bool)
+    seen = has_pixels([(None, first), (None, second)], 4)
+    check("a study with pixels in any one region is scored",
+          list(seen) == [True, True, True, False],
+          "an expert reads its regions together, so one empty region is not nothing")
+
+    frame2 = pd.DataFrame({t: np.linspace(0.1, 1.0, 4) for t in TARGETS},
+                          index=pd.Index([f"s{i}" for i in range(4)],
+                                         name="StudyInstanceUID"))
+    kept = frame2["ACL"].to_numpy().copy()
+    names = [f"s{i}" for i in range(4)]
+    _overwrite(frame2, [n for n, k in zip(names, seen) if k], ["ACL"],
+               np.array([[0.9], [0.1], [0.5]]), lambda *_: None)
+    check("the study that saw nothing keeps the host's value exactly",
+          float(frame2["ACL"].to_numpy()[3]) == float(kept[3]),
+          "the model answers an all-zero tensor with a constant, and a constant written "
+          "into a column is a tie where there was an ordering")
 
     # Grafting onto someone else's submission: the host can be our own wide model or a
     # public ensemble, and the difference must not be a silent one.
