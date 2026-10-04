@@ -447,18 +447,83 @@ blend pays in proportion to disagreement.
 
 ## 10. Order of work
 
-1. **The window cutter, per group.** Cuts per slot with edge clamping, no cross-series
-   triplets. Reuses `ExpertNet.windows()`.
-2. **The head.** Per-target attention over windows, plus the positional feature. Raptor's
-   six lines with a `Linear` on (plane, signed mm) added.
-3. **One fold, 10 epochs, the full bag, `bf16`.** ≈1.1 h by §7. Validates the plumbing
-   and the data loader — the only thing §7 did not measure — before five folds are
-   committed.
-4. **Compare out of fold against 0.899**, on our five folds. No submission. Two runs are
-   needed — this preprocessing and theirs — or architecture and preprocessing are
-   confounded.
-5. **Capacity-aware redistribution**, once the shape works. It is the fix for the 197-study
-   hole and it is independent of everything above.
+**Done.** `knee_sagittal` and `knee_coronal` are in the registry and cut over all 4407
+studies — 19.8 GB each, 99.9% and 99.8% coverage. `extract` no longer couples a box's
+centre to its depth window. A cache can be read as one series per study by a measured
+priority. The abstention is in `chain.py`.
+
+**Running.** The first measurement: twelve targets on the nine boxes, one channel each,
+fold 0, 30 epochs, `resnet18`, batch 8 — **15.5 GB of the L40, 20.9 studies/s, ≈1.8 h**
+**[m]**. Against **0.8560**, which is `window_30epochs_v4blend`: the same fold, label
+table, weighting, gold policy, epoch count *and* batch size, differing only in the input.
+Not against 0.899 — that is a leaderboard score and no submission is planned for a long
+while.
+
+What it is not: a fair test of this document's thesis. It keeps the mean over windows, has
+no positional feature, and its comparator was tuned over several runs while this is the
+first run of a new input. Its job is to say whether the shape holds. 0.85 would not be a
+failure; 0.82 would.
+
+**Next, in this order.**
+
+1. **Attention over windows, on the experts first.** The pooling change is orthogonal to
+   the box-and-target question, so it can be tested where it is cheap and replicated:
+   one target, one box, a known baseline, 15 min per fold. Five of the seven carry 7-9
+   windows and give a usable test; `medial_meniscus` has 3 and would be vacuous.
+   Measured, the change is **free** — 4.04 GB and 11.19 M parameters either way, because
+   the trunk already produces all 81 window features and the mean then discards them
+   **[m]**. The only cost is learning difficulty.
+
+   The asymmetry to keep in mind: the experts are a **weak test in the direction that
+   matters**. Averaging dilutes in proportion to the bag, so 7 windows understates what
+   81 would show. A positive result transfers; a null one does not.
+
+2. **The anatomical prior on the attention** — see below.
+3. **Attention over windows plus the positional feature, in the twelve-target model.**
+   S4 is not optional once the attention is over windows: flattened to 81, the attention
+   no longer knows which box or depth a vector came from, where nine box-averages carried
+   that implicitly in their position.
+4. **Capacity-aware redistribution.** Independent of everything above, and no longer
+   urgent: the priority list already took per-box coverage to 98.6-99.9%, and across all
+   nine boxes **no study is empty** **[m]**.
+
+### The anatomical prior, which we have never switched on
+
+`SlotHead` carries a fixed bias on the attention logits, added **before** the softmax:
+
+```python
+att = einsum('bsh,oh->bos', h, self.query) / hidden ** 0.5
+if self.prior:
+    att = att + self.slot_prior.unsqueeze(0)     # (target, slot)
+```
+
+`SLOT_PRIOR_TABLE` in `rsna/config.py` is clinical knowledge written down — ACL on the
+sagittals, the collateral on the coronals, Baker's on the sagittal alone, Fracture on
+almost everything because nobody knows where it is. `SLOT_PRIOR_STRENGTH = 0.55`, so
+`exp(0.55) ≈ 1.73`: a preferred slot weighs 1.73× an unpreferred one and **nothing is
+excluded**. Training can overturn the tilt if it has reason to.
+
+**`prior` has been `False` in every experiment this project has run.** It was ported to
+be able to *read* the published checkpoints fitted with it, not to use it.
+
+It is a better fit here than there. In their model a slot is a sequence, and the link to a
+pathology is indirect. In ours **a box is a pathology** — `mcl` is the MCL's box — so the
+table is nearly trivial: each owned target prefers its own box plus the two whole-knee
+branches, and the five unowned targets prefer the whole-knee branches alone.
+
+Three things make it an experiment and not a switch:
+
+- **The table is a buffer in the state dict**, so it is part of a member's definition and
+  must be reproduced exactly for its weights to mean anything. It is decided before
+  training, never after.
+- **A prior can cost.** It bets that the radiologist is right *and* that the model would
+  not find better alone. That bet has already lost once here: the MCL expert's attention
+  puts 0.90 on PD fat-sat, yet it scores **+0.031 better** on the studies where that
+  series is missing and it reads T2 fat-sat instead **[m]**.
+- **With attention over windows the object changes.** The natural prior stays per box —
+  every window of a box shares its bias — which is clean, but it becomes a 12×81 table
+  built from a 12×9 one. Cheap to write on nine boxes, less so on eighty-one, which is
+  why it belongs before step 3 and not after.
 
 ---
 
