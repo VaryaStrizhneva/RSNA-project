@@ -13,9 +13,14 @@ Three decisions are worth stating, because each is a failure this would otherwis
 
 **The wide model goes first and owns every column.** Experts then overwrite only the
 columns they own, and only for the studies they actually scored. A study whose landmark
-could not be predicted, or whose series the region needs is missing, keeps the wide
-model's answer instead of a prior — and keeps a row, which the submission format
-requires whatever happened upstream.
+could not be predicted, whose series the region needs is missing, **or that was cut over
+no pixels at all**, keeps the wide model's answer instead of a prior — and keeps a row,
+which the submission format requires whatever happened upstream.
+
+That last case is not hypothetical and it is not rare: 299 of 4407 studies reach an
+expert as an all-zero tensor, because they carry no series matching any of its regions.
+The model answers anyway, with a constant, so writing it in would swap a real ordering
+for a tie. Abstaining is the whole reason the wide model runs first.
 
 **One region at a time.** Cutting all seven at once is 10.3 GB for 1300 studies; cutting
 one, scoring it and dropping it is 1.6 GB at the peak. The scored notebook has 20 GB of
@@ -168,7 +173,29 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
                 groups.append((volumes, mask))
 
             scores = score_experts(models, groups, batch=config.batch, device=device)
-            _overwrite(frame, names, config.targets, scores, log, blend=blend)
+
+            # A study whose every slot is masked was cut over no pixels at all. The
+            # model still answers — measured over the corpus it answers with a
+            # *constant* (the MCL expert returns 0.2499 to 0.2516, sd 0.0006, for the
+            # 197 studies that carry no fat-suppressed coronal) — so writing that
+            # column in trades the wide model's ordering for a tie on those rows.
+            #
+            # 299 of 4407 studies are in this position across the seven shipped
+            # experts, 197 of them for MCL and 64 for patellofemoral OA. None is
+            # recoverable by relaxing the series rule: they do not carry the sequence,
+            # and the slot that would cover them is the non-fat-suppressed one whose
+            # removal is worth +0.0117 on MCL. So the expert abstains and the wide
+            # model keeps the row, which is what it is there for.
+            #
+            # Emptiness is judged across *all* of an expert's regions, not each: a
+            # study the sagittal spec could not cut but the coronal one could has
+            # pixels, and the model saw them.
+            seen = has_pixels(groups, len(names))
+            if not seen.all():
+                log(f"  {int((~seen).sum())} study(ies) carry no pixels for this "
+                    f"expert; the wide model keeps those rows")
+            _overwrite(frame, [n for n, k in zip(names, seen) if k],
+                       config.targets, scores[seen], log, blend=blend)
 
             if not keep_cache:
                 for path in list(made):
@@ -183,6 +210,23 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
     frame.to_csv(out, index=False)
     log(f"wrote {out} — {len(frame)} studies")
     return out
+
+
+def has_pixels(groups, n: int) -> np.ndarray:
+    """Which of `n` studies had *any* pixel in *any* of an expert's regions.
+
+    Judged across all regions rather than each, because an expert reads them together:
+    a study the sagittal spec could not cut but the coronal one could has pixels, and
+    the model saw them. Only a study masked everywhere saw nothing.
+
+    The mask is `(studies, series, slots)`, so the reshape flattens everything but the
+    study axis — it must not assume how many series or slots a spec has.
+    """
+
+    seen = np.zeros(n, bool)
+    for _, mask in groups:
+        seen |= np.asarray(mask).reshape(n, -1).any(axis=1)
+    return seen
 
 
 def _landmarks(landmark_runs, wanted, headers, device, workers, log) -> pd.DataFrame:
