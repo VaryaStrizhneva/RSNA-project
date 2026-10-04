@@ -163,7 +163,7 @@ def patch_raptor2(nb: dict) -> None:
 
 
 def patch_nocoat(nb: dict) -> None:
-    """Drop all four CoAtNet readers — 55 % of the pipeline's compute, worth +0.001.
+    """Drop all four CoAtNet readers — 56.7 % of the pipeline's compute, worth +0.001.
 
     They are subprocesses, each reloading its own weights, and they run strictly one
     after another on any cohort over 48 studies — `RSNA_PARALLEL_COAT_READERS` defaults
