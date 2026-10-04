@@ -78,7 +78,7 @@ def main() -> int:
 
     groups, studies, total = [], None, 0
     log(f"{args.experiment}: {', '.join(config.targets)}")
-    for spec in config.specs:
+    for spec, order in zip(config.specs, config.orders):
         volumes, mask, records = cache.load(args.roi_cache, spec)
         names = [r["study"] for r in records]
         if studies is None:
@@ -86,11 +86,25 @@ def main() -> int:
         elif names != studies:
             raise SystemExit(f"{spec.name} was cut over a different set of studies; "
                              f"rebuild it from the same landmark table")
+        note = ""
+        if config.one_channel:
+            # One series per study, the first of the priority that is present. Lazy:
+            # the knee boxes are 19 GB memmaps and `fit` reads a batch at a time.
+            volumes, mask, chosen = cache.collapse(volumes, mask, order)
+            tags = [f"{w}{'-FS' if fs else ''}" for _, w, fs in spec.series]
+            counts = [int((chosen == i).sum()) for i in range(len(spec.series))]
+            note = ("  one channel from " + ", ".join(
+                f"{t} {100 * c / len(chosen):.0f}%"
+                for t, c in zip(tags, counts) if c)
+                + (f", nothing {100 * (chosen < 0).mean():.1f}%"
+                   if (chosen < 0).any() else ""))
         groups.append((volumes, mask))
         total += volumes.nbytes
         log(f"  {spec.name}: {spec.plane} {spec.box_w_mm:.0f}x{spec.box_h_mm:.0f} mm on "
             f"{spec.out_w}x{spec.out_h} px, {spec.slots} slots, "
             f"{100 * mask.any(axis=(1, 2)).mean():.1f} % of studies covered")
+        if note:
+            log(note)
     log(f"  {len(studies)} studies, {total / 1e9:.2f} GB in all")
 
     # The twelve-target machinery builds all twelve, then one column is taken. Cheaper
