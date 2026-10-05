@@ -32,6 +32,8 @@ row can always be recovered from a run that was not logged at the time.
 | 18 | 2026-10-03 | `rsna-knee-v4g-experts-blended` | `5728f2f` | the same refitted experts, blended 50/50 | 0.922 | −0.001 against #15, and −0.002 out of fold. **Adding gold to expert training did not pay** |
 | 19 | 2026-10-04 | `rsna-knee-nocoat` | `80763e8`-dirty | **the four CoAtNet readers removed** from #16, nothing else | 0.940 | the amputation costs **−0.003**, not the +0.001 the notebook credits CoAt with. Dirty tree was documentation only |
 | 20 | 2026-10-04 | `rsna-knee-nocoat-experts` | `80763e8`-dirty | our seven experts over #19, blend 0.5 | **0.944** | **+0.004** over #19 — our best score, and the first time our own work beats the public pipeline (0.943). Rank 337 → 278 |
+| 21 | 2026-10-04 | `rsna-knee-submit` v24 | `116cc0f`-dirty | #15 exactly, plus **`has_pixels`**: an expert abstains on a study cut over no pixels | 0.923 | **identical to #15.** +0.0013 was the out-of-fold prediction and three decimals cannot hold it. Not a loss — the correction ships either way |
+| 22 | 2026-10-05 | `rsna-knee-submit` v25 | `116cc0f`-dirty | #21 plus **`expert_baker_axial`** as an eighth expert, blend 0.5 | **0.925** | **+0.002, the predicted figure.** Out of fold the column goes 0.8960 → 0.9161, worth +0.00167 of macro. See *When the host is the comparator* |
 
 Rows #1-#11 name a *version* of one kernel; from #12 on there is a kernel per experiment,
 so the column holds its slug. Commits from #14 on name **the commit that introduced the
@@ -210,6 +212,50 @@ pilkwang's, which row #2 above reproduces on our own account.
 | `rsna-knee-d4-blend` (pjmathematician) | 0.943 |
 
 ## Rules that constrain how many experiments we get
+
+### When the host is the comparator
+
+Row #22 is the first time an out-of-fold figure arrived on the leaderboard at face value,
+and the reason is worth keeping: **its host was the model the prediction was measured
+against.** The kernel log shows
+`window_30epochs_v4blend_goldin_fold0_336px: fingerprint matches within 0.00023`, and the
+decomposition was computed from that run's own five holdouts. Predicted +0.00167 of macro,
+read +0.002.
+
+Every earlier expert row discounted by roughly two thirds — #14 → #15 moved +0.0101 out of
+fold and +0.003 here — because there the Kaggle host was a *different* model, better on
+the seven columns than ours is. The discount is not noise in the metric; it is the host.
+**So an out-of-fold gain transfers in proportion to how closely the local comparator
+matches the host it will actually blend against**, which is the argument for benching the
+public pipeline over labelled studies before building anything else for it.
+
+The decomposition itself is arithmetic, not an experiment: the experts own **disjoint**
+columns and an AUC depends only on its own column, so contributions to the macro add with
+no cross terms. Measured against our wide model **[m, 4348 studies]**, blended at 0.5:
+
+| expert | column | wide | blend | outright | Δ macro |
+|---|---|---|---|---|---|
+| `expert_lm_d32` | Lateral Meniscus | 0.7736 | 0.8498 | 0.8476 | **+0.00635** |
+| `expert_acl` | ACL | 0.8065 | 0.8649 | 0.8626 | +0.00486 |
+| `expert_pf_oa` | PF OA | 0.8083 | 0.8527 | 0.8305 | +0.00370 |
+| `expert_medial_meniscus` | Medial Meniscus | 0.8612 | 0.8964 | 0.8791 | +0.00294 |
+| `expert_lateral_oa_coronal` | Lateral OA | 0.8180 | 0.8446 | *0.8121* | +0.00221 |
+| `expert_mcl_fsonly` | MCL | 0.8135 | 0.8382 | *0.8042* | +0.00206 |
+| `expert_baker_axial` | Baker's | 0.8960 | 0.9161 | 0.9063 | +0.00167 |
+| `expert_medial_oa` | Medial OA | 0.8652 | 0.8848 | *0.8611* | +0.00163 |
+
+Sum: **+0.0254** blended, +0.0134 outright. Three things it settles.
+
+**Blending beats handing the column over, on all eight** — and on the three in italics
+*outright scores below the wide model alone*, so replacing would destroy information. An
+aggregate total hides that completely.
+
+**The gain tracks the host's weakness, not the expert's quality.** Lateral Meniscus pays
+most because the wide model is worst there (0.7736). Baker's pays least although it is our
+best expert, because the wide model already reads 0.8960 on that column.
+
+**Per-expert submissions are therefore not worth running.** Eight runs would reproduce this
+table, and half of its rows move the macro by less than the leaderboard can resolve.
 
 ### Where a score actually places, 2026-10-03
 

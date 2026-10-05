@@ -361,6 +361,42 @@ list needs: the three coronal boxes are complete, and the sagittal ones hold PD-
 PD-noFS, which *is* the 99.8% list. Only `pf_oa` lacks a third (98.6% without it). One
 change: use `mcl` (three series) rather than `mcl_fsonly` (two).
 
+**One channel is also the experts' rule — tested, not assumed.** The rule above was
+decided under the wide model's window budget, where every extra series multiplies 99
+windows. A solo expert has two boxes, so that argument does not reach it, and the two were
+allowed to differ for one experiment: `effusion` ran its four series as four masked
+branches (Sagittal PD-FS + T2-FS, Axial PD-FS + T2-FS), a series absent simply masked out
+of the attention. It costs no cache work — `OneChannel` is only a read-time view and both
+series were already on disk.
+
+It bought nothing, and the reason was visible before the run finished. The two series of a
+box are almost always *alternatives*, not complements **[m, 4407 studies]**:
+
+| | first | second | both | neither |
+|---|---|---|---|---|
+| `effusion_sagittal` | PD-FS 82.6% | T2-FS 18.9% | **8.1%** | 6.6% |
+| `effusion_axial` | PD-FS 72.2% | T2-FS 28.1% | **1.8%** | 1.5% |
+
+Live branches per study, out of four: 0 → 0.9%, 1 → 6.2%, 2 → **83.3%**, 3 → 9.6%, 4 → one
+study. Mean **2.02**, not 4. So **90.3% of studies receive exactly the input they received
+under one channel** and 426 of 4407 gain a branch — which is also why the step cost did not
+move (73-86 s/epoch against 80) and why four branches peaked at **0.8424** (epoch 11)
+against one channel's **0.8429** (epoch 10) **[m, fold 0]**. A difference of 0.0005 on a
+change that touches a tenth of the studies is a null result, and it was abandoned there.
+
+Two things worth keeping from it. First, the `+0.0118` from the MCL ablation must not be
+quoted as the argument against multiple series, which is what this document did: the series
+it removed was coronal **non**-fat-suppressed, a sequence where fluid is dark — a channel
+contradicting what the box looks for. All four effusion series are fat-suppressed, where
+effusion is frankly bright. The ablation says *a contradicting channel costs*; it says
+nothing about plane-matched agreeing ones, and the null above is the measurement that
+actually settles those.
+
+Second, the lever is elsewhere: the **6.6% of studies with no fat-suppressed sagittal at
+all** fall back on `prior_logit` for that box, and a third priority level repairs them for
+no windows — the same argument as the nine-box lists above. Multi-modality is simply not
+available here: the two sequences coexist in 8.1% of studies sagittally and 1.8% axially.
+
 **The priority order is measured, not declared.** The trained experts carry a per-target
 attention over series, so their weights say which sequence each model actually leans on.
 Read out over studies carrying at least two series **[m]**:
@@ -477,6 +513,28 @@ failure; 0.82 would.
    The asymmetry to keep in mind: the experts are a **weak test in the direction that
    matters**. Averaging dilutes in proportion to the bag, so 7 windows understates what
    81 would show. A positive result transfers; a null one does not.
+
+   **First reading, on `effusion` fold 0, one channel per box (22 windows) [m]:**
+
+   | pooling | peak holdout AUC | at epoch |
+   |---|---|---|
+   | `mean` | **0.8429** | 10 |
+   | `attn` | 0.8347 | 9 (21 epochs seen, never beaten) |
+
+   Under, not over — and the reason is visible in the *training* loss, which from epoch 4
+   is consistently **higher** for `attn` (0.4546 against 0.4484 at epoch 11). It fits the
+   training set less well too, so this is a harder optimisation, not a sharper one that
+   overfits. The mechanism is gradient routing at equal parameters (11.178 M and 1026
+   outside the trunk, both): `mean` sends 1/n of the gradient to every live window every
+   step, while `attn` sends it in proportion to the softmax weight, so a window the
+   attention leaves early stops training the trunk at all. Epoch 1 is identical to four
+   decimals (0.9237 both), which is what a near-uniform softmax at initialisation
+   predicts.
+
+   This is the weak-test asymmetry above, arriving as predicted: 22 windows for one
+   study-level label against the mean's 2 pre-pooled vectors, an eleven-fold thinner
+   supervision per instance. Being re-measured at four branches (44 windows), with
+   `max` and `meanmax` alongside, before anything is concluded for the twelve-target model.
 
 2. **The anatomical prior on the attention** — see below.
 3. **Attention over windows plus the positional feature, in the twelve-target model.**
