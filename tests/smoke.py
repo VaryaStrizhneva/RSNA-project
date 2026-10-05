@@ -1939,12 +1939,15 @@ def test_expert_inference() -> None:
 
 
 def test_epoch_choice() -> None:
-    """The expert keeps its last epoch, and does not go looking for its best one.
+    """The expert keeps its best held-out epoch, and its scores come from that epoch.
 
-    Replayed over the 35 fold-runs already trained, the argmax of the held-out AUC bought
-    +0.018 of that AUC and lost 0.003 against the 58 gold studies — it was selecting
-    noise in the weak labels. The schedule explains it: `OneCycleLR` anneals the learning
-    rate toward zero, so a mid-schedule epoch is a model whose weights have not settled.
+    Two properties, and the second is the one that bit. `result.state` moved under the
+    argmax when the rule was restored, while `result.scores` stayed outside it, so
+    `holdout.csv` and the pooled `oof` were written from the **last** epoch while the
+    saved weights were the best one. On `baker_axial` the two disagreed by 0.025 of AUC
+    per fold, on all five, and that gap was briefly mistaken for a property of pooling
+    predictions across folds. Asserting both are non-null does not catch it; asserting
+    that the scores reproduce `best.auc` does.
     """
 
     from rsna.expert import ExpertConfig, ExpertNet
@@ -1968,15 +1971,86 @@ def test_epoch_choice() -> None:
     result = fit(model, [(volumes, mask)], y, w, studies,
                  np.arange(0, 6), np.arange(6, n), config, device="cpu", log=lambda *_: None)
 
-    check("the epoch kept is the last one, whatever the held-out curve did",
-          result.best is not None and result.best.epoch == config.epochs,
-          f"kept epoch {result.best.epoch} of {config.epochs}")
-    check("every epoch is still recorded, so a divergence stays visible",
+    # The best held-out epoch, which is what `rsna/train/loop.py` has always kept. While
+    # the expert loop kept the last one instead, every expert-against-wide comparison was
+    # a last epoch against a best one: on Baker's that turned +0.029 into −0.001.
+    peak = max(result.history, key=lambda e: e.auc)
+    check("the epoch kept is the best held-out one, as the wide model's loop keeps",
+          result.best is not None and result.best.epoch == peak.epoch,
+          f"kept epoch {result.best.epoch} of {config.epochs}, whose auc {peak.auc:.4f} "
+          f"is the curve's maximum")
+    check("every epoch is still recorded, so the bias stays measurable",
           len(result.history) == config.epochs,
-          "the rule drops the safety net, not the evidence")
-    check("the weights kept are the ones that produced the scores kept",
+          "selecting on the held-out fold and reporting it is optimistic by "
+          "construction; the curve is what lets peak-minus-last be quoted")
+    from rsna.expert.loop import auc as mean_auc
+
+    check("the scores kept are the ones the kept epoch produced",
           result.state is not None and result.scores is not None
-          and len(result.scores) == 2)
+          and len(result.scores) == 2
+          and abs(mean_auc(result.truth, result.scores) - result.best.auc) < 1e-9,
+          f"holdout.csv and the pooled oof are built from `scores`; at the kept epoch "
+          f"they must read {result.best.auc:.4f}, not the last epoch's")
+
+
+def test_pooling() -> None:
+    """How a box's windows become what the attention sees.
+
+    `encode` averaged them for every shipped expert. For a focal finding that dilutes —
+    a tear on two windows of nine has its signal divided by four and a half — and nothing
+    downstream can say which window carried it. The three alternatives are pinned here
+    because each changes a shape, and a shape change that nobody checks is a run filed
+    under the wrong name.
+    """
+
+    from rsna.expert import ExpertConfig, ExpertNet
+
+    print("\npooling over windows")
+
+    shapes = {}
+    for how in ("mean", "max", "meanmax", "attn"):
+        config = ExpertConfig(targets=("ACL",), rois=("acl",), encoder="resnet18",
+                              pool=how)
+        net = ExpertNet(config, pretrained=False).eval()
+        spec = config.specs[0]
+        volumes = torch.rand(2, len(spec.series), spec.slots, 64, 64)
+        mask = torch.ones(2, len(spec.series), spec.slots, dtype=torch.bool)
+        with torch.no_grad():
+            feat, live = net.encode(volumes, mask)
+            out = net([(volumes, mask)])
+        shapes[how] = tuple(feat.shape)
+        check(f"pool={how} reaches the head as one logit per target",
+              out.shape == (2, 1), f"{tuple(out.shape)}")
+        # A study with nothing must read as the corpus rate, whatever the pooling.
+        with torch.no_grad():
+            empty = net([(volumes, torch.zeros_like(mask))])
+        check(f"pool={how} answers a study with no pixels with the prior",
+              bool(torch.allclose(empty, torch.full_like(empty, config.prior_logit))),
+              "a constant is the honest answer when there is no image; writing anything "
+              "else in trades the host's ordering for a tie")
+
+    spec = config.specs[0]
+    n_series, windows = len(spec.series), spec.slots - 2
+    check("mean and max give one vector per series, not per window",
+          shapes["mean"][1] == n_series and shapes["max"][1] == n_series,
+          f"{shapes['mean']} and {shapes['max']} for {n_series} series")
+    check("meanmax doubles the width instead of the count",
+          shapes["meanmax"][1] == n_series
+          and shapes["meanmax"][2] == 2 * shapes["mean"][2],
+          f"{shapes['meanmax']} against {shapes['mean']}")
+    check("attn keeps every window, so the attention ranks them",
+          shapes["attn"][1] == n_series * windows
+          and shapes["attn"][2] == shapes["mean"][2],
+          f"{shapes['attn']} = {n_series} series x {windows} windows, against "
+          f"{shapes['mean']} once pooled")
+
+    try:
+        ExpertConfig(pool="moyenne")
+        check("a pooling this pipeline does not define is refused", False)
+    except ValueError as exc:
+        check("a pooling this pipeline does not define is refused",
+              "not one of" in str(exc),
+              "a typo would silently train the default under another run's name")
 
 
 def test_encoder_weights() -> None:
@@ -2041,6 +2115,7 @@ def main() -> int:
                  test_submission, test_figures, test_eval, test_annotation_side, test_series_choice, test_annotation_side_rule,
                  test_excluded_list, test_roi, test_expert,
                  test_expert_inference, test_epoch_choice,
+                 test_pooling,
                  test_encoder_weights,
                  test_cache_shorten,
                  test_landmark_geometry):

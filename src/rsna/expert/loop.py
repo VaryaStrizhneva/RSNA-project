@@ -91,7 +91,12 @@ def fit(model, groups, y: np.ndarray, w: np.ndarray,
         config: ExpertConfig, device="cuda", seed: int = 0,
         gold_index: np.ndarray | None = None, gold_y: np.ndarray | None = None,
         log=print) -> FitResult:
-    """Fit one fold. Keeps the **last** epoch and its weights, not the best one.
+    """Fit one fold. Keeps the epoch with the **best held-out AUC**, and its weights.
+
+    This is what `rsna/train/loop.py` has always done, and what this loop did until
+    2026-10-03, when it was switched to the last epoch and switched back a day later.
+    The reasoning is at the selection site below; the short version is that the switch
+    made every expert-against-wide comparison a last epoch against a best one.
 
     `gold_index` names studies a radiologist read, kept out of training by the caller.
     They are scored every epoch and reported, never selected on: the weak-label AUC says
@@ -196,25 +201,43 @@ def fit(model, groups, y: np.ndarray, w: np.ndarray,
                         float(np.nanmean(gper)), [float(x) for x in gper],
                         ema_auc, ema_gold)
         result.history.append(r)
-        # The last epoch, not the best one. Replayed over the 35 fold-runs already
-        # trained, taking the argmax of this curve bought **+0.018 of held-out AUC and
-        # lost 0.003 against the 58 gold studies** — it was selecting noise in the weak
-        # labels, not a better model. Keeping the last epoch also cut the spread of the
-        # gold score across folds, from 0.055 to 0.052.
+        # **The best held-out epoch, which is what the wide model has always kept.**
         #
-        # The schedule is why. `OneCycleLR` raises the learning rate and anneals it back
-        # toward zero, so a mid-schedule epoch is a model whose weights have not settled:
-        # `expert_acl_v4` kept epoch 7 of 30, at a learning rate near its peak. The last
-        # epochs are the annealed ones, and they are the stable ones by construction.
+        # This was the last epoch for a while, on a measurement that replayed the argmax
+        # over 35 fold-runs and found it bought +0.018 of held-out AUC while losing 0.003
+        # on the 58 gold studies: selecting noise in the weak labels rather than a better
+        # model. Two findings reversed it.
         #
-        # What this gives up is the safety net: a run that genuinely diverges is no
-        # longer rescued by an earlier epoch. The history still records every epoch, so
-        # a divergence is visible — it is just no longer silently repaired.
-        result.best = r
-        result.state = {k: v.detach().cpu().clone()
-                        for k, v in model.state_dict().items()}
-        result.scores = p
-        result.gold_scores = gold_p
+        # First, the asymmetry. `rsna/train/loop.py` keeps `best_state` on
+        # `holdout_auc > best_auc`, and always has. So every expert-against-wide
+        # comparison was a last epoch against a best one, biased against the expert. On
+        # Baker's that was the whole conclusion: 0.8851 last against the wide model's
+        # 0.8837 reads as a loss, and 0.9128 best against the same 0.8837 reads as
+        # **+0.029**.
+        #
+        # Second, the aggregate hid a split. Over 85 curves the argmax gained −0.0008 on
+        # the gold — a coin flip — but those curves are mostly gentle plateaus where the
+        # argmax is noise. `baker_axial` falls 0.046 from its peak, and there the argmax
+        # gains **+0.031 on the gold, on three folds out of three**. The right rule
+        # depends on how steeply a run overfits, which averaging erased.
+        #
+        # What this costs is honesty about the number: selecting on the held-out fold and
+        # then reporting that fold is optimistic by construction, and the bias is roughly
+        # the 0.020 that peak-minus-last measures. It is tolerable while the numbers are
+        # used to compare models against each other — all of them now carry it equally —
+        # and it is not tolerable in anything quoted as a final score. The schedule is
+        # the real fix: a run that peaks at epoch 8 of 30 should be a run of 10 epochs,
+        # whose last epoch is annealed and needs no selection at all.
+        if result.best is None or r.auc > result.best.auc:
+            result.best = r
+            result.state = {k: v.detach().cpu().clone()
+                            for k, v in model.state_dict().items()}
+            # With the weights, not beside them. These are what `holdout.csv` and the
+            # pooled `oof` are computed from, so leaving them outside the branch -- as
+            # the last epoch's -- described a model that is not the one saved, and by a
+            # measured 0.025 of AUC per fold on `baker_axial`. The two must move together.
+            result.scores = p
+            result.gold_scores = gold_p
         detail = " ".join(f"{x:.3f}" for x in r.per_target)
         log(f"  epoch {epoch:3d}  loss {r.loss:.4f}  auc {r.auc:.4f} [{detail}]"
             + (f"  gold {r.gold_auc:.4f}" if np.isfinite(r.gold_auc) else "")
