@@ -34,6 +34,9 @@ row can always be recovered from a run that was not logged at the time.
 | 20 | 2026-10-04 | `rsna-knee-nocoat-experts` | `80763e8`-dirty | our seven experts over #19, blend 0.5 | **0.944** | **+0.004** over #19 — our best score, and the first time our own work beats the public pipeline (0.943). Rank 337 → 278 |
 | 21 | 2026-10-04 | `rsna-knee-submit` v24 | `116cc0f`-dirty | #15 exactly, plus **`has_pixels`**: an expert abstains on a study cut over no pixels | 0.923 | **identical to #15.** +0.0013 was the out-of-fold prediction and three decimals cannot hold it. Not a loss — the correction ships either way |
 | 22 | 2026-10-05 | `rsna-knee-submit` v25 | `116cc0f`-dirty | #21 plus **`expert_baker_axial`** as an eighth expert, blend 0.5 | **0.925** | **+0.002, the predicted figure.** Out of fold the column goes 0.8960 → 0.9161, worth +0.00167 of macro. See *When the host is the comparator* |
+| 23 | 2026-10-05 | `rsna-knee-submit` v26 | `116cc0f`-dirty | #22 with the seven refitted on **steven v4_blend**, one variable: the label table | 0.924 | **−0.001.** The gold predicted −0.0011 over the same seven columns, in sign and size. The table was not the lever |
+| 24 | 2026-10-05 | `rsna-knee-nocoat-experts` v5 | `df4cb77`-dirty | **#20 plus Baker, and the seven columns fused**: pilkwang and v4_blend as ten folds each, averaged | **0.947** | **+0.003 — silver.** Rank 311 → **201 of 5280**, where the cutoff is 264. Two changes at once; row #25 separates them |
+| 25 | 2026-10-05 | `rsna-knee-submit` v27 | `df4cb77`-dirty | #22 with the same seven columns fused — the fusion alone, Baker on both sides | 0.925 | **0.000.** So the fusion is worth nothing measurable, and **Baker carried all of #24**. See *A fusion that is unbiased and imprecise* |
 
 Rows #1-#11 name a *version* of one kernel; from #12 on there is a kernel per experiment,
 so the column holds its slug. Commits from #14 on name **the commit that introduced the
@@ -256,6 +259,39 @@ best expert, because the wide model already reads 0.8960 on that column.
 
 **Per-expert submissions are therefore not worth running.** Eight runs would reproduce this
 table, and half of its rows move the macro by less than the leaderboard can resolve.
+
+### A fusion that is unbiased and imprecise
+
+Rows #24 and #25 contradict the transfer rule of the section above, and the error is
+worth keeping because it was mine twice over.
+
+Two experts on the same boxes, the same folds and the same architecture, differing only
+in which label table they were fitted on, correlate in rank **0.755** (0.647-0.870)
+**[m, 4348 studies]** — as decorrelated as two *different architectures* in the public
+stack, whose legs sit at 0.75-0.89. Both score the same on the leaderboard (0.925 and
+0.924). That is the textbook condition for averaging to pay, and `ρ = 0.755` over two
+members predicts an error-variance factor of 0.878, a 6% cut in error SD.
+
+Averaged on the 58 gold studies, the fusion beat pilkwang on **5 of 6** columns and
+v4_blend on 6 of 6, summing **+0.0396** — which was read here as +0.0033 of macro and
+predicted to show. It showed **0.000** (#25).
+
+**Why the reading was wrong.** Averaging carries no selection bias, which is a real
+advantage over picking the better of two per column — that scheme would have harvested
++0.034 where pure noise alone produces +0.039, so it measures nothing. But *unbiased is
+not precise*: the SE of that +0.0396 over six columns is 0.03-0.05, so it sat within one
+standard error of zero. The whole day's warning about 58 studies was applied to the
+selection case and forgotten for the averaging case.
+
+**And the transfer went the other way than predicted.** The fusion gained +0.003 on the
+strong host (#24, which also added Baker) and nothing on the weak host whose model *was*
+the comparator (#25). Taking #25 at face value — it is the clean one-variable test, with
+Baker on both sides — **Baker alone carried #24's +0.003**, against a host better than
+ours on every column it does not own. The rule from the previous section survives only as
+a statement about #22; it does not generalise.
+
+What is kept: ρ = 0.755 is measured and labels-free, the fusion does not *hurt*, and ten
+folds cost only forward passes. What is dropped: any expectation of gain from it.
 
 ### Where a score actually places, 2026-10-03
 
