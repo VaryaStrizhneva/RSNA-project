@@ -209,6 +209,19 @@ SPECS = {
     #: 12 rather than 8: at 8 the window ran to 48 mm on the widest knees, which is more
     #: than the notch is deep and spends slots on compartment rather than on cruciate.
     #:
+    #: **A floor is missing, and it bites on 11 studies.** The window is
+    #: `separation - 2 x 12 mm`, which is calibrated on a median separation of 52.6 mm.
+    #: When the landmark model puts the two points too close together -- the failure mode
+    #: visible on `docs/atlas/landmarking/` -- the fixed inset amplifies the error instead
+    #: of absorbing it: a separation of 25.6 mm leaves a **1.6 mm** window, and the box
+    #: then holds a single acquired slice, so one live window of nine reaches the encoder.
+    #:
+    #: Measured over the corpus: separation median 52.6 mm, 1st centile 41.1, minimum 2.0.
+    #: **11 studies of 4407 end with a window under 10 mm and 8 under 5 mm** -- 0.25 %, so
+    #: this does not move an AUC and it did not explain `convnext_nano` losing 0.0051 on
+    #: this column. It is still wrong, and the fix is a floor: below about 16 mm, take
+    #: 16 mm centred on the midpoint rather than the derived width. Not done yet.
+    #:
     #: An adaptive window cannot fill a fixed number of slots, and 11 is the least bad of
     #: them. Measured over 120 studies, the window holds 4 to 12 acquired slices, median
     #: 8 — so 9 slots would fill on 42 % of studies but **throw acquired slices away on
@@ -636,6 +649,96 @@ SPECS = {
         name="knee_coronal", landmark="lat_centre", landmark2="med_centre",
         plane="Coronal", box_w_mm=100.0, box_h_mm=100.0, out_w=280, out_h=280,
         lateral_mm=40.0, medial_mm=40.0, slots=20, decimate_to_mm=4.5,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
+    #: ---- bone contusion: wide in plane, coarse through it ----
+    #:
+    #: A contusion is marrow oedema, one to two centimetres across, in the subchondral
+    #: bone of the condyles, the plateaus or the patella. It has no landmark of its own
+    #: and never will, so both boxes hang off the **midpoint of the two meniscus
+    #: centres** — the notch, the most central stable point there is.
+    #:
+    #: The design trades the two axes against each other on purpose: **0.225 mm/px in
+    #: plane, 5-6 mm between slots**. A meniscal tear is a 1 mm line and needs every
+    #: slice; a contusion is a blob and does not. Keeping both fine would have cost
+    #: 22x a compartment box, where this costs 5x and 6x.
+    #:
+    #: Measured against the shipped osteoarthritis boxes, which look at the same bone:
+    #: those stop at ±14 mm of depth, and a **posterolateral tibial plateau** contusion
+    #: — one of the two sites of the pivot-shift injury — falls outside that.
+    "contusion_coronal": RoiSpec(
+        name="contusion_coronal", landmark="lat_centre", landmark2="med_centre",
+        plane="Coronal", box_w_mm=88.2, box_h_mm=63.0, out_w=392, out_h=280,
+        lateral_mm=30.0, medial_mm=30.0, slots=12, decimate_to_mm=5.0,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
+    #: What the coronal plane cannot give: the posterior plateau, the patella's own
+    #: subchondral bone, and the sulcus terminalis where the deep lateral femoral notch
+    #: sign is read.
+    "contusion_sagittal": RoiSpec(
+        name="contusion_sagittal", landmark="lat_centre", landmark2="med_centre",
+        plane="Sagittal", box_w_mm=88.2, box_h_mm=72.45, out_w=392, out_h=322,
+        lateral_mm=36.0, medial_mm=36.0, slots=12, decimate_to_mm=6.0,
+        series=(("Sagittal", "PD", True), ("Sagittal", "T2", True))),
+    #: The medial meniscus seen from the front, beside the sagittal box the expert
+    #: already reads. Three findings the sagittal plane serves badly, and all three are
+    #: coronal readings: **medial extrusion**, which is *defined* as the gap between the
+    #: tibial plateau margin and the meniscus' outer edge and needs both in one image;
+    #: the **body in cross-section**, which on sagittal is the continuous band that is
+    #: hardest to judge; and **root truncation**, a different lesion from a body tear.
+    #:
+    #: **Asymmetric in plane: 27 mm medial, 42 mm lateral.** `box_offset_mm` is +7.5
+    #: toward the lateral side, so the medial edge sits where a centred 54 mm box put it
+    #: (7.5 - 34.5 = -27) and every millimetre added on review went inward, toward the
+    #: notch.
+    #:
+    #: Medial 27 mm: the plateau margin is 10 to 15 mm out, so this keeps it plus the
+    #: medial gutter and the collateral ligament behind it — the tissue an extruded
+    #: meniscus protrudes into.
+    #:
+    #: Lateral 42 mm: far enough for the middle of the intercondylar notch and the
+    #: lateral tibial spine, which buys the **posterior root insertion** and
+    #: **bucket-handle fragments** — the latter displace *into* the notch and so sit
+    #: outside any box drawn around the compartment alone.
+    #:
+    #: **Measured, with laterality resolved per series.** A first pass compared image
+    #: left against image right, which does not say which is medial, and reported the two
+    #: margins swapped. Resolved properly over 220 coronal fat-suppressed studies, the
+    #: room toward the notch is **92.2 mm at the 5th centile** against **40.2 mm** toward
+    #: the skin. So growing laterally is free — 42 mm holds on **99.5 %** of studies and
+    #: so would 45 — and the binding constraint is the medial 27 mm, which is why it was
+    #: not moved. This is the mirror of `lateral_meniscus_coronal`'s -6 mm, which shifts
+    #: *inward* because its landmark sits near the lateral skin instead.
+    #:
+    #: 36 mm superior-inferior, centred on the joint line: 18 mm up for the condyle's
+    #: articular surface, 18 down for the plateau and its subchondral plate. Less than
+    #: the OA box's 39, which needs marrow both sides; more than
+    #: `lateral_meniscus_coronal`'s 30, because an edge is being read against an edge.
+    #: Judgement.
+    #:
+    #: **Depth is symmetric at ±25 mm over 15 slots, and the symmetry is not a
+    #: preference.** On a coronal stack the depth axis is anterior-posterior, but
+    #: `lateral_mm`/`medial_mm` resolve through `bowtie_direction`, whose rule — "the
+    #: imaged knee ends sooner on the lateral side, 19.8 mm against 74.5" — is a
+    #: medial-lateral fact with no meaning on the AP axis. Every coronal spec here is
+    #: symmetric, so `symmetric_depth` short-circuits that function and it is never
+    #: called; breaking the symmetry to bias the window backwards would invoke it on the
+    #: wrong axis, which is the bug `tools/atlas/contusion_map.py` already made once. So
+    #: the posterior root is reached by making the window **wide**, not lopsided: 50 mm
+    #: runs from the anterior horn to the root insertion with margin at both ends.
+    #:
+    #: **The weakness, stated rather than hidden.** `med_centre` is defined as *the
+    #: centre of the medial meniscus*, so in an extruded knee it travels outward with the
+    #: meniscus and the meniscus is always mid-box. Extrusion is a **relative**
+    #: displacement, and centring on the thing that moved turns it into a measurement the
+    #: model must make against the plateau margin *inside* the box. The information
+    #: survives — the margin is in frame, at a position that shifts — but it is harder to
+    #: read than from a plateau-anchored box. Anchoring there would need a landmark we
+    #: have never annotated, for a gain our own rule says centring alone does not give.
+    "medial_meniscus_coronal": RoiSpec(
+        name="medial_meniscus_coronal", landmark="med_centre", plane="Coronal",
+        box_w_mm=69.0, box_h_mm=36.0, out_w=322, out_h=168,
+        box_offset_mm=7.5, box_rise_mm=0.0,
+        lateral_mm=25.0, medial_mm=25.0, slots=15, decimate_to_mm=3.3,
         series=(("Coronal", "PD", True), ("Coronal", "T2", True),
                 ("Coronal", "PD", False))),
 }
