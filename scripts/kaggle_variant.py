@@ -201,12 +201,91 @@ def patch_nocoat(nb: dict) -> None:
 #: columns. Ours is 0.5 across seven, which is less total mass, not more.
 EXPERT_BLEND = 0.5
 
+#: Named weight regimes, so a kernel's allocation is a word rather than eight numbers
+#: retyped. All of them are per-column, and the columns are the eight our experts own.
+#:
+#: **Where they come from.** Out of fold over 4348 studies against the v4_blend host, the
+#: weight that maximises each column's AUC ranges from 0.45 on MCL to 0.77 on Lateral
+#: Meniscus and tracks how far the expert beats the host *alone*. Their mean is 0.51,
+#: which is why the flat 0.5 has held up: it is the average optimum, and that is also why
+#: pushing every column to 0.65 lost 0.002 on the leaderboard (row #30) -- it helps the
+#: four strong columns and hurts the four weak ones.
+#:
+#: **What is measured and what is not.** The expert AUCs behind these came from
+#: `history.json`'s kept epochs, because every one of the eight runs predates the fix in
+#: 791b6b4 and their `holdout.csv` holds the *last* epoch instead. On Baker's, the only
+#: run that was rescored from its saved weights, the gap is **+0.0216** of AUC and
+#: **+0.20** of optimal weight. `corrected` applies that single calibration point to the
+#: other seven, so it is an extrapolation, not a measurement. `shrunk` halves the
+#: distance to 0.5 and therefore halves whatever that extrapolation got wrong.
+#:
+#: **And the extrapolation got something wrong, measured after these were pushed.** It
+#: needed the cost of pooling five folds into one ranking, which Baker's put at 0.0050.
+#: `expert_mm_sagcor`, trained after the fix and so carrying a correct `holdout.csv`,
+#: puts it at **0.0158** — three times as much. Redone with that, every weight falls by
+#: about 0.10 and `corrected` lands within 0.01 to 0.07 of `shrunk` on the five columns
+#: that carry the contribution. So **`shrunk` is the better-founded of the two**, and
+#: `corrected` is roughly 0.10 too generous everywhere.
+#:
+#: Two calibration points that disagree threefold are not a calibration. The fix is not
+#: a better constant: it is to rescore the seven runs from their saved weights, which
+#: replaces every estimate here with a measurement and costs minutes of inference.
+TARGETS8 = ("Lateral Meniscus", "ACL", "Medial Meniscus", "PF OA", "Baker's",
+            "Medial OA", "Lateral OA", "MCL")
+WEIGHTS = {
+    #: What shipped, and what produced 0.947 and 0.952.
+    "flat": {t: 0.5 for t in TARGETS8},
+    #: Halfway from 0.5 to the extrapolated optimum.
+    "shrunk": {"Lateral Meniscus": 0.64, "ACL": 0.58, "Medial Meniscus": 0.59,
+               "PF OA": 0.53, "Baker's": 0.55, "Medial OA": 0.51,
+               "Lateral OA": 0.53, "MCL": 0.48},
+    #: The extrapolated optimum itself.
+    "corrected": {"Lateral Meniscus": 0.77, "ACL": 0.66, "Medial Meniscus": 0.68,
+                  "PF OA": 0.56, "Baker's": 0.60, "Medial OA": 0.53,
+                  "Lateral OA": 0.56, "MCL": 0.45},
+    #: The five columns where the expert beats the host alone keep their optimum; the
+    #: three where it loses are cut hard but not to zero.
+    #:
+    #: The hypothesis is specific. Medial OA, Lateral OA and MCL pay **only** through
+    #: decorrelation -- each scores below the host on its own. The ConvNeXt 2.5D leg of
+    #: the Apex V3 host is strong on exactly those three (its own weights give them 0.25,
+    #: 0.08 and 0.20), so it already supplies the decorrelated second opinion ours was
+    #: there for, and the optimum for ours should fall. 0.15 keeps a trace rather than
+    #: deleting the column, because a weight of zero tests nothing: it cannot tell a
+    #: redundant expert from a harmful one.
+    "divided": {"Lateral Meniscus": 0.77, "ACL": 0.66, "Medial Meniscus": 0.68,
+                "PF OA": 0.56, "Baker's": 0.60, "Medial OA": 0.15,
+                "Lateral OA": 0.15, "MCL": 0.15},
+    #: **Downward, which no experiment has tried.** Four weight variants have now lost
+    #: to a flat 0.5 -- `shrunk` and `corrected` by 0.001, `divided` by 0.002, and a
+    #: flat 0.6 by 0.001 on the 0.954 host with these very convnext experts. Every one
+    #: of them raised the experts' share or redistributed it; none lowered it.
+    #:
+    #: The reason to lower it is the one fact that has held all week. The host keeps
+    #: getting stronger -- 0.949, 0.950, 0.954, 0.956 -- and our resnet18 experts went
+    #: **+0.002, +0.002, -0.001** along that path. A stronger host deserves more weight,
+    #: so ours deserve less, and at 0.956 a flat 0.5 may already be too generous.
+    "flat40": {t: 0.40 for t in TARGETS8},
+    #: Seven columns at 0.5 and **ACL left to the host entirely** -- it is absent from
+    #: the mapping, and `_overwrite` leaves an unnamed target untouched rather than
+    #: defaulting it.
+    #:
+    #: ACL is the one column of eight where `convnext_nano` *loses* to `resnet18`, and it
+    #: loses on four folds of five: 0.8781 against 0.8832, measured paired. Every other
+    #: column gains. So the expert we actually ship on that column is the only one with a
+    #: measured case against it, and this asks what the host does with it alone.
+    "no_acl": {t: 0.5 for t in TARGETS8 if t != "ACL"},
+}
+
 GRAFT_CELL = '''# ===================== OUR LEG — the experts, grafted on =====================
-# Generated by scripts/kaggle_variant.py. The public pipeline has written submission.csv;
-# seven of its twelve columns are now re-ordered by per-pathology experts reading a 48 mm
-# crop centred on a predicted landmark. Nothing upstream has that view: `landmark` and
-# `roi` appear zero times in those 4744 lines, and every model there crops the middle of
-# the picture at 130-140 mm.
+# Generated by scripts/kaggle_variant.py (our own host) or scripts/kaggle_graft.py (a
+# third party's). The host has written submission.csv; the columns our experts own are now
+# re-ordered by per-pathology models reading a 32-60 mm crop centred on a predicted
+# landmark. No published host has that view: every one of them crops the middle of the
+# picture at 130-140 mm. The finest measured is d4's `resgated` arm at 384 px over 130 mm
+# -- 0.339 mm/px, read from its own manifest -- against our 0.214-0.286. So the margin is
+# 1.2x to 1.6x in pixel size, plus the centring, and it is narrower than the 2x we had
+# against the 336 px readers.
 #
 # The grammar is the pipeline's own — a constant weight, in rank space, with the host
 # kept wherever our side could not read a study.
@@ -216,6 +295,8 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+# A float weights every column the same; a mapping weights each one on its own, and a
+# column it does not name is left to the host untouched rather than defaulted.
 BLEND = {blend}
 INPUT = Path("/kaggle/input")
 
@@ -267,6 +348,15 @@ else:
     from rsna.infer import run_expert_submission
 
     shutil.copy2("submission.csv", "/kaggle/working/_public_before_experts.csv")
+    # The host's models are out of scope by now but torch's allocator still holds what it
+    # reserved for them, and on a 16 GB T4 that is enough to OOM our own forward passes.
+    # Releasing it costs milliseconds; discovering the collision costs the whole run.
+    if torch.cuda.is_available():
+        for _d in range(torch.cuda.device_count()):
+            with torch.cuda.device(_d):
+                torch.cuda.empty_cache()
+        print(f"[ours] freed the host's reserved GPU memory on "
+              f"{{torch.cuda.device_count()}} device(s)", flush=True)
     # The pipeline resolved the competition root at startup and published it; asking it
     # beats walking the mounts again, and walking found nothing here.
     root = os.environ.get("RSNA_COMP_ROOT") or next(
