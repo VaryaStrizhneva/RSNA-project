@@ -61,18 +61,29 @@ class DepthContext(nn.Module):
     "what kind of slice is this" — which is exactly what deciding the lateral end needs.
     """
 
-    def __init__(self, width: int):
+    def __init__(self, width: int, inner: int | None = None):
         super().__init__()
+        inner = int(inner or width)
+        # No projection when the two match, so the parameters are exactly those of every
+        # run before this field existed and their checkpoints still load.
+        self.proj_in = nn.Conv1d(width, inner, 1) if inner != width else None
+        self.proj_out = nn.Conv1d(inner, width, 1) if inner != width else None
         self.path = nn.Sequential(*[
             layer
             for d in (1, 2, 4, 8)
-            for layer in (nn.Conv1d(width, width, 3, padding=d, dilation=d),
-                          nn.GroupNorm(8, width), nn.GELU())])
+            for layer in (nn.Conv1d(inner, inner, 3, padding=d, dilation=d),
+                          nn.GroupNorm(8, inner), nn.GELU())])
 
     def forward(self, summary: torch.Tensor) -> torch.Tensor:
         """(batch, slice, width) -> (batch, slice, width)"""
 
-        return self.path(summary.transpose(1, 2)).transpose(1, 2)
+        x = summary.transpose(1, 2)
+        if self.proj_in is not None:
+            x = self.proj_in(x)
+        x = self.path(x)
+        if self.proj_out is not None:
+            x = self.proj_out(x)
+        return x.transpose(1, 2)
 
 
 class LandmarkNet(nn.Module):
@@ -91,7 +102,7 @@ class LandmarkNet(nn.Module):
             raise ValueError(f"{config.encoder_variant} gives stride {reduction[0]} at its "
                              f"first kept stage; the config asks for {config.stride}")
         self.pyramid = Pyramid(channels, width)
-        self.depth = DepthContext(width)
+        self.depth = DepthContext(width, config.depth_width)
         self.head = nn.Sequential(
             nn.Conv2d(width, width, 3, padding=1), nn.GroupNorm(8, width), nn.GELU(),
             nn.Conv2d(width, len(config.points), 1))

@@ -60,6 +60,18 @@ class LandmarkConfig:
     #: would memorise ~300 annotations; the design note puts the useful range at 4-15 M.
     encoder_variant: str = "resnet18"
 
+    #: Width of the dilated path that carries context along the stack. `None` means "the
+    #: same as the pyramid", which is what every run before 2026-10-06 used and what the
+    #: checkpoints from them expect.
+    #:
+    #: Measured on the three shipped runs: the error splits **0.8-1.4 mm in plane against
+    #: 1.4-1.8 mm through plane**, with a p90 twice as large on the depth axis. And the
+    #: capacity splits the other way — 11.18 M in the trunk, 0.17 M in the pyramid and
+    #: **0.05 M** in the depth path, so 0.4 % of the model handles the axis carrying two
+    #: thirds of the error. This makes that ratio something that can be tested rather
+    #: than something the architecture fixed by accident.
+    depth_width: int | None = None
+
     @property
     def mm_per_px(self) -> float:
         """Millimetres per pixel in the resampled slice, the same for every study."""

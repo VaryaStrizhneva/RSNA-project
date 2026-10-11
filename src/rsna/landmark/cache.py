@@ -144,14 +144,29 @@ def build(annotations: str | Path, dicom_root: str | Path, out: str | Path,
     return out
 
 
+#: The fields that decide what a cached voxel is, and which studies are in the set.
+#: Everything else — the encoder, the heatmap sigma, the width of the depth path — is a
+#: property of the *model* read over these bytes, and two models differing only there
+#: must share one cache rather than each rebuilding 294 studies from DICOM.
+PIXEL_FIELDS = ("img", "fov_mm", "slices", "decimate_to_mm", "points")
+
+
 def load(out: str | Path, config: LandmarkConfig) -> tuple[np.ndarray, list[dict]]:
-    """The sampled volumes and their records, refusing a cache built differently."""
+    """The sampled volumes and their records, refusing a cache built differently.
+
+    Compared on `PIXEL_FIELDS` rather than on the whole config. Comparing everything
+    refused a cache over a change that cannot alter a single byte of it — adding
+    `depth_width` was enough — and the alternative to this check is not "no check" but a
+    silent mismatch between a tensor and the geometry that explains it.
+    """
 
     out = Path(out)
     meta = json.loads((out / f"geometry_{cache_tag(config)}.json").read_text())
     stored = LandmarkConfig.from_dict(meta["config"])
-    if stored != config:
-        raise ValueError("this cache was built under a different LandmarkConfig; "
-                         "rebuild rather than read it under the wrong one")
+    differ = [f for f in PIXEL_FIELDS if getattr(stored, f) != getattr(config, f)]
+    if differ:
+        raise ValueError(f"this cache was built under a different LandmarkConfig "
+                         f"({', '.join(differ)}); rebuild rather than read it under the "
+                         f"wrong one")
     volumes = np.load(out / f"volumes_{cache_tag(config)}.npy", mmap_mode="r")
     return volumes, meta["records"]
