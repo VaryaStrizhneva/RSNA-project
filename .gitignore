@@ -25,14 +25,32 @@ models/
 
 # Pathology atlas pages. The builder is in git; its output is not — each page embeds
 # a few hundred patient MRI slices as data URIs, and this repo has a GitHub remote.
-docs/atlas/*.html
+# `**` on purpose, not `*`: a gitignore star does not cross a `/`, so the moment the
+# pages moved into docs/atlas/experts/ the old `docs/atlas/*.html` stopped matching them
+# and 157 MB of patient slices became trackable in a repo that has a GitHub remote.
+docs/atlas/**/*.html
 
 # And the measurement one of those builders caches beside its page, so a rerun does not
 # re-read 292 studies. Derived from the DICOM, not from anything a reader wrote.
-docs/atlas/*.npz
+docs/atlas/**/*.npz
 
 # Annotation exports land here from the browser's download directory. The copy that
 # counts is in data/manual_annotations/, named after who made it and when. The tool now
 # names the file after the point it collected, so this matches any of them rather than
 # only the first one's spelling.
 /landmarks-*.json
+
+# Experiment configs, by request. They stay on disk and remain the provenance of every
+# row in docs/experiments.md — a row names a commit, and the config beside it says which
+# box, which label table, which gold policy ran. Out of the repo by choice, not because
+# they are derived: no rerun regenerates them, so do not delete the directory.
+#
+# Only the JSON. `experiments/` is an imported package — `scripts/train.py` and
+# `tests/smoke.py` both do `import experiments` — so `__init__.py` stays tracked, and so
+# do the 700 lines of README and RESULTS beside it.
+experiments/*.json
+
+# Personal notes, not project record. Both are the user's own, asked to be left
+# alone; the second joined the first once it started accumulating plans.
+/trucs_à_faire.txt
+/à_ajouter_experts.txt

@@ -44,6 +44,11 @@ class RoiStack:
     native_spacing_mm: float
     stride: int               #: 1 unless the series was thinned
     centre_slot: int          #: the slot holding the slice nearest the landmark
+    #: Where the crop was taken in the *source* image, so a page can draw it rather than
+    #: re-derive it. In-plane position does not vary along a parallel stack, so one pair
+    #: serves every slice. `None` only when no slice carried usable geometry.
+    landmark_rc: tuple | None = None    #: the landmark's (row, col) in source pixels
+    box_rc: tuple | None = None         #: (r0, r1, c0, c1), before padding or mirroring
 
 
 def bowtie_direction(volume: np.ndarray, t: np.ndarray,
@@ -83,6 +88,26 @@ def choose_slices(t: np.ndarray, t_point: float, toward_bowtie: float,
     return inside
 
 
+def box_rect(row: float, col: float, spacing, spec: RoiSpec,
+             to_lateral: float = 0.0, to_front: float = 0.0) -> tuple:
+    """The box's (r0, r1, c0, c1) in the source image, before padding or mirroring.
+
+    Split out of `crop_plane` so that `extract` can report where it cropped without
+    recomputing it. A documentation page that re-derived these four lines would draw
+    where it believed the box goes, and the sign of `box_rise_mm` has been wrong once;
+    one source of truth means a drawing cannot disagree with the crop.
+    """
+
+    hw = spec.box_w_mm / 2 / float(spacing[1])
+    hh = spec.box_h_mm / 2 / float(spacing[0])
+    col = col + to_lateral * spec.box_offset_mm / float(spacing[1])
+    # The other axis, and a different direction: `box_rise_mm` moves the box toward the
+    # top of the picture, along the rows — anterior on an axial crop, superior on a
+    # coronal one. Negative moves it down.
+    row = row + to_front * spec.box_rise_mm / float(spacing[0])
+    return row - hh, row + hh, col - hw, col + hw
+
+
 def crop_plane(image: np.ndarray, row: float, col: float, spacing, spec: RoiSpec,
                to_lateral: float = 0.0,
                to_front: float = 0.0) -> np.ndarray:
@@ -98,15 +123,9 @@ def crop_plane(image: np.ndarray, row: float, col: float, spacing, spec: RoiSpec
 
     import cv2
 
-    hw = spec.box_w_mm / 2 / float(spacing[1])
-    hh = spec.box_h_mm / 2 / float(spacing[0])
-    col = col + to_lateral * spec.box_offset_mm / float(spacing[1])
-    # The other axis, and a different direction: `box_rise_mm` moves the box toward the
-    # top of the picture, along the rows — anterior on an axial crop, superior on a
-    # coronal one. Negative moves it down.
-    row = row + to_front * spec.box_rise_mm / float(spacing[0])
-    r0, r1 = int(round(row - hh)), int(round(row + hh))
-    c0, c1 = int(round(col - hw)), int(round(col + hw))
+    top, bottom, left, right = box_rect(row, col, spacing, spec, to_lateral, to_front)
+    r0, r1 = int(round(top)), int(round(bottom))
+    c0, c1 = int(round(left)), int(round(right))
 
     # Pad rather than clamp: a box that runs off the acquisition keeps its physical
     # size and gains a black margin, so a millimetre is the same number of pixels on
@@ -228,4 +247,5 @@ def extract(volume: np.ndarray, geometry: list[dict], point_mm,
 
     return RoiStack(volume=out, valid=valid, t_mm=t_mm, sop=sop, toward_bowtie=toward,
                     flipped=to_lateral < 0, native_spacing_mm=native, stride=stride,
-                    centre_slot=centre)
+                    centre_slot=centre, landmark_rc=(row, col),
+                    box_rc=box_rect(row, col, ps, spec, to_lateral, to_front))

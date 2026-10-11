@@ -6,6 +6,9 @@ from dataclasses import asdict, dataclass, replace
 
 from ..roi.config import SPECS, RoiSpec
 
+#: How many vectors a box contributes, per pooling. `attn` contributes one per window.
+POOLS = {"mean": 1, "max": 1, "meanmax": 1, "attn": 0}
+
 
 @dataclass(frozen=True)
 class ExpertConfig:
@@ -70,6 +73,25 @@ class ExpertConfig:
     folds: int = 5
     seed: int = 0
 
+    #: How the windows of one box become one vector — or whether they stay several.
+    #:
+    #: `encode` cuts a box into `slots - 2` windows, runs the trunk on each, and then
+    #: **averages them**. For a focal finding that dilutes: a meniscal tear shows on two
+    #: windows of nine, so the mean divides its signal by four and a half, and nothing
+    #: downstream can say *look at window four*.
+    #:
+    #: - `mean` — the masked average. What every shipped expert was trained with.
+    #: - `max` — the masked maximum, **zero parameters**. The classic multiple-instance
+    #:   pooling, and a falsifiable prediction: it should help a focal finding and do
+    #:   nothing for a diffuse one. Its gradient is zero everywhere but the argmax, so
+    #:   seven windows of nine learn nothing from a step.
+    #: - `meanmax` — both, concatenated, so the head chooses. Doubles the feature width
+    #:   and therefore the head; it cannot do worse than either, only cost more.
+    #: - `attn` — no pooling at all: the windows reach the per-target attention
+    #:   individually, which is Raptor's head applied to our boxes. Measured free —
+    #:   4.04 GB and 11.19 M parameters either way, because the trunk already produces
+    #:   every window feature and the mean then discards them.
+    pool: str = "mean"
     #: Read **one series per box** instead of all of them, choosing the first that is
     #: present. The caches carry two or three; measured, the leading one is there for
     #: 83-84 % of studies and the others for 13-37 %, so the usual case is one series
@@ -136,3 +158,9 @@ class ExpertConfig:
 
     def replace(self, **changes) -> "ExpertConfig":
         return replace(self, **changes)
+
+    def __post_init__(self) -> None:
+        if self.pool not in POOLS:
+            raise ValueError(f"pool={self.pool!r} is not one of {sorted(POOLS)}; a "
+                             f"typo here would silently train the default and the run "
+                             f"would be filed under the wrong name")

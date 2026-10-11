@@ -87,6 +87,8 @@ class ExpertNet(nn.Module):
             from .pretrained import load_encoder_weights
             load_encoder_weights(self.trunk, config.encoder_weights)
         dim = self.trunk.num_features
+        if config.pool == "meanmax":
+            dim *= 2          # the mean and the max, side by side
         self.attend = Attention(dim, heads=len(config.targets))
         self.drop = nn.Dropout(config.dropout)
         # Not a Linear over one pooled vector: each target pools the series its own way,
@@ -164,8 +166,50 @@ class ExpertNet(nn.Module):
             feat[keep] = self.trunk(flat[keep])
         feat = feat.reshape(b, s, n_win, -1)
 
+        return self.reduce(feat, live)
+
+    def reduce(self, feat: torch.Tensor, live: torch.Tensor) -> tuple:
+        """(batch, series, window, dim) -> what the attention is given.
+
+        Four choices, and the first was the only one for a long while.
+
+        `mean` averages the windows of a box into one vector. That is right for a finding
+        spread through the box and wrong for one that sits in two windows of nine, where
+        it divides the signal by four and a half and leaves nothing downstream able to
+        say *which* window carried it.
+
+        `max` keeps the strongest window instead, with no parameters at all. Dead windows
+        are pushed to `-inf` first: their features are zeros, and a ReLU trunk makes zero
+        a plausible value rather than an impossible one, so a plain max over the padding
+        would sometimes pick it.
+
+        `meanmax` concatenates both and lets the head decide, at twice the feature width.
+
+        `attn` does not pool. It folds the window axis into the series axis so every
+        window reaches the per-target attention on its own — Raptor's head on our boxes.
+        Measured, it costs nothing: the trunk has already produced these vectors and the
+        mean's only effect is to throw them away.
+        """
+
+        how = self.config.pool
+        if how == "attn":
+            b, s, n_win = live.shape
+            return feat.reshape(b, s * n_win, -1), live.reshape(b, s * n_win)
+
         count = live.sum(dim=2, keepdim=True).clamp(min=1)
-        return (feat * live.unsqueeze(-1)).sum(dim=2) / count, live.any(dim=2)
+        averaged = (feat * live.unsqueeze(-1)).sum(dim=2) / count
+        if how == "mean":
+            return averaged, live.any(dim=2)
+
+        gone = ~live.unsqueeze(-1)
+        strongest = feat.masked_fill(gone, float("-inf")).amax(dim=2)
+        # A box with no live window has a row of -inf; it must read as "nothing here",
+        # which is the zero vector the mean would have given.
+        strongest = torch.where(live.any(dim=2).unsqueeze(-1), strongest,
+                                torch.zeros_like(strongest))
+        if how == "max":
+            return strongest, live.any(dim=2)
+        return torch.cat([averaged, strongest], dim=-1), live.any(dim=2)
 
     def forward(self, groups) -> torch.Tensor:
         """A list of (imgs, mask), one per ROI spec -> (batch, target).

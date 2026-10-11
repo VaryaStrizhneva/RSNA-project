@@ -33,6 +33,8 @@ that deletes the caches it was asked to verify against is a bad afternoon.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import shutil
 import tempfile
 from pathlib import Path
@@ -90,7 +92,8 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
                           split: str = "test_series", encoder=None,
                           out="submission.csv", scratch=None, device: str = "cpu",
                           workers: int = 8, keep_cache: bool = False,
-                          blend: float | None = None, log=print) -> Path:
+                          blend: float | Mapping[str, float] | None = None,
+                          log=print) -> Path:
     """Write a submission whose expert columns come from experts. Returns the path.
 
     `blend` is the weight the expert carries against the wide model, both as ranks:
@@ -257,7 +260,7 @@ def _landmarks(landmark_runs, wanted, headers, device, workers, log) -> pd.DataF
 
 
 def _overwrite(frame: pd.DataFrame, studies, targets, scores: np.ndarray, log,
-               blend: float | None = None) -> None:
+               blend: float | Mapping[str, float] | None = None) -> None:
     """Put an expert's ordering in, on the scale the column already uses.
 
     The expert's scores cannot simply be written in. `write_submission` emits per-column
@@ -281,20 +284,38 @@ def _overwrite(frame: pd.DataFrame, studies, targets, scores: np.ndarray, log,
     if not len(rows):
         log("  no study of this expert is in the submission — column left alone")
         return
+    used = {}
     for j, target in enumerate(targets):
         host = frame.loc[rows, target].to_numpy(float)
         mine = scores[inside, j]
-        if blend is not None:
+        # A mapping gives each column its own weight. Measured out of fold, the optimum
+        # ranges from 0.45 on MCL to 0.77 on Lateral Meniscus and tracks how far the
+        # expert beats the host *alone* — so one constant is right only on average, and
+        # the average happens to be 0.51, which is why a flat 0.5 has held up.
+        #
+        # A target the mapping does not name keeps the host's column untouched rather
+        # than falling back to a default: naming eight columns and silently blending a
+        # ninth is the kind of accident this signature exists to prevent.
+        w = blend.get(target) if isinstance(blend, Mapping) else blend
+        if isinstance(blend, Mapping) and w is None:
+            log(f"  {target}: no weight given, column left to the host")
+            continue
+        used[target] = w
+        if w is not None:
             # Both as ranks *within the scored studies*, which is what makes them
             # comparable at all: the expert emits probabilities and the column holds
             # percentile ranks over every study, scored or not.
             n = len(rows)
-            mine = (blend * (np.argsort(np.argsort(mine, kind="stable"),
-                                        kind="stable") + 1) / n
-                    + (1.0 - blend) * (np.argsort(np.argsort(host, kind="stable"),
-                                                  kind="stable") + 1) / n)
+            mine = (w * (np.argsort(np.argsort(mine, kind="stable"),
+                                    kind="stable") + 1) / n
+                    + (1.0 - w) * (np.argsort(np.argsort(host, kind="stable"),
+                                              kind="stable") + 1) / n)
         rank = np.argsort(np.argsort(mine, kind="stable"), kind="stable")
         frame.loc[rows, target] = np.sort(host)[rank]
-    how = "outright" if blend is None else f"blended at {blend:g} against the wide model"
+    if not used:
+        return
+    how = ("outright" if all(w is None for w in used.values())
+           else "blended at " + ", ".join(f"{t} {w:g}" for t, w in used.items())
+           + " against the wide model")
     log(f"  {int(inside.sum())}/{len(frame)} studies scored by the expert ({how}); "
         f"the rest keep the wide model's answer")

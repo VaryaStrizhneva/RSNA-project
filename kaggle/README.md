@@ -15,6 +15,30 @@ the notebook that runs.
 exists as a folder at all. Pushing to the same `id` creates a **new version** of the
 same kernel, never a new kernel.
 
+## Kernels that are generated, not kept
+
+Two kinds of kernel never get a folder here, because both are a pure function of things
+already in git and a fourth copy is just one more thing that can go stale:
+
+| Generator | What it builds |
+|---|---|
+| `scripts/kaggle_variant.py` | our copy of the public pipeline, patched — `nocoat`, `bench`, `experts`, `probes` |
+| `scripts/kaggle_graft.py` | **somebody else's** scored notebook, byte for byte, plus our one expert cell |
+
+Both write to `/tmp` and push from there. What makes a generated kernel reproducible is
+that its three inputs are versioned: the host notebook under
+[`../notebooks/external/`](../notebooks/external/), the graft cell in
+`kaggle_variant.GRAFT_CELL`, and the blend weight. `kaggle_graft` additionally pins the
+host's source `sha256` in its `KNOWN` table and **refuses to build** if the published
+bytes have moved — a third party can edit or delete their notebook under us, and
+grafting onto a recipe we have not read is worse than not grafting.
+
+```bash
+python -m scripts.kaggle_graft nartaa/rsna-knee-0949-anatomical-mirror --push
+```
+
+rebuilds `rsna-knee-anatomical-mirror-experts` exactly.
+
 ## Pushing
 
 ```bash

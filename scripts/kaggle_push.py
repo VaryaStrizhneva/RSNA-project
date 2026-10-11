@@ -33,8 +33,17 @@ def run(cmd: list[str], dry_run: bool = False) -> None:
     print("$ " + " ".join(str(c) for c in cmd), flush=True)
     if dry_run:
         return
-    if subprocess.run(cmd).returncode != 0:
+    done = subprocess.run(cmd, text=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT)
+    print(done.stdout, end="", flush=True)
+    if done.returncode != 0:
         raise SystemExit("command failed")
+    # The Kaggle CLI prints its own failures and still exits 0 -- "Maximum batch GPU
+    # session count of 2 reached" came back as a success, and this script then printed a
+    # run URL for a kernel version that was never created. A push whose output says it
+    # failed did fail, whatever the exit status claims.
+    if "error" in done.stdout.lower():
+        raise SystemExit("the CLI reported an error and exited 0; nothing was pushed")
 
 
 def git_stamp() -> str:

@@ -32,6 +32,20 @@ row can always be recovered from a run that was not logged at the time.
 | 18 | 2026-10-03 | `rsna-knee-v4g-experts-blended` | `5728f2f` | the same refitted experts, blended 50/50 | 0.922 | −0.001 against #15, and −0.002 out of fold. **Adding gold to expert training did not pay** |
 | 19 | 2026-10-04 | `rsna-knee-nocoat` | `80763e8`-dirty | **the four CoAtNet readers removed** from #16, nothing else | 0.940 | the amputation costs **−0.003**, not the +0.001 the notebook credits CoAt with. Dirty tree was documentation only |
 | 20 | 2026-10-04 | `rsna-knee-nocoat-experts` | `80763e8`-dirty | our seven experts over #19, blend 0.5 | **0.944** | **+0.004** over #19 — our best score, and the first time our own work beats the public pipeline (0.943). Rank 337 → 278 |
+| 21 | 2026-10-04 | `rsna-knee-submit` v24 | `116cc0f`-dirty | #15 exactly, plus **`has_pixels`**: an expert abstains on a study cut over no pixels | 0.923 | **identical to #15.** +0.0013 was the out-of-fold prediction and three decimals cannot hold it. Not a loss — the correction ships either way |
+| 22 | 2026-10-05 | `rsna-knee-submit` v25 | `116cc0f`-dirty | #21 plus **`expert_baker_axial`** as an eighth expert, blend 0.5 | **0.925** | **+0.002, the predicted figure.** Out of fold the column goes 0.8960 → 0.9161, worth +0.00167 of macro. See *When the host is the comparator* |
+| 23 | 2026-10-05 | `rsna-knee-submit` v26 | `116cc0f`-dirty | #22 with the seven refitted on **steven v4_blend**, one variable: the label table | 0.924 | **−0.001.** The gold predicted −0.0011 over the same seven columns, in sign and size. The table was not the lever |
+| 24 | 2026-10-05 | `rsna-knee-nocoat-experts` v5 | `df4cb77`-dirty | **#20 plus Baker, and the seven columns fused**: pilkwang and v4_blend as ten folds each, averaged | **0.947** | **+0.003 — silver.** Rank 311 → **201 of 5280**, where the cutoff is 264. Two changes at once; row #25 separates them |
+| 25 | 2026-10-05 | `rsna-knee-submit` v27 | `df4cb77`-dirty | #22 with the same seven columns fused — the fusion alone, Baker on both sides | 0.925 | **0.000.** So the fusion is worth nothing measurable, and **Baker carried all of #24**. See *A fusion that is unbiased and imprecise* |
+| 26 | 2026-10-07 | `rsna-knee-full-experts` | `134d052`-dirty | the **whole** public pipeline, four CoAtNet readers included, plus our eight experts at 0.5 | 0.948 | the *worst* of the five sent this night. Keeping the readers costs **−0.004** against #28; `nocoat` is confirmed as the default |
+| 27 | 2026-10-07 | `rsna-knee-anatomical-mirror-experts` | `134d052`-dirty | **host replaced**: `nartaa`'s single CoAtNet (0.949 published) byte for byte, plus our eight experts at 0.5 | **0.951** | our experts are worth **+0.002** on a 0.949 host — half the +0.004 they bought over `nocoat`, exactly as their own gains on our columns predicted |
+| 28 | 2026-10-07 | `rsna-knee-stack-70-50` | `134d052`-dirty | **two hosts stacked**: `nocoat`-d4 at 0.30 and `nartaa` at 0.70 in rank space, experts 0.5 | **0.952** | **our best. Rank 201 → ~96 of 5459**, where silver is top 273 and gold top 21. See *What the three stack regimes did and did not separate* |
+| 29 | 2026-10-07 | `rsna-knee-stack-85-50` | `134d052`-dirty | #28 with d4 cut to 0.15, one variable: the host weight | 0.949 | −0.003, but #27 put the same weight at **zero** and scored 0.951. Non-monotone, so this is noise, not a curve |
+| 30 | 2026-10-07 | `rsna-knee-stack-70-65` | `134d052`-dirty | #28 with the experts raised to 0.65, one variable: our own weight | 0.950 | **−0.002 for more expert weight.** The one clean single-knob contrast of the night, and it confirms what `EXPERT_BLEND`'s own comment predicted |
+| 31 | 2026-10-10 | `rsna-knee-s6-bare` | `134d052`-dirty | **not our model**: `heliosli`'s S6 run verbatim, no graft — `nartaa`'s CoAtNet at 0.7 plus their retrained `convnext_small` at 0.3 | **0.954** | reproduces their published figure exactly. Worth a submission only because their weights dataset had been deleted and re-uploaded, so the README's claim of byte identity was unverifiable |
+| 32 | 2026-10-10 | `rsna-knee-s6-r18` | `134d052`-dirty | #31 plus our **resnet18** experts, blend 0.5 | 0.953 | **−0.001. Our experts went negative.** They were worth +0.002 on the 0.949 host and +0.002 on the 0.950 one. Three points, monotone: *the host sets the price*, and this host finally knows our columns better than our resnet18 experts do |
+| 33 | 2026-10-10 | `rsna-knee-s6-cnx` | `134d052`-dirty | #31 plus our **convnext_nano** experts, blend 0.5 — one variable against #32 | **0.957** | **+0.003 over the host, +0.004 over #32. Our best. Rank 173 → 61 of 5754.** Out of fold the same change predicted +0.0025 of macro, so it transferred at better than 100 % |
+| 34 | 2026-10-10 | `rsna-knee-s6-cnx-b60` | `134d052`-dirty | #33 at blend 0.6, one variable | 0.956 | **−0.001.** The fourth weight variant to lose to a flat 0.5, after `shrunk`, `corrected` and `divided` |
 
 Rows #1-#11 name a *version* of one kernel; from #12 on there is a kernel per experiment,
 so the column holds its slug. Commits from #14 on name **the commit that introduced the
@@ -210,6 +224,189 @@ pilkwang's, which row #2 above reproduces on our own account.
 | `rsna-knee-d4-blend` (pjmathematician) | 0.943 |
 
 ## Rules that constrain how many experiments we get
+
+### When the host is the comparator
+
+Row #22 is the first time an out-of-fold figure arrived on the leaderboard at face value,
+and the reason is worth keeping: **its host was the model the prediction was measured
+against.** The kernel log shows
+`window_30epochs_v4blend_goldin_fold0_336px: fingerprint matches within 0.00023`, and the
+decomposition was computed from that run's own five holdouts. Predicted +0.00167 of macro,
+read +0.002.
+
+Every earlier expert row discounted by roughly two thirds — #14 → #15 moved +0.0101 out of
+fold and +0.003 here — because there the Kaggle host was a *different* model, better on
+the seven columns than ours is. The discount is not noise in the metric; it is the host.
+**So an out-of-fold gain transfers in proportion to how closely the local comparator
+matches the host it will actually blend against**, which is the argument for benching the
+public pipeline over labelled studies before building anything else for it.
+
+The decomposition itself is arithmetic, not an experiment: the experts own **disjoint**
+columns and an AUC depends only on its own column, so contributions to the macro add with
+no cross terms. Measured against our wide model **[m, 4348 studies]**, blended at 0.5:
+
+| expert | column | wide | blend | outright | Δ macro |
+|---|---|---|---|---|---|
+| `expert_lm_d32` | Lateral Meniscus | 0.7736 | 0.8498 | 0.8476 | **+0.00635** |
+| `expert_acl` | ACL | 0.8065 | 0.8649 | 0.8626 | +0.00486 |
+| `expert_pf_oa` | PF OA | 0.8083 | 0.8527 | 0.8305 | +0.00370 |
+| `expert_medial_meniscus` | Medial Meniscus | 0.8612 | 0.8964 | 0.8791 | +0.00294 |
+| `expert_lateral_oa_coronal` | Lateral OA | 0.8180 | 0.8446 | *0.8121* | +0.00221 |
+| `expert_mcl_fsonly` | MCL | 0.8135 | 0.8382 | *0.8042* | +0.00206 |
+| `expert_baker_axial` | Baker's | 0.8960 | 0.9161 | 0.9063 | +0.00167 |
+| `expert_medial_oa` | Medial OA | 0.8652 | 0.8848 | *0.8611* | +0.00163 |
+
+Sum: **+0.0254** blended, +0.0134 outright. Three things it settles.
+
+**Blending beats handing the column over, on all eight** — and on the three in italics
+*outright scores below the wide model alone*, so replacing would destroy information. An
+aggregate total hides that completely.
+
+**The gain tracks the host's weakness, not the expert's quality.** Lateral Meniscus pays
+most because the wide model is worst there (0.7736). Baker's pays least although it is our
+best expert, because the wide model already reads 0.8960 on that column.
+
+**Per-expert submissions are therefore not worth running.** Eight runs would reproduce this
+table, and half of its rows move the macro by less than the leaderboard can resolve.
+
+### A fusion that is unbiased and imprecise
+
+Rows #24 and #25 contradict the transfer rule of the section above, and the error is
+worth keeping because it was mine twice over.
+
+Two experts on the same boxes, the same folds and the same architecture, differing only
+in which label table they were fitted on, correlate in rank **0.755** (0.647-0.870)
+**[m, 4348 studies]** — as decorrelated as two *different architectures* in the public
+stack, whose legs sit at 0.75-0.89. Both score the same on the leaderboard (0.925 and
+0.924). That is the textbook condition for averaging to pay, and `ρ = 0.755` over two
+members predicts an error-variance factor of 0.878, a 6% cut in error SD.
+
+Averaged on the 58 gold studies, the fusion beat pilkwang on **5 of 6** columns and
+v4_blend on 6 of 6, summing **+0.0396** — which was read here as +0.0033 of macro and
+predicted to show. It showed **0.000** (#25).
+
+**Why the reading was wrong.** Averaging carries no selection bias, which is a real
+advantage over picking the better of two per column — that scheme would have harvested
++0.034 where pure noise alone produces +0.039, so it measures nothing. But *unbiased is
+not precise*: the SE of that +0.0396 over six columns is 0.03-0.05, so it sat within one
+standard error of zero. The whole day's warning about 58 studies was applied to the
+selection case and forgotten for the averaging case.
+
+**And the transfer went the other way than predicted.** The fusion gained +0.003 on the
+strong host (#24, which also added Baker) and nothing on the weak host whose model *was*
+the comparator (#25). Taking #25 at face value — it is the clean one-variable test, with
+Baker on both sides — **Baker alone carried #24's +0.003**, against a host better than
+ours on every column it does not own. The rule from the previous section survives only as
+a statement about #22; it does not generalise.
+
+What is kept: ρ = 0.755 is measured and labels-free, the fusion does not *hurt*, and ten
+folds cost only forward passes. What is dropped: any expectation of gain from it.
+
+### What the three stack regimes did and did not separate
+
+Five submissions on 2026-10-07, rows #26-#30. The design held one knob fixed per pair so
+that no contrast would confound two changes the way #17/#18 did. Three of the four
+readings are at or under the leaderboard's resolution, and saying which is which is the
+whole value of the night.
+
+**Read as a curve, the host weight is flat.** d4's share against `nartaa`'s CoAtNet:
+
+| d4's weight | row | score |
+|---|---|---|
+| 0.00 | #27 | 0.951 |
+| 0.15 | #29 | 0.949 |
+| 0.30 | #28 | **0.952** |
+
+A real effect that is monotone in a weight does not dip in the middle. It dips here, so
+the 0.003 spread is most consistent with leaderboard noise of about ±0.0015, and the
+honest conclusion is that **d4's weight changes nothing measurable over [0, 0.30]** — not
+that 0.30 is the optimum. The practical consequence is the opposite of flattering: if the
+28-model public leg is worth nothing on top of leg B, it is 2 h 45 of compute we can stop
+paying, and 0.951 from `nartaa` plus our experts alone is within noise of our best score.
+
+**Two readings are above the floor, and they point the same way.**
+
+Keeping d4's four CoAtNet readers costs **−0.004** (#26's 0.948 against #28's 0.952).
+That is the largest difference of the night and it is the third independent measurement
+agreeing: row #19 priced the amputation at −0.003 in the other direction, and the readers
+are 56.7 % of the pipeline's compute. `nocoat` is settled.
+
+Our eight experts are worth **+0.002** on a 0.949 host (#27 against `nartaa`'s published
+figure). Against `nocoat` they bought +0.004. The halving was predicted before the
+submission, from their own gate-58 gains landing on four of the columns our experts own —
+Lateral Meniscus +0.071, Lateral OA +0.048, Medial Meniscus +0.035, ACL +0.028. An expert
+is worth what the host does not already know, and this host learnt some of it.
+
+**The one clean single-knob contrast went against the request that produced it.** #30
+raised the expert weight from 0.50 to 0.65 with the host mix untouched, and lost 0.002.
+`EXPERT_BLEND`'s own comment had already said why: the 0.5 was fitted out of fold against
+a host scoring 0.835 internally, and "a stronger host deserves less weight, so 0.5 is
+probably too generous here". The host went from 0.943 to 0.949 and the measurement
+followed the comment. 0.002 is still near the floor, but unlike the host-weight series
+there was a prior, the contrast moves one knob, and the sign matches. **The next thing to
+test on this axis is 0.35, not 0.8.**
+
+### The encoder was the only lever that paid
+
+Three days and forty-five runs. One change moved the leaderboard; everything else is
+written below as a measured zero, which is the more useful half of the record.
+
+**`convnext_nano` against `resnet18`**, same boxes, same label table, same batch, same
+learning rate — one key in the config. Paired per fold, because the fold-to-fold spread
+(0.018 to 0.057 depending on the column) swamps the effect when averaged:
+
+| column | resnet18 | convnext_nano | Δ | signs |
+|---|---|---|---|---|
+| Lateral Meniscus | 0.8856 | 0.8978 | +0.0123 | `+++++` |
+| MCL | 0.8097 | 0.8200 | +0.0103 | `-++++` |
+| Medial OA | 0.8745 | 0.8844 | +0.0099 | `-++++` |
+| Lateral OA | 0.8331 | 0.8390 | +0.0059 | `-++++` |
+| Medial Meniscus | 0.9058 | 0.9104 | +0.0046 | `+-+++` |
+| PF OA | 0.8402 | 0.8445 | +0.0043 | `++++-` |
+| Baker's | 0.9134 | 0.9158 | +0.0024 | `++--+` |
+| ACL | 0.8832 | **0.8781** | **−0.0051** | `-+---` |
+
+**+0.0056 ± 0.0016 over 40 pairs, t = 3.56, seven columns of eight.** The three columns
+whose boxes did not fit at batch 32 had their resnet18 baseline retrained at batch 16 as
+well, so every pair differs by the encoder alone.
+
+**It transferred at better than 100 %**, which nothing else this project measured has
+done. The slope fitted out of fold — 0.0555 of macro per point of column AUC — predicted
++0.0025 of macro for eight columns; the leaderboard gave **+0.004** (#33 against #32).
+The reading is that a stronger host devalues the *decorrelation* term of a blend while
+leaving the *quality* term intact, so against a 0.954 host the only thing that pays is
+being better, not being different.
+
+**Why resnet18 had to be replaced, not supplemented.** Averaging the two encoders was
+measured on the three columns where both sides have a trustworthy holdout: it lifts the
+column (+0.0087, +0.0101, +0.0029 over the better of the two) and then buys **+0.00018**
+of macro once blended against the host. The blend against the host is already a 50/50
+rank average, and the same noise cannot be cancelled twice.
+
+**What ACL costs us, and what it is not.** Its two arms both converged cleanly — zero
+epochs under 0.60 for convnext against one per fold for resnet18 — so the −0.0051 is not
+a training accident. At `lr = 1e-4` it recovers to −0.0007, so part of it was the learning
+rate. No mechanism is claimed beyond that.
+
+### Fifteen levers that are measured zero
+
+Kept because the cost of re-trying one of these is a day, and the cost of writing it down
+was a line.
+
+| lever | verdict |
+|---|---|
+| label tables, the pilkwang + v4_blend fusion | **0.000** (#25). And `steven_v4`, which we already use, is the best of the six untainted public sources on macro |
+| `riad` / JEV as a third table | **gold-contaminated** — its per-finding weights were fitted on the 58 gold studies we hold out |
+| per-column expert weights — `shrunk`, `corrected`, `divided` | **−0.001, −0.001, −0.002** |
+| a flat 0.6 | **−0.001** (#34) |
+| `nocoat`-d4 and its 28 models | **0.000**, measured twice — the whole public stack buys nothing over `nartaa` + our experts |
+| d4's four CoAtNet readers | **−0.004** (#26 against #28) |
+| adding a plane to an existing expert — Effusion, medial meniscus coronal | **0.000**, three times. The one plane that ever paid was Baker's axial, and that was a *new* expert |
+| Contusion on the OA boxes | **−0.00084** of macro in blend |
+| `weight_decay = 0.05` against our 1e-4 | **+0.0002** on both encoders — the best-epoch rule already absorbs the post-peak drift it would have fixed |
+| averaging resnet18 with convnext_nano | **+0.00018** |
+| more epochs | no run of fifty keeps its last epoch; the median kept epoch is 10 of 30 for resnet18 and 15 for convnext |
+| `lr = 1e-4` across the board | +0.0045 on ACL and +0.0036 on MCL but **−0.0051 on Lateral Meniscus**, our largest contributor. Mean +0.0010 over three columns against +0.0055 predicted from one. Not generalised |
 
 ### Where a score actually places, 2026-10-03
 

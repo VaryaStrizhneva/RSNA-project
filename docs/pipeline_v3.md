@@ -361,6 +361,42 @@ list needs: the three coronal boxes are complete, and the sagittal ones hold PD-
 PD-noFS, which *is* the 99.8% list. Only `pf_oa` lacks a third (98.6% without it). One
 change: use `mcl` (three series) rather than `mcl_fsonly` (two).
 
+**One channel is also the experts' rule — tested, not assumed.** The rule above was
+decided under the wide model's window budget, where every extra series multiplies 99
+windows. A solo expert has two boxes, so that argument does not reach it, and the two were
+allowed to differ for one experiment: `effusion` ran its four series as four masked
+branches (Sagittal PD-FS + T2-FS, Axial PD-FS + T2-FS), a series absent simply masked out
+of the attention. It costs no cache work — `OneChannel` is only a read-time view and both
+series were already on disk.
+
+It bought nothing, and the reason was visible before the run finished. The two series of a
+box are almost always *alternatives*, not complements **[m, 4407 studies]**:
+
+| | first | second | both | neither |
+|---|---|---|---|---|
+| `effusion_sagittal` | PD-FS 82.6% | T2-FS 18.9% | **8.1%** | 6.6% |
+| `effusion_axial` | PD-FS 72.2% | T2-FS 28.1% | **1.8%** | 1.5% |
+
+Live branches per study, out of four: 0 → 0.9%, 1 → 6.2%, 2 → **83.3%**, 3 → 9.6%, 4 → one
+study. Mean **2.02**, not 4. So **90.3% of studies receive exactly the input they received
+under one channel** and 426 of 4407 gain a branch — which is also why the step cost did not
+move (73-86 s/epoch against 80) and why four branches peaked at **0.8424** (epoch 11)
+against one channel's **0.8429** (epoch 10) **[m, fold 0]**. A difference of 0.0005 on a
+change that touches a tenth of the studies is a null result, and it was abandoned there.
+
+Two things worth keeping from it. First, the `+0.0118` from the MCL ablation must not be
+quoted as the argument against multiple series, which is what this document did: the series
+it removed was coronal **non**-fat-suppressed, a sequence where fluid is dark — a channel
+contradicting what the box looks for. All four effusion series are fat-suppressed, where
+effusion is frankly bright. The ablation says *a contradicting channel costs*; it says
+nothing about plane-matched agreeing ones, and the null above is the measurement that
+actually settles those.
+
+Second, the lever is elsewhere: the **6.6% of studies with no fat-suppressed sagittal at
+all** fall back on `prior_logit` for that box, and a third priority level repairs them for
+no windows — the same argument as the nine-box lists above. Multi-modality is simply not
+available here: the two sequences coexist in 8.1% of studies sagittally and 1.8% axially.
+
 **The priority order is measured, not declared.** The trained experts carry a per-target
 attention over series, so their weights say which sequence each model actually leans on.
 Read out over studies carrying at least two series **[m]**:
@@ -447,18 +483,105 @@ blend pays in proportion to disagreement.
 
 ## 10. Order of work
 
-1. **The window cutter, per group.** Cuts per slot with edge clamping, no cross-series
-   triplets. Reuses `ExpertNet.windows()`.
-2. **The head.** Per-target attention over windows, plus the positional feature. Raptor's
-   six lines with a `Linear` on (plane, signed mm) added.
-3. **One fold, 10 epochs, the full bag, `bf16`.** ≈1.1 h by §7. Validates the plumbing
-   and the data loader — the only thing §7 did not measure — before five folds are
-   committed.
-4. **Compare out of fold against 0.899**, on our five folds. No submission. Two runs are
-   needed — this preprocessing and theirs — or architecture and preprocessing are
-   confounded.
-5. **Capacity-aware redistribution**, once the shape works. It is the fix for the 197-study
-   hole and it is independent of everything above.
+**Done.** `knee_sagittal` and `knee_coronal` are in the registry and cut over all 4407
+studies — 19.8 GB each, 99.9% and 99.8% coverage. `extract` no longer couples a box's
+centre to its depth window. A cache can be read as one series per study by a measured
+priority. The abstention is in `chain.py`.
+
+**Running.** The first measurement: twelve targets on the nine boxes, one channel each,
+fold 0, 30 epochs, `resnet18`, batch 8 — **15.5 GB of the L40, 20.9 studies/s, ≈1.8 h**
+**[m]**. Against **0.8560**, which is `window_30epochs_v4blend`: the same fold, label
+table, weighting, gold policy, epoch count *and* batch size, differing only in the input.
+Not against 0.899 — that is a leaderboard score and no submission is planned for a long
+while.
+
+What it is not: a fair test of this document's thesis. It keeps the mean over windows, has
+no positional feature, and its comparator was tuned over several runs while this is the
+first run of a new input. Its job is to say whether the shape holds. 0.85 would not be a
+failure; 0.82 would.
+
+**Next, in this order.**
+
+1. **Attention over windows, on the experts first.** The pooling change is orthogonal to
+   the box-and-target question, so it can be tested where it is cheap and replicated:
+   one target, one box, a known baseline, 15 min per fold. Five of the seven carry 7-9
+   windows and give a usable test; `medial_meniscus` has 3 and would be vacuous.
+   Measured, the change is **free** — 4.04 GB and 11.19 M parameters either way, because
+   the trunk already produces all 81 window features and the mean then discards them
+   **[m]**. The only cost is learning difficulty.
+
+   The asymmetry to keep in mind: the experts are a **weak test in the direction that
+   matters**. Averaging dilutes in proportion to the bag, so 7 windows understates what
+   81 would show. A positive result transfers; a null one does not.
+
+   **First reading, on `effusion` fold 0, one channel per box (22 windows) [m]:**
+
+   | pooling | peak holdout AUC | at epoch |
+   |---|---|---|
+   | `mean` | **0.8429** | 10 |
+   | `attn` | 0.8347 | 9 (21 epochs seen, never beaten) |
+
+   Under, not over — and the reason is visible in the *training* loss, which from epoch 4
+   is consistently **higher** for `attn` (0.4546 against 0.4484 at epoch 11). It fits the
+   training set less well too, so this is a harder optimisation, not a sharper one that
+   overfits. The mechanism is gradient routing at equal parameters (11.178 M and 1026
+   outside the trunk, both): `mean` sends 1/n of the gradient to every live window every
+   step, while `attn` sends it in proportion to the softmax weight, so a window the
+   attention leaves early stops training the trunk at all. Epoch 1 is identical to four
+   decimals (0.9237 both), which is what a near-uniform softmax at initialisation
+   predicts.
+
+   This is the weak-test asymmetry above, arriving as predicted: 22 windows for one
+   study-level label against the mean's 2 pre-pooled vectors, an eleven-fold thinner
+   supervision per instance. Being re-measured at four branches (44 windows), with
+   `max` and `meanmax` alongside, before anything is concluded for the twelve-target model.
+
+2. **The anatomical prior on the attention** — see below.
+3. **Attention over windows plus the positional feature, in the twelve-target model.**
+   S4 is not optional once the attention is over windows: flattened to 81, the attention
+   no longer knows which box or depth a vector came from, where nine box-averages carried
+   that implicitly in their position.
+4. **Capacity-aware redistribution.** Independent of everything above, and no longer
+   urgent: the priority list already took per-box coverage to 98.6-99.9%, and across all
+   nine boxes **no study is empty** **[m]**.
+
+### The anatomical prior, which we have never switched on
+
+`SlotHead` carries a fixed bias on the attention logits, added **before** the softmax:
+
+```python
+att = einsum('bsh,oh->bos', h, self.query) / hidden ** 0.5
+if self.prior:
+    att = att + self.slot_prior.unsqueeze(0)     # (target, slot)
+```
+
+`SLOT_PRIOR_TABLE` in `rsna/config.py` is clinical knowledge written down — ACL on the
+sagittals, the collateral on the coronals, Baker's on the sagittal alone, Fracture on
+almost everything because nobody knows where it is. `SLOT_PRIOR_STRENGTH = 0.55`, so
+`exp(0.55) ≈ 1.73`: a preferred slot weighs 1.73× an unpreferred one and **nothing is
+excluded**. Training can overturn the tilt if it has reason to.
+
+**`prior` has been `False` in every experiment this project has run.** It was ported to
+be able to *read* the published checkpoints fitted with it, not to use it.
+
+It is a better fit here than there. In their model a slot is a sequence, and the link to a
+pathology is indirect. In ours **a box is a pathology** — `mcl` is the MCL's box — so the
+table is nearly trivial: each owned target prefers its own box plus the two whole-knee
+branches, and the five unowned targets prefer the whole-knee branches alone.
+
+Three things make it an experiment and not a switch:
+
+- **The table is a buffer in the state dict**, so it is part of a member's definition and
+  must be reproduced exactly for its weights to mean anything. It is decided before
+  training, never after.
+- **A prior can cost.** It bets that the radiologist is right *and* that the model would
+  not find better alone. That bet has already lost once here: the MCL expert's attention
+  puts 0.90 on PD fat-sat, yet it scores **+0.031 better** on the studies where that
+  series is missing and it reads T2 fat-sat instead **[m]**.
+- **With attention over windows the object changes.** The natural prior stays per box —
+  every window of a box shares its bias — which is clean, but it becomes a 12×81 table
+  built from a 12×9 one. Cheap to write on nine boxes, less so on eighty-one, which is
+  why it belongs before step 3 and not after.
 
 ---
 
