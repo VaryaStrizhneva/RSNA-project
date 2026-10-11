@@ -25,11 +25,14 @@ models/
 
 # Pathology atlas pages. The builder is in git; its output is not — each page embeds
 # a few hundred patient MRI slices as data URIs, and this repo has a GitHub remote.
-docs/atlas/*.html
+# `**` on purpose, not `*`: a gitignore star does not cross a `/`, so the moment the
+# pages moved into docs/atlas/experts/ the old `docs/atlas/*.html` stopped matching them
+# and 157 MB of patient slices became trackable in a repo that has a GitHub remote.
+docs/atlas/**/*.html
 
 # And the measurement one of those builders caches beside its page, so a rerun does not
 # re-read 292 studies. Derived from the DICOM, not from anything a reader wrote.
-docs/atlas/*.npz
+docs/atlas/**/*.npz
 
 # Annotation exports land here from the browser's download directory. The copy that
 # counts is in data/manual_annotations/, named after who made it and when. The tool now
@@ -47,5 +50,7 @@ docs/atlas/*.npz
 # do the 700 lines of README and RESULTS beside it.
 experiments/*.json
 
-# Personal notes, not project record.
+# Personal notes, not project record. Both are the user's own, asked to be left
+# alone; the second joined the first once it started accumulating plans.
 /trucs_à_faire.txt
+/à_ajouter_experts.txt
