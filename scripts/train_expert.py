@@ -53,6 +53,15 @@ def main() -> int:
     ap.add_argument("--labels", default=None)
     ap.add_argument("--out", default=None, type=Path)
     ap.add_argument("--fold", type=int, default=None)
+    ap.add_argument("--train-fraction", type=float, default=None,
+                    help="fit each fold on this fraction of its training studies, "
+                         "stratified so the class balance is unchanged. The held-out "
+                         "portion is NEVER subsampled and keeps its original labels, so "
+                         "runs at different fractions are compared on the same "
+                         "evaluation. For reading the learning curve: if the score is "
+                         "flat from 0.7 to 1.0 then more studies -- external data "
+                         "included -- buy nothing, and if it still climbs they are the "
+                         "largest lever available")
     ap.add_argument("--holdout-gold", action="store_true",
                     help="keep the 58 expert-labelled studies — and anything sharing "
                          "their report — out of training, and score them separately. "
@@ -186,6 +195,24 @@ def main() -> int:
             continue
         val = np.flatnonzero((folds == f) & covered & ~excluded)
         train = np.flatnonzero((folds != f) & (folds >= 0) & covered & ~excluded)
+        if args.train_fraction is not None:
+            # Stratified on whether any target is positive, so a smaller training set is
+            # a smaller sample of the same problem rather than a rarer one: the positive
+            # rate runs 0.16 to 0.54 across these columns and an unstratified draw would
+            # move it, which would confound the curve being measured.
+            hot = (y[train] > 0.5).any(axis=1)
+            rng = np.random.default_rng(config.seed)
+            take = []
+            for side in (True, False):
+                pool = train[hot == side]
+                keep = int(round(len(pool) * args.train_fraction))
+                take.append(rng.choice(pool, size=keep, replace=False))
+            dropped = len(train)
+            train = np.sort(np.concatenate(take))
+            log(f"  training on {args.train_fraction:.0%} of the fold: "
+                f"{len(train)} of {dropped} studies, "
+                f"{int((y[train] > 0.5).any(axis=1).sum())} of {int(hot.sum())} with a "
+                f"positive. The held-out {len(val)} are untouched")
         log(f"fold {f}: {len(train)} train, {len(val)} held out")
         model = ExpertNet(config)
         result = fit(model, groups, y, w, studies, train, val, config,
