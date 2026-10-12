@@ -77,8 +77,87 @@ def load_experts(run: str | Path, device: str = "cpu",
     return models, config, specs
 
 
+def mirror_groups(groups: list, specs: list) -> list:
+    """The same groups with every sagittal region's depth axis reversed.
+
+    **Why this is a mirror and not a corruption.** `roi.extract.choose_slices` returns
+    the kept slices *in stack order*, and a sagittal stack's order is anatomical only up
+    to the knee's side: increasing through-plane position runs medial-to-lateral on a
+    left knee and lateral-to-medial on a right one. `bowtie_direction` fixes the depth
+    window's *extent* -- 8 mm toward the bowtie against 24 toward the notch on
+    `lateral_meniscus_d32` -- and nothing fixes its *direction*. Measured on the cached
+    crops, the per-slot lit-area profile of the left knees correlates **+0.773 with the
+    right knees reversed** and only +0.223 with them as they are. So the axis is a
+    nuisance axis, both of its signs are in the training data in roughly equal number,
+    and reversing it is an input the encoder has already seen.
+
+    **Why only sagittal.** On a coronal or axial region the depth axis is
+    anterior-posterior or cranio-caudal, neither of which is a laterality axis, and
+    laterality is in-plane and already canonicalised -- `crop_plane` mirrors the pixels
+    so that lateral is on the right. The same profile test gives +0.97 as-is against
+    -0.90 reversed on `mcl` and `medial_oa`, which is the control. Reversing those would
+    be an input no fold was ever shown.
+
+    **Volume and mask together.** A mask left alone would declare the padding acquired
+    and the acquired slices padding, which is a different input rather than a mirrored
+    one.
+
+    `extract` centres the acquired run in the slot grid, so where the padding is odd the
+    reversal shifts the run by one slot. `ExpertNet.windows` clamps a window's outer
+    channels to the ends of the run and pools over windows, so that shift changes
+    neither the set of windows nor their pooled order -- measured, it changes the live
+    window count on 0 of 4407 studies for `lateral_meniscus_d32`.
+    """
+
+    out = []
+    for (volumes, mask), spec in zip(groups, specs):
+        if spec.plane == "Sagittal":
+            out.append((np.ascontiguousarray(np.asarray(volumes)[:, :, ::-1]),
+                        np.ascontiguousarray(np.asarray(mask)[:, :, ::-1])))
+        else:
+            out.append((volumes, mask))
+    return out
+
+
+def inplane_jitter(angle: float, scale: float, dx: float, dy: float):
+    """A fixed in-plane affine, as a transform `score_experts` can be handed.
+
+    The same formulation as `rsna.expert.augment.augment_batch`, which is the point: the
+    transforms the folds were trained under are the only ones a test-time average may
+    draw from, and re-deriving the matrix here would risk averaging over a family the
+    model never saw. The photometric half of that augmentation is deliberately not
+    reproduced -- brightness, gamma and noise carry no information about the anatomy, so
+    averaging over them adds variance to the estimate and nothing to it.
+
+    One affine for the whole batch rather than one per study: a test-time average has to
+    be reproducible, and a per-study draw makes the submission depend on batch
+    boundaries.
+    """
+
+    import torch
+    from torch import nn
+
+    def apply(batched: list) -> list:
+        out = []
+        for x, mask in batched:
+            shape = x.shape
+            flat = x.reshape(shape[0], -1, *shape[-2:])
+            cos = torch.cos(torch.tensor(angle, device=x.device)) / scale
+            sin = torch.sin(torch.tensor(angle, device=x.device)) / scale
+            theta = torch.zeros(flat.shape[0], 2, 3, device=x.device, dtype=x.dtype)
+            theta[:, 0, 0], theta[:, 0, 1], theta[:, 0, 2] = cos, -sin, dx
+            theta[:, 1, 0], theta[:, 1, 1], theta[:, 1, 2] = sin, cos, dy
+            grid = nn.functional.affine_grid(theta, flat.shape, align_corners=False)
+            moved = nn.functional.grid_sample(flat, grid, mode="bilinear",
+                                              align_corners=False)
+            out.append((moved.reshape(shape), mask))
+        return out
+
+    return apply
+
+
 def score_experts(models: list, groups: list, batch: int = 32,
-                  device: str = "cpu") -> np.ndarray:
+                  device: str = "cpu", transform=None) -> np.ndarray:
     """One probability per study per target, averaged over the folds.
 
     `groups` is one `(volumes, mask)` pair per region, in the order the run's specs are
@@ -89,6 +168,12 @@ def score_experts(models: list, groups: list, batch: int = 32,
     The average is over probabilities rather than logits, matching how the gold scores
     were pooled when the run was fitted. The two differ, and the one that was measured is
     the one to reproduce.
+
+    `transform` rewrites each assembled batch before the model reads it, which is where a
+    test-time augmentation has to act: the crops arrive as uint8 arrays and an in-plane
+    affine over the whole corpus would neither fit in memory nor run at this speed.
+    `None` leaves the input exactly as the training loop handed it over, so the default
+    path is unchanged and a run still reproduces its own holdout.
     """
 
     if not models:
@@ -105,6 +190,8 @@ def score_experts(models: list, groups: list, batch: int = 32,
                                      device=device).float() / 255.0,
                      torch.as_tensor(m[idx].astype(bool), device=device))
                     for v, m in groups]
+                if transform is not None:
+                    batched = transform(batched)
                 parts.append(torch.sigmoid(model(batched)).float().cpu().numpy())
         p = np.concatenate(parts) if parts else np.zeros((0, 1), np.float32)
         totals = p if totals is None else totals + p

@@ -45,7 +45,7 @@ import pandas as pd
 from ..config import TARGETS, Config
 from ..dicom import annotate, walk
 from ..roi import cache
-from .experts import load_experts, score_experts
+from .experts import load_experts, mirror_groups, score_experts
 from .landmarks import load_landmarks, predict_landmarks
 from .run import run_submission
 
@@ -93,6 +93,7 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
                           out="submission.csv", scratch=None, device: str = "cpu",
                           workers: int = 8, keep_cache: bool = False,
                           blend: float | Mapping[str, float] | None = None,
+                          mirror_tta: bool = True,
                           log=print) -> Path:
     """Write a submission whose expert columns come from experts. Returns the path.
 
@@ -106,6 +107,13 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
     folds, the best weights land between 0.51 and 0.72 and buy **+0.0010** over a flat
     half — a twenty-fifth of what blending at all buys, and under the ~0.005 that the
     public leaderboard can resolve at all.
+
+    `mirror_tta` reads every sagittal region a second time with its depth axis reversed
+    and averages the two. On by default: the axis is a nuisance the folds have already
+    seen both signs of — `mirror_groups` carries the measurement — so the second reading
+    costs one more forward pass and no training at all. It is a flag rather than
+    unconditional because a submission with it and one without are the only way to see
+    what it is worth where it is being paid for.
     """
 
     if data_root is None:
@@ -176,6 +184,21 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
                 groups.append((volumes, mask))
 
             scores = score_experts(models, groups, batch=config.batch, device=device)
+
+            # A second reading of the same studies with the sagittal depth axis
+            # reversed, averaged in. `mirror_groups` argues why that is an input the
+            # folds have already seen; what it buys is an ensemble of two views rather
+            # than a better single one, because the encoder is already invariant in
+            # score -- measured out of fold on `expert_lm_d32_cnxnano`, the reversed
+            # reading alone scores 0.8955 against 0.8958 -- while agreeing with itself
+            # only at a Spearman of 0.921. Equal weights, because the two readings are
+            # of equal quality and nothing here was tuned.
+            if mirror_tta and any(sp.plane == "Sagittal" for sp in specs):
+                other = score_experts(models, mirror_groups(groups, specs),
+                                      batch=config.batch, device=device)
+                log(f"  averaged with the depth-reversed reading of "
+                    f"{sum(sp.plane == 'Sagittal' for sp in specs)} sagittal region(s)")
+                scores = (scores + other) / 2
 
             # A study whose every slot is masked was cut over no pixels at all. The
             # model still answers — measured over the corpus it answers with a
