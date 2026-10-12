@@ -119,6 +119,19 @@ def mirror_groups(groups: list, specs: list) -> list:
     return out
 
 
+#: (name, angle in radians, scale, dx, dy) for the test-time jitter. Half the training
+#: radius on each axis, one axis at a time, so a view that hurts can be attributed to the
+#: axis that caused it. Fixed rather than drawn: a submission must not depend on a seed.
+#: Measured out of fold over eight columns, averaging the identity with all five is worth
+#: +0.0009 a column (7 of 8 positive) -- every single jittered view scores *below* the
+#: identity, so what this buys is variance reduction and not a better reading.
+JITTER_VIEWS = (("rot+", 0.07, 1.0, 0.0, 0.0),
+                ("rot-", -0.07, 1.0, 0.0, 0.0),
+                ("in", 0.0, 1.03, 0.0, 0.0),
+                ("out", 0.0, 0.97, 0.0, 0.0),
+                ("shift", 0.0, 1.0, 0.03, 0.03))
+
+
 def inplane_jitter(angle: float, scale: float, dx: float, dy: float):
     """A fixed in-plane affine, as a transform `score_experts` can be handed.
 

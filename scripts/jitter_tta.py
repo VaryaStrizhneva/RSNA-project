@@ -40,21 +40,12 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 from rsna.config import Config                                          # noqa: E402
-from rsna.infer.experts import (inplane_jitter, load_experts,           # noqa: E402
-                                score_experts)
+from rsna.infer.experts import (JITTER_VIEWS as VIEWS,                 # noqa: E402
+                                inplane_jitter, load_experts, score_experts)
 from rsna.train import assign_folds                                     # noqa: E402
 from scripts.mirror_tta import load_groups                              # noqa: E402
 
 CACHE = Path("/data/mgr/rsna-knee/roi-cache")
-
-#: (name, angle in radians, scale, dx, dy). Half the training radius on each axis, one
-#: axis at a time, so a view that hurts can be attributed to the axis that caused it.
-VIEWS = (("rot+", 0.07, 1.0, 0.0, 0.0),
-         ("rot-", -0.07, 1.0, 0.0, 0.0),
-         ("in", 0.0, 1.03, 0.0, 0.0),
-         ("out", 0.0, 0.97, 0.0, 0.0),
-         ("shift", 0.0, 1.0, 0.03, 0.03))
-
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)

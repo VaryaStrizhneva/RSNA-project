@@ -298,6 +298,13 @@ from pathlib import Path
 # A float weights every column the same; a mapping weights each one on its own, and a
 # column it does not name is left to the host untouched rather than defaulted.
 BLEND = {blend}
+# Test-time averaging. MIRROR reads each sagittal region a second time with its depth
+# axis reversed -- that axis follows the knee's side, so both signs are in the training
+# data -- and costs one extra pass on three of the eight experts. JITTER averages five
+# in-plane affines from the training distribution over all eight, so it costs five passes
+# and is the one that has to fit in what the host leaves of the nine hours.
+MIRROR_TTA = {mirror}
+JITTER_TTA = {jitter}
 INPUT = Path("/kaggle/input")
 
 
@@ -371,6 +378,7 @@ else:
         expert_runs=experts, landmark_runs=landmarks, package=None,
         data_root=root, split="test_series", out="submission.csv",
         scratch=scratch, blend=BLEND, workers=4,
+        mirror_tta=MIRROR_TTA, jitter_tta=JITTER_TTA,
         device="cuda" if torch.cuda.is_available() else "cpu", log=print)
 
     before = pd.read_csv("/kaggle/working/_public_before_experts.csv")
@@ -389,7 +397,7 @@ def patch_experts(nb: dict) -> None:
     """
 
     nb["cells"].append({"cell_type": "code", "execution_count": None, "metadata": {},
-                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND)]})
+                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND, mirror=True, jitter=False)]})
 
 
 #: RadImageNet is **not** here on purpose. Removing it also removes

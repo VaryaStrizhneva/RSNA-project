@@ -45,7 +45,8 @@ import pandas as pd
 from ..config import TARGETS, Config
 from ..dicom import annotate, walk
 from ..roi import cache
-from .experts import load_experts, mirror_groups, score_experts
+from .experts import (JITTER_VIEWS, inplane_jitter, load_experts,
+                      mirror_groups, score_experts)
 from .landmarks import load_landmarks, predict_landmarks
 from .run import run_submission
 
@@ -94,6 +95,7 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
                           workers: int = 8, keep_cache: bool = False,
                           blend: float | Mapping[str, float] | None = None,
                           mirror_tta: bool = True,
+                          jitter_tta: bool = False,
                           log=print) -> Path:
     """Write a submission whose expert columns come from experts. Returns the path.
 
@@ -114,6 +116,12 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
     costs one more forward pass and no training at all. It is a flag rather than
     unconditional because a submission with it and one without are the only way to see
     what it is worth where it is being paid for.
+
+    `jitter_tta` does the same over the in-plane jitter the folds trained under,
+    on every plane rather than only the sagittal ones. **Off by default**: it costs
+    one forward pass per view where the mirror costs one in total, and at roughly
+    14 minutes a pass over the eight experts on 2xT4 five extra views is an hour and
+    a half out of whatever the host leaves of the nine.
     """
 
     if data_root is None:
@@ -185,20 +193,41 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
 
             scores = score_experts(models, groups, batch=config.batch, device=device)
 
-            # A second reading of the same studies with the sagittal depth axis
-            # reversed, averaged in. `mirror_groups` argues why that is an input the
-            # folds have already seen; what it buys is an ensemble of two views rather
-            # than a better single one, because the encoder is already invariant in
-            # score -- measured out of fold on `expert_lm_d32_cnxnano`, the reversed
-            # reading alone scores 0.8955 against 0.8958 -- while agreeing with itself
-            # only at a Spearman of 0.921. Equal weights, because the two readings are
-            # of equal quality and nothing here was tuned.
-            if mirror_tta and any(sp.plane == "Sagittal" for sp in specs):
+            # Two test-time averages, each measured on its own out of fold, combined at
+            # **equal weight per estimator** rather than by pooling every reading into
+            # one mean. Pooling would weight the mirror 1 in 7 instead of 1 in 2 and so
+            # dilute the larger of the two effects; equal weights keep each estimator as
+            # it was measured, and neither was tuned against the other.
+            estimators = []
+            sagittal = sum(sp.plane == "Sagittal" for sp in specs)
+
+            # The sagittal depth axis reverses with the knee's side -- `mirror_groups`
+            # carries the measurement -- so the reversed reading is an input the folds
+            # have already seen. What it buys is an ensemble of two views rather than a
+            # better single one: out of fold on `expert_lm_d32_cnxnano` the reversed
+            # reading alone scores 0.8955 against 0.8958 while agreeing with itself only
+            # at a Spearman of 0.921. Worth +0.0024 a column over 15 paired folds.
+            if mirror_tta and sagittal:
                 other = score_experts(models, mirror_groups(groups, specs),
                                       batch=config.batch, device=device)
-                log(f"  averaged with the depth-reversed reading of "
-                    f"{sum(sp.plane == 'Sagittal' for sp in specs)} sagittal region(s)")
-                scores = (scores + other) / 2
+                estimators.append((scores + other) / 2)
+                log(f"  averaged with the depth-reversed reading of {sagittal} "
+                    f"sagittal region(s)")
+
+            # The in-plane jitter the folds trained under. Covers every plane rather than
+            # only the sagittal ones, and is worth +0.0009 a column over eight -- but it
+            # costs one forward pass per view, which is why it is off by default.
+            if jitter_tta:
+                parts = [scores]
+                for _name, angle, scale, dx, dy in JITTER_VIEWS:
+                    parts.append(score_experts(
+                        models, groups, batch=config.batch, device=device,
+                        transform=inplane_jitter(angle, scale, dx, dy)))
+                estimators.append(np.mean(parts, axis=0))
+                log(f"  averaged over {len(JITTER_VIEWS)} jittered readings")
+
+            if estimators:
+                scores = np.mean(estimators, axis=0)
 
             # A study whose every slot is masked was cut over no pixels at all. The
             # model still answers — measured over the corpus it answers with a
