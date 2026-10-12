@@ -296,12 +296,21 @@ def main() -> int:
     meta.pop("keywords", None)
     (out / "kernel-metadata.json").write_text(json.dumps(meta, indent=1) + "\n")
 
-    print(f"\n{slug}: {host_cells} host cell(s)"
-          f"{'' if args.bare else ' + 1 graft'}")
-    print(f"  weights: {args.weights or 'flat ' + str(blend)}")
-    if isinstance(blend, dict):
-        for k, v in blend.items():
-            print(f"    {k:18s} {v:.2f}")
+    added = "" if (args.bare or args.constant) else " + 1 graft"
+    print(f"\n{slug}: {host_cells} host cell(s){added}"
+          f"{' + 1 voiding cell' if args.constant else ''}")
+    if args.constant:
+        # Not a weight in sight: no expert runs here. Saying "flat 0.5" would describe a
+        # blend this notebook does not contain, and a log that reads as a graft is how a
+        # measurement comes to be filed as an attempt at a score.
+        print(f"  voided: {', '.join(wanted)} -> constant 0.5")
+        print(f"  the macro falls by sum(auc - 0.5) / 12 over those "
+              f"{len(wanted)} column(s); no expert or landmark is mounted")
+    elif not args.bare:
+        print(f"  weights: {args.weights or 'flat ' + str(blend)}")
+        if isinstance(blend, dict):
+            for k, v in blend.items():
+                print(f"    {k:18s} {v:.2f}")
     print(f"  mounts: {len(meta['dataset_sources'])} datasets, "
           f"competition {meta.get('competition_sources')}")
     print(f"  -> {out}")
