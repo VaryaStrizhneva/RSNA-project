@@ -176,6 +176,37 @@ occurrences in #16's log to 5. Draft wall-clock is not evidence of anything — 
 studies are dominated by environment setup — so what #19 costs in time is itself one of
 the two things it is being submitted to find out.
 
+### Pushed 2026-10-12, waiting on the hidden test
+
+Host is heliosli's 0.956 throughout, `--weights flat40`, experts `rsna-knee-experts-cnx`.
+**The published host returned 404 that evening** — the author took the notebook down —
+so all five are grafted onto the vendored copy under
+`notebooks/external/rsna-knee-helios-s6-5050-0956`, whose hash still matches `KNOWN`
+(`f359aee…`). Every dataset it mounts is still up; only the notebook is gone.
+
+| # | Kernel | One variable | What it reads |
+|---|---|---|---|
+| 35 | `rsna-knee-s7-mirror` | the depth-reversed sagittal reading | the mirror's worth against the standing 0.957 (+0.0006 projected) |
+| 36 | `rsna-knee-s7-mirror-jitter` | five jittered readings on top of #35 | the jitter's worth (+0.0008 projected) **and whether 7 passes fit in the time the host leaves** |
+| 37 | `rsna-knee-s7-void-orphans` | Effusion, Synovitis, Contusion, Fracture voided | the host's AUC where we have no expert |
+| 38 | `rsna-knee-s7-void-ours` | our eight columns voided | the host's AUC where we do, so our true margin |
+| 39 | `rsna-knee-s7-void-fracture` | Fracture alone voided | that column exactly, and with #37 the other three as a sum |
+
+**#35 and #36 are below the noise floor and known to be.** Their projections are 0.0006
+and 0.0008 against a leaderboard that resolves ~0.005, so neither is expected to read as
+anything; they are pushed because the out-of-fold measurement behind them is solid
+(t = 3.39 and 7 of 8 columns) and because the code has to ship to be in the final
+selection at all. **#37–#39 are the only rows here that clear the floor** — a column at
+0.85 moves the macro by 0.029, six times the resolution — which is why three of five
+submissions went to measurement rather than to score.
+
+**#38 is also a check on the method.** `#37 + #38 − 0.5` must reconstruct the host's own
+0.956. If it does not, the voiding arithmetic is wrong and nothing built on #37 or #39
+should be believed.
+
+Two GPU sessions run at once and each host run is ~8 h, so #37–#39 are queued by
+`/tmp/push_queue.sh` and go out as slots free, not tonight.
+
 ### Two scales, not one
 
 Internal numbers sit below the leaderboard, but not by a constant — how far depends on
