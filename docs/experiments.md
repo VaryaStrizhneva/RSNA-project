@@ -388,6 +388,79 @@ epochs under 0.60 for convnext against one per fold for resnet18 — so the −0
 a training accident. At `lr = 1e-4` it recovers to −0.0007, so part of it was the learning
 rate. No mechanism is claimed beyond that.
 
+### A nuisance axis we had been paying for, 2026-10-12
+
+`roi.extract.choose_slices` returns the kept slices **in stack order**, and a sagittal
+stack's order is anatomical only up to the knee's side: increasing through-plane position
+runs medial-to-lateral on a left knee and lateral-to-medial on a right one.
+`bowtie_direction` fixes the depth window's *extent* — 8 mm toward the bowtie against 24
+toward the notch on `lateral_meniscus_d32` — and **nothing fixes its direction**.
+
+Confirmed on the cached crops before any GPU was spent, by the per-slot lit-area profile:
+
+| region | plane | corr(L, R) | corr(L, reversed R) |
+|---|---|---|---|
+| `lateral_meniscus_d32` | Sagittal | +0.223 | **+0.773** |
+| `baker` | Sagittal | −0.068 | **+0.887** |
+| `medial_meniscus` | Sagittal | −0.503 | **+0.872** |
+| `acl` | Sagittal, symmetric window | +0.899 | +0.722 |
+| `mcl` | Coronal | **+0.973** | −0.902 |
+| `medial_oa` | Coronal | **+0.864** | −0.280 |
+
+The two coronal rows are the control, and they come out the way the code says they must:
+there the depth axis is anterior-posterior, laterality is in-plane, and `crop_plane`
+already mirrors it so lateral is on the right. `acl`'s window is centred between the two
+meniscus points and so is palindromic — the profile cannot decide it, though the code can.
+
+**This is not `PixelRules.sagittal_flip`.** That flag (also False, the public baseline's
+dropped `torch.flip`) governs the whole-image cache; the ROI depth ordering is re-derived
+from geometry and carries the nuisance independently of it.
+
+So both signs are in the training data in roughly equal number, reversing the axis is an
+input the folds have **already seen**, and averaging the two readings costs one forward
+pass and no training:
+
+| column | plain | mirror alone | averaged | paired Δ | SE | folds won |
+|---|---|---|---|---|---|---|
+| Lateral Meniscus | 0.8958 | 0.8955 | **0.8989** | +0.0028 | 0.0015 | 4/5 |
+| Medial Meniscus | 0.8994 | 0.8974 | **0.9027** | +0.0027 | 0.0008 | 5/5 |
+| ACL | 0.8693 | 0.8627 | **0.8701** | +0.0017 | 0.0015 | 3/5 |
+
+**Pooled: +0.0024 ± 0.0007 over 15 paired folds, t = 3.39** — as significant as the
+encoder change (t = 3.56) and free. The identity reading reproduces each run's own
+`holdout.csv` to four decimals, which is what makes the rest of the table readable.
+
+**Do not canonicalise instead.** The reversed reading *alone* scores 0.8955 against
+0.8958, so the encoder is already invariant and there is no capacity left to recover;
+what the averaging buys is an ensemble of two views agreeing only at Spearman 0.92.
+Ordering the slots by signed anatomical distance would remove the nuisance **and** the
+free ensemble.
+
+**What it is worth, stated small.** Only **3 of 12 columns are sagittal** —
+`lateral_meniscus_d32`, `medial_meniscus`, `acl`; the shipped Baker's is `baker_axial`,
+which the guard in `mirror_groups` refused rather than reverse. Sum of per-column gains
+0.0072, so the projected macro is **+0.0006**, under what three decimals shows.
+
+One docstring is wrong because of this and should be corrected, not trusted:
+`src/rsna/expert/augment.py` refuses depth-reversal augmentation because "the crop is
+already oriented — the ROI extractor put the bowtie on a known side". It put the bowtie
+on a known *extent*.
+
+### Measuring the host per column without a contaminated comparator
+
+Every per-column decision this project has made was taken against **our** wide model at
+0.87 while the host reads ~0.95, and that is what the four failed weight regimes have in
+common. The fix is not to run the host on training studies: the public models were
+**trained on those studies**, so that measures their memorisation.
+
+The clean probe costs submissions and no compute. Replace **one** column of the
+unmodified host with a constant and the macro falls by exactly `(auc - 0.5) / 12`, on the
+real hidden test. Twelve submissions would price every column; the four worth pricing
+first are the **orphans** — Effusion, Contusion, Synovitis, Fracture — where a new expert
+would *add* a column instead of competing for one the host already reads well. The note
+in memory that they sit in the host's stronger half was measured against d4 at 0.940, not
+against today's 0.956.
+
 ### Fifteen levers that are measured zero
 
 Kept because the cost of re-trying one of these is a day, and the cost of writing it down
