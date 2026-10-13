@@ -176,7 +176,7 @@ occurrences in #16's log to 5. Draft wall-clock is not evidence of anything — 
 studies are dominated by environment setup — so what #19 costs in time is itself one of
 the two things it is being submitted to find out.
 
-### Pushed 2026-10-12, waiting on the hidden test
+### Submitted 2026-10-12, read 2026-10-13
 
 Host is heliosli's 0.956 throughout, `--weights flat40`, experts `rsna-knee-experts-cnx`.
 **The published host returned 404 that evening** — the author took the notebook down —
@@ -206,6 +206,78 @@ should be believed.
 
 Two GPU sessions run at once and each host run is ~8 h, so #37–#39 are queued by
 `/tmp/push_queue.sh` and go out as slots free, not tonight.
+
+### What the five said
+
+| # | Kernel | Score | Reading |
+|---|---|---|---|
+| 35 | `rsna-knee-s7-mirror` | **0.957** | unchanged, as written down beforehand |
+| 36 | `rsna-knee-s7-mirror-jitter` | **0.957** | unchanged, likewise |
+| 37 | `rsna-knee-s7-void-orphans` | **0.807** | our eight columns sum to 7.684, **mean 0.9605** |
+| 38 | `rsna-knee-s7-void-ours` | **0.647** | the four orphans sum to 3.764, **mean 0.9410** |
+| 39 | `rsna-knee-s7-void-fracture` | **0.916** | Fracture alone at **0.956 to 0.980** |
+
+**#35 and #36 behaved exactly as predicted, and that is the point of having predicted
+it.** +0.0006 and +0.0008 against a leaderboard resolving ~0.005 read as nothing. The
+out-of-fold measurement behind them stands (t = 3.39 over 15 paired folds, and +0.0009 a
+column over eight for the jitter); what this says is that the leaderboard cannot see
+them, not that they are absent. They ship because they cost nothing and the code has to
+be in the final selection to be in it at all.
+
+**The probes are the result, and they close a direction.** The host reads **0.9605 in the
+mean on the eight columns we own** and **0.9410 on the four we do not** — Fracture itself
+is the strongest column in the whole submission at 0.956 or better. There is **no soft
+column among the twelve**: the weakest of the orphans averages 0.928 to 0.936. So no
+orphan expert will pay, and Fracture, nominated twice on intuition, is refuted on a
+number.
+
+**The consistency check does not quite close, and the gap is unexplained.**
+`#37 + #38 − 0.5` reconstructs the host at **0.9540** against the **0.956** it scores
+bare — −0.002, where three-decimal rounding on each probe allows only ±0.001. Candidates,
+none verified: the host's own run-to-run variation under its `DEADLINE_HOURS` guard (the
+same host has read 0.956 twice and 0.957 once with our leg), or a column the metric
+treats differently from the arithmetic above. **Every per-column figure here should carry
+that ±0.002, and the ranking between them is what survives it, not the third decimal.**
+
+A caution on reading these against our own numbers: the host's column AUCs are against a
+radiologist's labels on the hidden test, and our experts' out-of-fold figures are against
+`v4_blend` on training studies. Weak labels attenuate an AUC, so **0.9605 against our
+0.8958 on Lateral Meniscus is not a comparison** and must not be read as one.
+
+### A study is worth more than any lever we have found
+
+Two runs of five folds, each fitted on a stratified subsample of its fold's training
+studies with the **held-out portion untouched and its original labels kept**, so the
+three runs are scored on the same thing.
+
+| training studies | mean over 5 folds | paired against 100 % | t | folds worse |
+|---|---|---|---|---|
+| 3478 (100 %) | 0.8979 | — | — | — |
+| 2435 (70 %) | 0.8896 | **−0.0082 ± 0.0028** | −2.97 | 4/5 |
+| 1739 (50 %) | 0.8805 | **−0.0174 ± 0.0076** | −2.28 | 5/5 |
+
+Monotone, and the two pairs agree on the slope independently: **+0.0160** of AUC per
+doubling of data from the 70 % pair, **+0.0174** from the 50 % pair. That agreement is
+the internal check — two different subsample sizes had no reason to imply the same slope
+unless the curve is real.
+
+**What it settles.** Dropping 30 % of the training studies costs **0.0082** of AUC; the
+label filter that would drop them recovers under **0.7 points of a 2.8 % noise pool**
+(two independent extractors agree on 97.2 % of cells). So the dropping form of that
+filter is refuted by measurement rather than by assertion, and only the **downweighting**
+form — which loses no studies — remains defensible.
+
+**What it opens.** At +0.016 a column per doubling, and eight columns over twelve
+targets, a doubling of the corpus projects to **+0.011 of macro** — three times what the
+encoder change was worth, and more than every other lever in this file combined. MRNet's
+1370 knees are 0.31 of a doubling, so **~+0.003 of macro**, and that is before any
+discount for its different scanners, protocols and label set, and for the concavity that
+makes the slope above 100 % smaller than the slope below it.
+
+**The correction that goes with it.** Fold 0 alone read −0.0122 and was quoted here as
+"five times the mirror" before the other four folds landed. The paired five-fold figure
+is **−0.0082**, about 3.4 times. Same direction, same conclusion, smaller number — and
+the single fold should not have been quoted.
 
 ### Two scales, not one
 
