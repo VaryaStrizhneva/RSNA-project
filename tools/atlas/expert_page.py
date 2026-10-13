@@ -223,7 +223,7 @@ and where a tear is most often read.</p>
     },
     "medial_meniscus": {
         "target": "Medial Meniscus",
-        "run": "expert_medial_meniscus",
+        "run": "expert_mm_d32_cnxnano",
         "title": "Medial meniscus tear",
         "subtitle": "the same reading as the lateral side, on a structure that moves less",
         "condition": """
@@ -255,14 +255,37 @@ two horn apexes on the joint line, which is what the box is meant to hold.</p>
 <p><b>54 × 33 mm at 0.214 mm/px</b> — slightly larger than the lateral box in both
 directions, because the medial meniscus is longer front to back.</p>
 
-<p>Where the two differ is the <b>depth window: 16 mm here against 32 on the lateral
-side</b>, 12 mm inward and 4 mm outward, over <b>5 slots</b> rather than 9. This box is
-the <i>unswept</i> version of the design. The lateral one went through
-<code>_d24</code>, <code>_d32</code>, <code>_l6</code> and <code>_m20</code> before
-settling at 32 mm; nothing equivalent was ever run for the medial side, which still
-carries the original 16 mm. Given that the sweep moved the lateral column and that the
-anatomy is comparable, <b>this is the most obvious untested change in the whole set</b> —
-and it costs one training to find out.</p>
+<p><b>The depth window was the unswept half of this design, and the sweep has now
+run.</b> The lateral box went through <code>_d24</code>, <code>_d32</code>,
+<code>_l6</code> and <code>_m20</code> before settling at 32 mm, and nothing equivalent
+had ever been tried here — this side still carried the original 16 mm over 5 slots. On
+2026-10-13 the lateral window was copied onto this box with nothing else moved, and it
+<b>paid: +0.0056 ± 0.0020 of held-out AUC, paired on five folds of five, t = 2.82</b>.
+The same size as the encoder change, which was worth +0.004 of leaderboard across eight
+columns. So the box above is now <b>8 + 24 mm over 9 slots</b>.</p>
+
+<p>Two things that measurement also settled. The out-of-fold figure moved much further
+than the quality did — 0.8994 to 0.9146 — because a window pooling <b>7</b> depth
+windows instead of 3 leaves the five folds agreeing about the scale of their outputs:
+the cross-fold calibration cost fell from −0.0111 to −0.0015. And the acquisition
+<i>allowed</i> the extension, which is not true everywhere: a longer window at the same
+4.0 mm pitch fills <i>better</i> here (8.41 slices of 9 against 4.40 of 5), where
+<a href="pf_oa.html">the patellofemoral box</a> finds only 7.80 of 9 and lengthening it
+would buy padding.</p>
+
+<p>What is drawn in <b style="color:#ff6b9d">pink</b> is the next question rather than a
+finding: <code>medial_meniscus_d32_wide</code> keeps this depth window and this
+resolution exactly, and widens the frame to 63 × 39 mm — +16.7 % and +18.2 % of side,
++37.9 % of area. The sizes are forced: holding 3/14 mm per pixel with both output sides
+divisible by 14 makes 63 and 39 the nearest expressible box to a flat +15 %.
+<b>Why it might not pay:</b> the depth extension reached more <i>meniscus</i>, because
+the posterior horn runs along that axis, while 54 mm in plane already covers a
+35–40 mm meniscus with margin — so the margin added is fat pad, popliteal tissue,
+condyle and plateau. <b>Why it might:</b> measured on this crop, every one of the four
+edges carries <i>more</i> tissue than its centre (0.81 to 0.91 against 0.77), no study
+has the box running off the acquired image, and if what the depth window bought was
+context and pooled windows rather than more of the structure, context in plane is the
+same bet.</p>
 """,
         "study": None,
     },
