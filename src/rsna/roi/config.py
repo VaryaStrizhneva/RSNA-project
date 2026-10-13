@@ -550,6 +550,58 @@ SPECS = {
         name="medial_meniscus_d32", landmark="med_centre",
         box_w_mm=54.0, box_h_mm=33.0, out_w=252, out_h=154,
         lateral_mm=8.0, medial_mm=24.0, slots=9),
+    #: **The same 32 mm, sampled at the rate it was acquired.** `medial_meniscus_d32`
+    #: won on five folds of five (+0.0056 paired, t = 2.82) and it still throws acquired
+    #: slices away: the sagittal through-plane spacing is **3.30 mm in the median** (p5
+    #: 3.00, p95 4.80) against this grid's 4.00 mm pitch, so `choose_slices` thins a
+    #: surplus on about seven series in ten. Eleven slots over the same window is a
+    #: 3.20 mm pitch, which is the acquisition's own.
+    #:
+    #: This is the side of the trade the `acl` spec already argued for and that the
+    #: meniscus windows have been on the wrong side of throughout -- *padding is the
+    #: cheaper mistake: a window whose centre slot is padding never reaches the encoder,
+    #: where a thinned stack has lost pixels that existed.*
+    #:
+    #: **And it separates two mechanisms that `d32` left entangled.** Lengthening the
+    #: window both showed more meniscus and gave more windows to pool, and the pooling
+    #: half is visible: the cross-fold calibration cost fell from −0.0111 to −0.0015
+    #: when the count went from 3 windows to 7. This spec holds the anatomy fixed and
+    #: moves the count to 9, so a gain here is the variance term and not new signal --
+    #: which is what decides whether enlarging the box *in plane* is worth a run.
+    #:
+    #: Extent is deliberately untouched, and so is everything in plane.
+    "medial_meniscus_d32_s11": RoiSpec(
+        name="medial_meniscus_d32_s11", landmark="med_centre",
+        box_w_mm=54.0, box_h_mm=33.0, out_w=252, out_h=154,
+        lateral_mm=8.0, medial_mm=24.0, slots=11),
+    #: **The same window, a larger frame, and not one pixel coarser.** `d32` is the
+    #: baseline this is one variable away from: depth, slots, landmark, plane, series and
+    #: millimetres per pixel are all held, and only the in-plane extent moves -- 54 x 33
+    #: to 63 x 39 mm, which is +16.7 % and +18.2 % of side and +37.9 % of area.
+    #:
+    #: The sizes are not free, and these are the available ones. Holding 3/14 mm per
+    #: pixel and requiring both output sides to divide by 14 -- so a patch embedding
+    #: keeps every row -- forces `box = 3 * patches`: 63 mm is 294 px and 39 mm is
+    #: 182 px, both exactly, where 62 or 38 are not expressible at all. Same reasoning
+    #: that fixed the original 54 x 33, and same purpose: **what differs from `d32` is
+    #: extent, not sharpness.**
+    #:
+    #: **Resolution has room here and did not on the axial box.** Sagittal acquisitions
+    #: are 0.332 mm/px in the median, and this crop is 0.214, so it oversamples by 1.55x
+    #: -- enlarging the box at a fixed pixel count would still oversample by 1.35x and
+    #: lose nothing that was acquired. `pf_oa` sits at 0.286 against an axial 0.312, a
+    #: margin of 1.09x, which is why the same proposal was refused there.
+    #:
+    #: **What the argument is weaker about.** The depth extension reached *more
+    #: meniscus* -- the posterior horn runs along that axis. In plane, 54 mm already
+    #: covers a 35-40 mm meniscus with margin, so the 4.5 mm added front and back is fat
+    #: pad and popliteal tissue and the 3 mm added above and below is condyle and
+    #: plateau. If `d32` paid because it saw more of the structure, this will not pay; if
+    #: it paid because context and pooled windows reduce variance, it may.
+    "medial_meniscus_d32_wide": RoiSpec(
+        name="medial_meniscus_d32_wide", landmark="med_centre",
+        box_w_mm=63.0, box_h_mm=39.0, out_w=294, out_h=182,
+        lateral_mm=8.0, medial_mm=24.0, slots=9),
     #: The joint effusion, in the recess it actually fills.
     #:
     #: **Clinically there is no doubt where to look.** Fluid collects first and most in
