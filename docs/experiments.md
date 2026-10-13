@@ -549,6 +549,83 @@ One docstring is wrong because of this and should be corrected, not trusted:
 already oriented — the ROI extractor put the bowtie on a known side". It put the bowtie
 on a known *extent*.
 
+### The depth sweep the medial compartment never had, 2026-10-13
+
+The shipped pair was lopsided by accident of order, not by a finding:
+`lateral_meniscus_d32` carries 8 + 24 mm over 9 slots because that sweep ran and won,
+while `medial_meniscus` was still on the original 4 + 12 over 5. `medial_meniscus_d32`
+copies the lateral window onto the medial box and **changes nothing else** — verified
+field by field, `box_w_mm`, `box_h_mm`, `out_w`, `out_h`, `landmark`, `plane`, `series`,
+`box_rise_mm`, `box_offset_mm` and `decimate_to_mm` all identical, so the resolution
+stays exactly 0.2143 mm/px. Memory was measured rather than assumed (21.2 GiB of peak at
+batch 32 against 9.1 for the 5-slot box), so the batch did not have to move either.
+
+| fold | `medial_meniscus` | `medial_meniscus_d32` | paired Δ | kept epoch |
+|---|---|---|---|---|
+| 0 | 0.9166 | **0.9211** | +0.0045 | 13 → 19 |
+| 1 | 0.9041 | **0.9073** | +0.0032 | 13 → 12 |
+| 2 | 0.9093 | **0.9226** | +0.0133 | 16 → 22 |
+| 3 | 0.9020 | **0.9071** | +0.0051 | 5 → 12 |
+| 4 | 0.9202 | **0.9222** | +0.0020 | 23 → 22 |
+
+**Paired: +0.0056 ± 0.0020, t = 2.82, 5 of 5 folds** — the same size as the encoder
+change (+0.0056, t = 3.56) which was worth +0.004 of leaderboard over eight columns. So
+the projection for one column is **+0.0005** of macro. Gold went 0.9447 → 0.9615 and is
+not counted: 58 studies read ±0.05.
+
+**The out-of-fold figure moved much further and most of it is not quality.**
+
+| | mean of the folds | OOF | pooling cost |
+|---|---|---|---|
+| `medial_meniscus` | 0.9104 | 0.8994 | **−0.0111** |
+| `medial_meniscus_d32` | 0.9161 | 0.9146 | **−0.0015** |
+
+0.8994 → 0.9146 is +0.0152, of which +0.0056 is per-fold quality and ~+0.0096 is
+**cross-fold calibration recovered**: the longer window pools 7 depth windows instead of
+3, and the five models end up agreeing about the scale of their outputs. That is a real
+property — the submission averages the folds, so better-calibrated folds average better
+— but only the +0.0056 is calibrated against a known leaderboard outcome, so only that
+is projected.
+
+**Why the acquisition allowed it, where the patellofemoral box would not.** A longer
+window at the same 4.0 mm pitch fills *better*: the 5-slot medial window finds 4.40
+slices of 5 (88 %) and the 9-slot one 8.41 of 9 (**93.4 %**), because more acquired
+slices fall inside and `choose_slices` thins a surplus down to `slots` where a narrow
+window cannot be topped up. `pf_oa`'s axial stacks find only 7.80 of 9, so lengthening
+*that* window buys padding — which is why the same proposal was refused there on
+2026-10-13 before any GPU was spent.
+
+**Two things the kept epochs say.** They slid later — 13→19, 16→22, 5→12 — which is what
+seven windows to pool rather than three should do, and it means the 30-epoch budget is
+being used rather than wasted.
+
+### What the per-fold AUC is and what the out-of-fold figure is
+
+They are not the same measurement and the gap is **not** epoch-selection bias. Taken from
+one run's `holdout.csv`, with nothing retrained and nothing reselected:
+
+```
+fold 0  0.9166   fold 3  0.9020      mean of the folds  0.9104
+fold 1  0.9041   fold 4  0.9202      AUC of the whole   0.8994   <- the OOF
+fold 2  0.9093                       gap               -0.0111
+```
+
+Both numbers come from the same predictions, so any selection bias inflates them
+equally and cannot be the difference. The cause is **pooling**. An AUC counts correctly
+ordered positive/negative *pairs*, and of this run's 4,547,347 pairs only **20 % are
+within a fold** — the other **80 % oppose a study scored by fold 1's model to one scored
+by fold 3's**, two models whose outputs are not calibrated to each other.
+
+Demonstrated: re-ranking each fold to within-fold percentiles before pooling, which
+cancels any scale difference between folds without touching the order inside one,
+recovers **+0.0108 of the 0.0111**. The gap was calibration, 97 % of it. The project had
+already met this cost at 0.0050 on Baker's and 0.0158 on `expert_mm_sagcor`.
+
+**So: compare two runs fold-paired** — same held-out studies, the pooling penalty absent
+from both sides. The OOF stays the run's headline figure, but it *understates* what
+ships, because the submission averages the five folds per study and so has no cross-fold
+pairs at all.
+
 ### Measuring the host per column without a contaminated comparator
 
 Every per-column decision this project has made was taken against **our** wide model at
