@@ -50,6 +50,8 @@ from tools.atlas.study import load_series, series_headers        # noqa: E402
 LANDMARKS = Path("/data/mgr/rsna-knee/roi-infer/landmarks.csv")
 CACHE = Path("/data/mgr/rsna-knee/roi-cache")
 IN_COLOUR, OUT_COLOUR, MID_COLOUR = "#39d98a", "#5a6472", "#ffd166"
+#: A candidate box drawn over the shipped one, for `--compare`.
+CMP_COLOUR = "#ff6b9d"
 
 #: One entry per shipped expert. `run` is the directory its weights live in, which is
 #: also where its measured AUC is read from; `rois` is taken from the run's own config
@@ -541,12 +543,19 @@ def _marks(spec, geometry, point, second) -> list[tuple[int, int, int, str, str]
     return out
 
 
-def _frames(series, stems, stack, spec, geometry, point, eight, second=None):
+def _frames(series, stems, stack, spec, geometry, point, eight, second=None,
+            compare_rc=None):
     """The series' slices with the crop drawn on each, green where it was kept.
 
     `box_rc` comes off the stack: `extract` reports where it cropped, so this drawing
     cannot disagree with the crop. Each landmark goes on the one slice it sits on — the
     box is the same in plane on every slice of a parallel stack, a point is not.
+
+    `compare_rc` is a second box, from a second `extract` call under a candidate spec,
+    drawn **underneath** the shipped one so the shipped box is never hidden by a
+    proposal. It comes off that call's own `box_rc` for the same reason the first one
+    does: a candidate drawn from its millimetres rather than from the cropper could
+    disagree with what a run would actually read.
     """
 
     kept = {s for s in stack.sop if s}
@@ -562,6 +571,10 @@ def _frames(series, stems, stack, spec, geometry, point, eight, second=None):
         colour = IN_COLOUR if inside else OUT_COLOUR
         bgr = tuple(int(colour[j:j + 2], 16) for j in (5, 3, 1))
         thick = max(1, int(round(min(rgb.shape[:2]) / 260))) + (1 if inside else 0)
+        if compare_rc is not None:
+            k0, k1, j0, j1 = (int(round(v)) for v in compare_rc)
+            cbgr = tuple(int(CMP_COLOUR[j:j + 2], 16) for j in (5, 3, 1))
+            cv2.rectangle(rgb, (j0, k0), (j1, k1), cbgr, thick)
         cv2.rectangle(rgb, (c0, r0), (c1, r1), bgr, thick)
         for home, mr, mc, mcol, _ in marks:
             if i != home:
@@ -640,7 +653,8 @@ def series_with_box(study: str, spec, points: pd.DataFrame,
             note)
 
 
-def panels(study: str, spec, points: pd.DataFrame, config: Config) -> str:
+def panels(study: str, spec, points: pd.DataFrame, config: Config,
+           compare=None) -> str:
     """The series as it arrives, and the stack as the branch receives it.
 
     Both come out of one `extract` call, so neither can drift from the pipeline nor from
@@ -653,8 +667,13 @@ def panels(study: str, spec, points: pd.DataFrame, config: Config) -> str:
                 f"box's series, or has no predicted "
                 f"<code>{P._esc(spec.landmark)}</code>.</p>")
     series, stems, stack, row, eight, geometry, point, second = built
+    compare_rc = None
+    if compare is not None:
+        other = _extract_for(study, compare, points, config)
+        if other is not None:
+            compare_rc = other[2].box_rc
     left_frames, flagged, marks = _frames(series, stems, stack, spec, geometry, point,
-                                          eight, second)
+                                          eight, second, compare_rc)
 
     right_frames = []
     for slot in range(stack.volume.shape[0]):
@@ -692,6 +711,21 @@ def panels(study: str, spec, points: pd.DataFrame, config: Config) -> str:
          f"<code>bowtie_direction</code> = {stack.toward_bowtie:+.0f}"),
         ("crop mirrored", "yes, to put lateral on the right" if stack.flipped else "no"),
     ]
+    if compare is not None:
+        dw = 100 * (compare.box_w_mm / spec.box_w_mm - 1)
+        dh = 100 * (compare.box_h_mm / spec.box_h_mm - 1)
+        da = 100 * (compare.box_w_mm * compare.box_h_mm
+                    / (spec.box_w_mm * spec.box_h_mm) - 1)
+        same_px = abs(compare.mm_per_px - spec.mm_per_px) < 1e-9
+        facts.append((
+            f"candidate <code>{P._esc(compare.name)}</code>",
+            f"{compare.box_w_mm:g}&times;{compare.box_h_mm:g} mm on "
+            f"{compare.out_w}&times;{compare.out_h} px "
+            f"({compare.mm_per_px:.4f} mm/px"
+            + (", unchanged" if same_px else "") + "), "
+            f"{compare.lateral_mm:g}+{compare.medial_mm:g} mm over {compare.slots} "
+            f"slots &mdash; {dw:+.1f} % of width, {dh:+.1f} % of height, "
+            f"{da:+.1f} % of area"))
     fact_rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in facts)
 
     return f"""
@@ -703,7 +737,11 @@ def panels(study: str, spec, points: pd.DataFrame, config: Config) -> str:
               caption=f"The rectangle is the crop, on every slice. Each cross is on "
                       f"the one slice its point sits on. {_legend(marks)}. "
                       f"<b style='color:{IN_COLOUR}'>Green</b> = this slice reached the "
-                      f"branch, grey = dropped.")}
+                      f"branch, grey = dropped."
+                      + ("" if compare is None else
+                         f" <b style='color:{CMP_COLOUR}'>Pink</b> = the candidate "
+                         f"<code>{P._esc(compare.name)}</code>, from its own "
+                         f"<code>extract</code> call."))}
   </div>
   <div>
     <h4>The stack the branch receives
@@ -880,12 +918,25 @@ def spec_of(run: str, recorded: dict) -> tuple[object, bool]:
 
 
 def build(key: str, out_dir: Path, study: str | None,
-          examples: int = 6) -> Path:
+          examples: int = 6, compare: str | None = None) -> Path:
     entry = EXPERTS[key]
     config = Config()
     points = landmark_table()
     recorded = json.loads((ROOT / "out" / entry["run"] / "history.json").read_text())
     spec, from_registry = spec_of(entry["run"], recorded)
+    # A candidate region drawn over the shipped one. Resolved from the registry rather
+    # than described, so the page cannot show a box a run would not actually read.
+    cmp_spec = None
+    if compare:
+        from rsna.roi.config import SPECS
+        if compare not in SPECS:
+            raise SystemExit(f"no region named {compare!r} in the registry")
+        cmp_spec = SPECS[compare]
+        if cmp_spec.plane != spec.plane or cmp_spec.landmark != spec.landmark:
+            raise SystemExit(
+                f"{compare} is {cmp_spec.plane} around {cmp_spec.landmark} and "
+                f"{spec.name} is {spec.plane} around {spec.landmark}; drawing one over "
+                f"the other would put two different questions in one rectangle")
 
     if study is None:
         study = entry["study"]
@@ -921,7 +972,7 @@ consulted &mdash; is explained once in
 this series to <code>rsna.roi.extract</code> with the spec above and the predicted
 <code>{P._esc(spec.landmark)}</code>; nothing here is drawn from a description of where
 the box should be.</p>
-{panels(study, spec, points, config)}
+{panels(study, spec, points, config, cmp_spec)}
 
 <h2>What is measured about it</h2>
 {measured(entry, spec)}
@@ -946,8 +997,12 @@ def main() -> int:
     ap.add_argument("--study", default=None, help="Show this study instead of a default.")
     ap.add_argument("--examples", type=int, default=6,
                     help="How many further studies to show the box on, at the foot.")
+    ap.add_argument("--compare", default=None, metavar="REGION",
+                    help="Draw a candidate region from the registry over the shipped "
+                         "one, in pink, with its own `extract` call. Refused unless it "
+                         "shares the shipped box's plane and landmark.")
     args = ap.parse_args()
-    out = build(args.expert, args.out, args.study, args.examples)
+    out = build(args.expert, args.out, args.study, args.examples, args.compare)
     print(f"{out}  ({out.stat().st_size / 1e6:.1f} MB)")
     return 0
 
