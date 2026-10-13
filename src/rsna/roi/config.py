@@ -519,6 +519,37 @@ SPECS = {
     # the opposite test: more peripheral margin, nothing else changed
     "lateral_meniscus_l6": RoiSpec(name="lateral_meniscus_l6",
                                    lateral_mm=6.0, medial_mm=12.0, slots=5),
+    #: **The depth sweep the lateral compartment got and the medial one never did.**
+    #: The shipped pair is lopsided and the asymmetry is an accident of order, not a
+    #: finding: `lateral_meniscus_d32` carries 8 + 24 mm over 9 slots because that sweep
+    #: ran and won, while `medial_meniscus` is still on the original 4 + 12 over 5.
+    #: Measured on the lateral column with resnet18, the same table and the same
+    #: weighting, the four windows read **m20 0.8320, l6 0.8373, d24 0.8387, d32
+    #: 0.8476** -- so doubling the extent was worth +0.009 to +0.016, which is larger
+    #: than any test-time trick this project has found.
+    #:
+    #: **The acquisition supports it, and that is not true on every plane.** A longer
+    #: window at the same 4.0 mm pitch fills *better*, not worse, because more acquired
+    #: slices fall inside it and `choose_slices` thins a surplus down to `slots` where a
+    #: narrow window cannot be topped up: the 5-slot medial window finds 4.40 slices of
+    #: 5 (88 %) and fills every slot on 53.3 %, while the 9-slot lateral window finds
+    #: 8.41 of 9 (**93.4 %**) and fills every slot on **65.8 %**. The patellofemoral box
+    #: is the counter-example and the reason to measure rather than assume -- its axial
+    #: stacks find only 7.80 slices of 9, so lengthening *that* window buys padding.
+    #:
+    #: **The box in plane is deliberately untouched.** It is the only variable this spec
+    #: changes, and in plane the medial box is already the larger of the two (54 x 33
+    #: against 48 x 27). Coverage is not the difference either: both read the same two
+    #: sagittal series, so both see 82.5 % and 37.5 %, 99.8 % with at least one, and the
+    #: same 8 studies with neither.
+    #:
+    #: The anatomy argues the same way. The medial meniscus is the wide C against the
+    #: lateral's nearly closed O, and its posterior horn is the broader of the two, so
+    #: there is more of it to reach along the depth axis rather than less.
+    "medial_meniscus_d32": RoiSpec(
+        name="medial_meniscus_d32", landmark="med_centre",
+        box_w_mm=54.0, box_h_mm=33.0, out_w=252, out_h=154,
+        lateral_mm=8.0, medial_mm=24.0, slots=9),
     #: The joint effusion, in the recess it actually fills.
     #:
     #: **Clinically there is no doubt where to look.** Fluid collects first and most in
