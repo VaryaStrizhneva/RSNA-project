@@ -519,6 +519,25 @@ SPECS = {
     # the opposite test: more peripheral margin, nothing else changed
     "lateral_meniscus_l6": RoiSpec(name="lateral_meniscus_l6",
                                    lateral_mm=6.0, medial_mm=12.0, slots=5),
+    #: The same 32 mm at the acquisition's own rate, as `medial_meniscus_d32_s11` does
+    #: for the other compartment. Both shipped meniscus windows run a **4.00 mm** pitch
+    #: against a sagittal through-plane spacing of **3.30 mm** in the median, so
+    #: `choose_slices` thins a surplus on about seven series in ten; eleven slots over
+    #: the same window is 3.20 mm, which is the acquisition's.
+    #:
+    #: **This exists to give the question a second column, and for one reason.** The
+    #: effect is expected at about +0.0009 -- the window count rises 20 % where
+    #: `medial_meniscus_d32` raised it 132 % for +0.0056 -- against a paired standard
+    #: error of 0.0020 on five folds. No amount of pooling we can afford fixes that:
+    #: resolving +0.0009 by a t-test would need ~100 folds. What ten paired folds *can*
+    #: do is a **sign test**, which ignores magnitude: `d32` came out positive 5 of 5
+    #: (p = 0.031), and 9 or 10 of 10 here would read p = 0.011 or 0.001.
+    #:
+    #: `acl` is not a third column: its window is derived from the two meniscus points
+    #: and already runs a 2.68 mm pitch, finer than the acquisition, so densifying it
+    #: would add padding and nothing else.
+    "lateral_meniscus_d32_s11": RoiSpec(name="lateral_meniscus_d32_s11",
+                                        lateral_mm=8.0, medial_mm=24.0, slots=11),
     #: **The depth sweep the lateral compartment got and the medial one never did.**
     #: The shipped pair is lopsided and the asymmetry is an accident of order, not a
     #: finding: `lateral_meniscus_d32` carries 8 + 24 mm over 9 slots because that sweep

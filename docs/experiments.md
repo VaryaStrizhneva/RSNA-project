@@ -599,6 +599,42 @@ window cannot be topped up. `pf_oa`'s axial stacks find only 7.80 of 9, so lengt
 seven windows to pool rather than three should do, and it means the 30-epoch budget is
 being used rather than wasted.
 
+### A larger frame around the same window, stopped at four folds
+
+`medial_meniscus_d32_wide` holds `d32`'s depth, slots, landmark, plane, series and
+millimetres per pixel and moves only the in-plane extent: 54 x 33 to **63 x 39 mm** on
+294 x 182 px, +16.7 % and +18.2 % of side and +37.9 % of area. The sizes are forced —
+holding 3/14 mm per pixel with both output sides divisible by 14 makes 63 and 39 the
+nearest expressible box to a flat +15 %.
+
+Two things were checked before the GPU was spent, and both said go. Sagittal
+acquisitions are 0.332 mm/px against this crop's 0.214, so it **oversamples by 1.55x**
+and a larger box at a fixed pixel count would still oversample by 1.35x — nothing
+acquired is lost, unlike on `pf_oa` where the margin is 1.09x. And measured on the crop,
+every one of the four edges carries **more** tissue than its centre (0.81 to 0.91 against
+0.77) with **no study** having the box run off the acquired image, so the added area
+would be filled with real pixels rather than padding.
+
+| fold | `d32` | `d32_wide` | paired Δ |
+|---|---|---|---|
+| 0 | 0.9211 | 0.9092 | **−0.0119** |
+| 1 | 0.9073 | 0.9088 | +0.0015 |
+| 2 | 0.9226 | 0.9254 | +0.0028 |
+| 3 | 0.9071 | 0.9071 | ±0.0000 |
+| 4 | 0.9222 | — | diverged at epoch 7, loss 0.4545 → 0.6665, AUC 0.9127 → 0.5935 |
+
+**Mean of the four clean folds: −0.0019.** Against `d32`, which was positive on five of
+five. Stopped there rather than finished: four folds at zero do not become a gain on the
+fifth, and the fifth had derailed anyway. Folds 0–3 are kept as weights.
+
+**So the mechanism question is answered, and it was the first reading.** `d32` paid
+because it reached more *meniscus* — the posterior horn runs along the depth axis — and
+not because context or pooled windows reduce variance. In plane, 54 mm already covers a
+35–40 mm meniscus with margin, and the 4.5 mm added front and back is fat pad and
+popliteal tissue while the 3 mm above and below is condyle and plateau. Tissue, measured;
+not signal. **Enlarging a box toward the host's framing does not pay** — which is what
+[[experts-what-pays]] has said since Baker's and Effusion, now with a third case.
+
 ### What the per-fold AUC is and what the out-of-fold figure is
 
 They are not the same measurement and the gap is **not** epoch-selection bias. Taken from
