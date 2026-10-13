@@ -621,6 +621,30 @@ SPECS = {
         name="medial_meniscus_d32_wide", landmark="med_centre",
         box_w_mm=63.0, box_h_mm=39.0, out_w=294, out_h=182,
         lateral_mm=8.0, medial_mm=24.0, slots=9),
+    #: The large frame *and* the native pitch, together, with `lr = 1e-4` in the run
+    #: that uses it. **Three changes at once, deliberately, and not an experiment**: a
+    #: row that moves cannot say which of the three moved it. It is a bid for the best
+    #: model on this column rather than for knowledge about it, which is a thing worth
+    #: wanting and is recorded here as what it is.
+    #:
+    #: What is already known about each part, so the result can be read against it:
+    #: the frame alone measured **−0.0019** over four paired folds and a fifth that
+    #: diverged, so it is the component with no support; the pitch is under measurement
+    #: as `medial_meniscus_d32_s11` and is expected at about +0.0009, below what five
+    #: folds resolve; and **`lr = 1e-4` is the strongest of the three** — on this exact
+    #: column with the original 5-slot box it took the out-of-fold figure from 0.8994 to
+    #: **0.9127**, one variable, +0.0133. That last one has never been adopted because
+    #: the same change costs the *lateral* compartment 0.0105, which is why it was
+    #: refused across the board and why the per-column case was left standing.
+    #:
+    #: Memory is the practical risk: nine windows at 294 x 182 px is about 1.8x what
+    #: `medial_meniscus_d32` peaked at, which is near the card rather than comfortably
+    #: inside it. If it does not fit at batch 32 the batch becomes a fourth change and
+    #: the comparison degrades further, so that is a decision and not a default.
+    "medial_meniscus_d32_wide_s11": RoiSpec(
+        name="medial_meniscus_d32_wide_s11", landmark="med_centre",
+        box_w_mm=63.0, box_h_mm=39.0, out_w=294, out_h=182,
+        lateral_mm=8.0, medial_mm=24.0, slots=11),
     #: The joint effusion, in the recess it actually fills.
     #:
     #: **Clinically there is no doubt where to look.** Fluid collects first and most in
