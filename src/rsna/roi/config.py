@@ -538,6 +538,27 @@ SPECS = {
     #: would add padding and nothing else.
     "lateral_meniscus_d32_s11": RoiSpec(name="lateral_meniscus_d32_s11",
                                         lateral_mm=8.0, medial_mm=24.0, slots=11),
+    #: The medial compartment's winning combination, transposed: the large frame, the
+    #: native pitch, and `lr = 1e-4` in the run that uses it. 48 x 27 to **57 x 33 mm**
+    #: on 266 x 154 px, +18.8 % and +22.2 % of side — the nearest expressible box to the
+    #: proportion the medial box actually received, since `box = 3 * k` quantises the
+    #: choice and 56.0 and 31.9 are not expressible.
+    #:
+    #: **The component that carries that combination is measured negative here**, and it
+    #: should be read knowing so. On the medial column `lr = 1e-4` was worth +0.0134
+    #: against +0.0024 for the pitch and −0.0019 for the frame, so it is nearly the whole
+    #: effect; on *this* column the same change was run on `lateral_meniscus_d32` itself
+    #: and cost **−0.0104**. Not an extrapolation — one variable, same wd, same thirty
+    #: epochs, the measurement that made `lr = 1e-4` across the board refusable in the
+    #: first place.
+    #:
+    #: It is built anyway because adding the components up has already proved a poor
+    #: predictor: on the medial side they summed to +0.0138 and the combination measured
+    #: +0.0053, 2.6x over. What that failure does not do is change a sign.
+    "lateral_meniscus_d32_wide_s11": RoiSpec(
+        name="lateral_meniscus_d32_wide_s11",
+        box_w_mm=57.0, box_h_mm=33.0, out_w=266, out_h=154,
+        lateral_mm=8.0, medial_mm=24.0, slots=11),
     #: **The depth sweep the lateral compartment got and the medial one never did.**
     #: The shipped pair is lopsided and the asymmetry is an accident of order, not a
     #: finding: `lateral_meniscus_d32` carries 8 + 24 mm over 9 slots because that sweep
