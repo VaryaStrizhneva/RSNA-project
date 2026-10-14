@@ -710,6 +710,42 @@ the windows would explain.
 so the box grows +16 mm up and +16 mm down about the centre it already had. If that comes
 back positive, the cost was the move rather than the size.
 
+### The bundle on a fourth column, and the four of them together
+
+`pf_oa_wide_d40` + `lr = 1e-4`, two keys from the shipped run. Batch stayed at 32 on both
+sides (32.4 GiB of peak against 44.3), so no fourth variable.
+
+| fold | `pf_oa` | bundle | Δ |
+|---|---|---|---|
+| 0 | 0.8659 | 0.8582 | **−0.0077** |
+| 1 | 0.8309 | 0.8309 | ±0.0000 |
+| 2 | 0.8491 | 0.8565 | +0.0074 |
+| 3 | 0.8432 | 0.8487 | +0.0055 |
+| 4 | 0.8336 | 0.8495 | **+0.0159** |
+
+**+0.0042 ± 0.0039, t = 1.08, 3 of 5 positive, sign test p = 0.50.** Positive in the mean
+and the size of the meniscus results, too scattered to carry on its own. Out of fold
+0.8435 → 0.8448; gold 0.9009 → 0.9176 and not counted.
+
+| column | paired Δ | signs |
+|---|---|---|
+| Medial Meniscus | **+0.0053** | 4/5 |
+| Lateral Meniscus | **+0.0052** | 5/5 |
+| MCL | −0.0020 | 3/5 |
+| PF OA | **+0.0042** | 3/5 |
+| **pooled** | **+0.0032** | **15/20, p = 0.021** |
+
+**The bundle holds across four columns and is uneven inside them.** The pooled sign test
+is significant, the mean falls from the +0.0052 of the two meniscus columns to +0.0032
+over four, and MCL contributes nothing. **Projected macro +0.0011.**
+
+**On what to ship.** Choosing the bundle column by column on these same paired deltas is
+selection on noise, which this file has been burned by before. It barely matters here:
+shipping all four projects +0.00106 and keeping only the positive three +0.00123. So the
+defensible rule is the simple one — take the bundle where the delta is positive, keep the
+shipped expert on MCL where it is indistinguishable from zero — and the choice is worth
+0.0002 either way.
+
 ### What the per-fold AUC is and what the out-of-fold figure is
 
 They are not the same measurement and the gap is **not** epoch-selection bias. Taken from
