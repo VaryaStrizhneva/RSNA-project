@@ -275,6 +275,18 @@ WEIGHTS = {
     #: column gains. So the expert we actually ship on that column is the only one with a
     #: measured case against it, and this asks what the host does with it alone.
     "no_acl": {t: 0.5 for t in TARGETS8 if t != "ACL"},
+    #: MCL handed back to the host entirely, every other column at the 0.40 that holds
+    #: the standing score. **Priced, not guessed**: one void submission per column put the
+    #: host at **0.992 on MCL** -- its best of the five probed, and 0.176 above our
+    #: expert's out-of-fold 0.8160 -- against 0.896 on Lateral OA, its weakest. A column
+    #: absent from this mapping is left to the host untouched, so the difference between
+    #: this regime and `flat40` on the same host *is* what our MCL column is worth.
+    #:
+    #: Expect it small: our expert blended at 0.40 against a 0.992 host probably costs
+    #: that column 0.02 to 0.03, which is 0.002 to 0.003 of macro once divided by twelve
+    #: and so under what three decimals resolve. The sign is well founded, the reading is
+    #: not guaranteed.
+    "flat40_no_mcl": {t: 0.40 for t in TARGETS8 if t != "MCL"},
 }
 
 GRAFT_CELL = '''# ===================== OUR LEG — the experts, grafted on =====================

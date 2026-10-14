@@ -66,6 +66,15 @@ KNOWN = {
     # Public LB 0.956 -- below our 0.957, but a better host to graft onto.
     "heliosli/blend-mine-in-private-lb-luck-to-all-upvoters":
         "f359aeecb1dba916d65ecc6b0c31909c8524a88b89c5b7a745701d5cb30a3d6d",
+    #: Published 2026-10-14, banner 0.9573 — **above our own standing 0.957**, in one
+    #: click and by anyone. Three stages: nartaa's 384-pixel Raptor, then nartaa's
+    #: **224-pixel** one (a 0.8 centre crop of the same field, 0.945 alone) at A224 = 0.35
+    #: of the Raptor half, then heliosli's own R7 (`E_lrprior`, bundle `8c7b666e`), rank
+    #: blended 0.5/0.5. The 224 checkpoint sits in
+    #: `nartaa/rsna-knee-publication-swa-weights-20261007`, which **we have mounted since
+    #: 7 October** — so that half of its gain over the 0.956 was available to us all along.
+    "heliosli/0-9573-latest-public-dataset-score-in-one-click":
+        "a00d033f1de72d294924bc389ce108f73561c51bd1b83d02effff72692500731",
 }
 
 

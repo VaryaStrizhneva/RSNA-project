@@ -1,0 +1,25 @@
+{
+  "id": "heliosli/0-9573-latest-public-dataset-score-in-one-click",
+  "id_no": 138669425,
+  "title": " =0.9573 Latest public dataset score in one click!",
+  "code_file": "0-9573-latest-public-dataset-score-in-one-click.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "heliosli/rsna-knee-r6-frozen-fe055406",
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": []
+}
