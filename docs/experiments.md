@@ -674,6 +674,42 @@ Also noted: the kept epochs came early on the lateral run — 15, 12, 4, 8, 9 �
 not what a lower learning rate usually does, and is worth a look if this configuration is
 taken further.
 
+### The same bundle on MCL: nothing, 2026-10-14
+
+`mcl_tall_d36` + `lr = 1e-4` against the shipped `mcl_fsonly`, two keys apart.
+
+| fold | `mcl_fsonly` | `mcl_tall_d36` + lr | Δ | kept epoch |
+|---|---|---|---|---|
+| 0 | 0.8271 | 0.8309 | +0.0038 | 2 → 9 |
+| 1 | 0.7877 | 0.7962 | +0.0085 | 14 → 5 |
+| 2 | 0.8404 | 0.8324 | **−0.0080** | 14 → 10 |
+| 3 | 0.8287 | 0.8288 | +0.0001 | 14 → 7 |
+| 4 | 0.8160 | 0.8018 | **−0.0142** | 24 → 5 |
+
+**−0.0020 ± 0.0041, t = −0.48, 3 of 5, sign test p = 0.50.** Nothing. And the out-of-fold
+figure fell much further — 0.8160 → **0.8016** — because the cross-fold pooling cost blew
+out from −0.0040 to **−0.0164**. Gold was flat (0.9229 → 0.9206).
+
+Pooled over the three bundles the effect survives but is diluted: **12 of 15 folds
+positive, p = 0.018**, against 9 of 10 at p = 0.011 before this run.
+
+**One hypothesis is refuted and one stands.** It is *not* that a bigger box needs more
+positives than this column has: Lateral Meniscus carries **668** positives and gained,
+MCL carries **660** and lost. What distinguishes MCL is that it is the only one of the
+three where the box was **moved** and not only enlarged — `box_rise_mm` from −12 to −4,
+8 mm upward — where both meniscus bundles grew symmetrically about an unchanged centre.
+Repositioning is the category this project has repeatedly measured at zero or worse; the
+Effusion expert lost 0.025 for bringing only better centring.
+
+The kept epochs point the same way: 2/14/14/14/24 became 9/5/10/7/5, so the new
+configuration peaks **earlier** on four folds of five. With a *lower* learning rate that
+is backwards, and looks like faster overfitting — which a 40 % taller box feeding twice
+the windows would explain.
+
+**Testable at one variable:** hold the 112 mm height and put `box_rise_mm` back to −12,
+so the box grows +16 mm up and +16 mm down about the centre it already had. If that comes
+back positive, the cost was the move rather than the size.
+
 ### What the per-fold AUC is and what the out-of-fold figure is
 
 They are not the same measurement and the gap is **not** epoch-selection bias. Taken from

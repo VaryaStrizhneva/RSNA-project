@@ -537,6 +537,25 @@ SPECS = {
         box_offset_mm=5.0, box_rise_mm=-4.0,
         lateral_mm=18.0, medial_mm=18.0, slots=11,
         series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
+    #: **The same box, grown about the centre it already had.** `mcl_tall_d36` + `lr =
+    #: 1e-4` measured **−0.0020, 3 of 5 folds**, while the same bundle took +0.0053 and
+    #: +0.0052 on the two meniscus columns. The one thing MCL did differently was *move*:
+    #: its `box_rise_mm` went −12 to −4, lifting the frame 8 mm, where both meniscus
+    #: bundles grew symmetrically about an unchanged centre. Repositioning is the
+    #: category this project keeps measuring at zero — the Effusion expert lost 0.025 for
+    #: bringing only better centring.
+    #:
+    #: So this holds the 112 mm height and puts the rise back to **−12**: +16 mm up and
+    #: +16 mm down instead of +24 and +8. One variable against `mcl_tall_d36`, and the
+    #: answer separates "the box was moved" from "the box was enlarged" — which are
+    #: inseparable in any asymmetric growth, and were therefore confounded in the first
+    #: attempt.
+    "mcl_tall_d36_centred": RoiSpec(
+        name="mcl_tall_d36_centred", landmark="mcl_centre", plane="Coronal",
+        box_w_mm=32.0, box_h_mm=112.0, out_w=112, out_h=392,
+        box_offset_mm=5.0, box_rise_mm=-12.0,
+        lateral_mm=18.0, medial_mm=18.0, slots=11,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
     #: What the first collateral run was actually cut under — the two fat-suppressed
     #: series only, 95.5 % of studies. Kept so `experiments/expert_mcl_fsonly.json`
     #: still reproduces the number it published.
