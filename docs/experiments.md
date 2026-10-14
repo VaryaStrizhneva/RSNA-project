@@ -635,6 +635,45 @@ popliteal tissue while the 3 mm above and below is condyle and plateau. Tissue, 
 not signal. **Enlarging a box toward the host's framing does not pay** — which is what
 [[experts-what-pays]] has said since Baker's and Effusion, now with a third case.
 
+### Three changes at once, on both meniscus columns, 2026-10-13/14
+
+Not an experiment and recorded as such: box, slot pitch and learning rate all move, so a
+row that shifts cannot say which moved it. It was asked for as a bid for the best model
+after the three components had been measured apart, and the components said it should
+lose.
+
+| | fold 0 | 1 | 2 | 3 | 4 | paired Δ | signs |
+|---|---|---|---|---|---|---|---|
+| medial, `d32` → `wide_s11_lr1e-4` | −0.0052 | +0.0113 | +0.0061 | +0.0049 | +0.0092 | **+0.0053 ± 0.0028** | 4/5 |
+| lateral, `d32` → `wide_s11_lr1e-4` | +0.0034 | +0.0150 | +0.0037 | +0.0027 | +0.0012 | **+0.0052 ± 0.0025** | **5/5** |
+| **pooled** | | | | | | **+0.0052** | **9/10, sign test p = 0.011** |
+
+**Per column that is the size of the encoder change (+0.0056), and it is significant.**
+
+**Adding the measured components up predicted the wrong sign on the lateral column.**
+There, `lr = 1e-4` had been run on `lateral_meniscus_d32` itself, one variable, and cost
+**−0.0104**; the frame measured −0.0019 on the medial side and the pitch closed as null
+at 5 of 10 signs. The sum predicted about **−0.012** and the measurement returned
+**+0.0052** — a 0.017 miss *and* the opposite direction. On the medial side the same
+arithmetic summed to +0.0138 against a measured +0.0053, over by 2.6x. So component sums
+are not a usable predictor of a bundle here, in either magnitude or sign, and three
+bundles asked for against that reasoning have now won.
+
+**What did not improve: the out-of-fold figure on the lateral column.** 0.8958 → 0.8944,
+because the cross-fold pooling cost went from −0.0021 to −0.0086 — the five models agree
+less about the scale of their outputs, the opposite of what `medial_meniscus_d32` did
+(−0.0111 → −0.0015). Per-fold quality and cross-fold calibration moved in opposite
+directions, and only the first is what the paired comparison measures. The submission
+averages the folds rather than concatenating them, so the effect there is indirect; it is
+not nothing.
+
+**Projected macro: +0.0009** — two columns of twelve at +0.0052, by the calibration that
+reproduced the encoder change to 7 %. The family every lever has landed in since.
+
+Also noted: the kept epochs came early on the lateral run — 15, 12, 4, 8, 9 — which is
+not what a lower learning rate usually does, and is worth a look if this configuration is
+taken further.
+
 ### What the per-fold AUC is and what the out-of-fold figure is
 
 They are not the same measurement and the gap is **not** epoch-selection bias. Taken from
