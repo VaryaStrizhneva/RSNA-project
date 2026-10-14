@@ -2,7 +2,7 @@
 
 Pulled 2026-10-14 with `kaggle kernels pull`. Read-only, like everything under
 `external/`. `sha256` of the concatenated code:
-`a00d033f1de72d294924bc389ce108f73561c51bd1b83d02effff72692500731`, pinned in
+`b63b237996bf869a0e5c4e1526fbe06675250ec543c27644cc3ea939d97a8b60`, pinned in
 `scripts/kaggle_graft.KNOWN`.
 
 **The banner claims 0.9573, which is above our own standing 0.957** — so the bare public

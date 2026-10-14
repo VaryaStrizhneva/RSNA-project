@@ -74,7 +74,7 @@ KNOWN = {
     #: `nartaa/rsna-knee-publication-swa-weights-20261007`, which **we have mounted since
     #: 7 October** — so that half of its gain over the 0.956 was available to us all along.
     "heliosli/0-9573-latest-public-dataset-score-in-one-click":
-        "a00d033f1de72d294924bc389ce108f73561c51bd1b83d02effff72692500731",
+        "b63b237996bf869a0e5c4e1526fbe06675250ec543c27644cc3ea939d97a8b60",
 }
 
 
