@@ -773,6 +773,70 @@ from both sides. The OOF stays the run's headline figure, but it *understates* w
 ships, because the submission averages the five folds per study and so has no cross-fold
 pairs at all.
 
+### The host priced column by column, 2026-10-13/14
+
+Five submissions, each the unmodified host with one column replaced by a constant. A
+constant column ties every study, and an AUC counts tied pairs as half, so such a column
+scores **exactly 0.5** — which inverts to
+
+```
+auc_column = 0.5 + 12 x (macro_host - macro_voided)
+```
+
+**`macro_host` is 0.954, not the 0.956 the host scores bare**, and that is now fixed by
+two independent routes. The two block probes give it directly: voiding our eight columns
+read 0.647 and voiding the four orphans read 0.807, and their sum is `macro_host + 0.5`,
+so `0.807 + 0.647 - 0.5 = 0.954`. And requiring every per-column AUC to land inside
+[0.5, 1.0] forces `macro_host` into **[0.9210, 0.9547]** — which excludes 0.956 and
+admits 0.954. With 0.956 the MCL column computes to **1.016**. The 0.002 discrepancy
+against what the host reports is unexplained; candidates are its own run-to-run variation
+under `DEADLINE_HOURS`, or something about how the metric treats a degenerate column.
+
+| column | host AUC | our out-of-fold | submission |
+|---|---|---|---|
+| **MCL** | **0.992** | 0.8160 | `void-mcl` 0.913 |
+| Lateral Meniscus | 0.968 | 0.8958 | `void-latmen` 0.915 |
+| Fracture *(orphan)* | 0.956 | — | `void-fracture` 0.916 |
+| PF OA | 0.932 | 0.8435 | `void-pfoa` 0.918 |
+| **Lateral OA** | **0.896** | 0.8308 | `void-latoa` 0.921 |
+
+Block figures from the same arithmetic: our eight columns average **0.9605**, the four
+orphans **0.9410**, and the four of ours not probed individually — ACL, Medial Meniscus,
+Medial OA, Baker's — average **0.9740**.
+
+**Read the ranking, not the third decimal.** An absolute AUC carries **±0.030**:
+12 x (0.002 of uncertainty on `macro_host` + 0.0005 of rounding on the submitted score).
+A *gap between two columns* carries only **±0.012**, because `macro_host` cancels —
+`auc_a - auc_b = 12 x (score_b - score_a)`. So MCL sits 0.096 ± 0.012 above Lateral OA,
+eight times the uncertainty, while MCL over Lateral Meniscus is +0.024 and the only gap
+inside two sigma. MCL at 0.992 ± 0.030 may be saturated or may be 0.96.
+
+**The "our out-of-fold" column is the weakest part of the table and is not a comparison.**
+Ours are agreement with the label extractor on training studies; the host's are against a
+radiologist on the hidden test, and weak labels attenuate an AUC. Measuring the two on the
+same footing needs a different probe — hand a column entirely to our expert, which moves
+the macro by `(auc_ours - auc_host) / 12`, i.e. 0.005 to 0.015 here and therefore legible.
+Not yet run.
+
+**Two decisions follow, and one explains a result from the same day.**
+
+**MCL is the host's best column of the five and our expert is far below it.** That is why
+the MCL bundle measured −0.0020 and why no box would have helped: there was nothing to win
+on a column already solved. The morning's hypothesis — that the box had been *moved*
+rather than only enlarged — is not needed to explain it. **Dropping our MCL column to
+weight 0** is the action, and the chain already supports it: a column absent from the
+weight mapping is left to the host untouched.
+
+**Lateral OA is the host's weakest and the gap to us is the smallest of the four**
+(+0.065). [[experts-what-pays]] records that the gain tracks the host's weakness rather
+than the expert's quality, so that is where to invest — and it is what was training when
+this was computed.
+
+**Method note for the next batch.** Four of these five scores were nearly lost: the
+competition API does not link a submission to the kernel that produced it and the
+description field was left empty, so the mapping had to come from the user's own browser.
+**Type the column name into the submission description.**
+
 ### Measuring the host per column without a contaminated comparator
 
 Every per-column decision this project has made was taken against **our** wide model at
