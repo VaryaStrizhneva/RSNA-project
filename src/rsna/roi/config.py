@@ -507,6 +507,42 @@ SPECS = {
                          box_w_mm=56.0, box_h_mm=48.0, out_w=196, out_h=168,
                          box_rise_mm=8.0, lateral_mm=20.0, medial_mm=20.0, slots=11,
                          series=(("Axial", "PD", True), ("Axial", "T2", True))),
+    #: **A larger frame and a longer window, on the plane with the thinnest resolution
+    #: margin of the set.** 56 x 48 to **64 x 56 mm** -- the nearest expressible box to
+    #: +15 % on each axis, since holding 2/7 mm per pixel with both output sides
+    #: divisible by 14 forces `box = 4 * k` and 64.4 and 55.2 are not expressible -- and
+    #: the depth from 32 mm over 9 slots to **40 over 11**, the 4.00 mm pitch unchanged.
+    #:
+    #: **The pitch is deliberately not touched, and that is measured.** Axial
+    #: through-plane spacing is **3.90 mm** in the median (p5 3.30, p95 5.70) against
+    #: this grid's 4.00, so unlike the sagittal meniscus windows -- 3.30 against 4.00,
+    #: a 21 % gap -- there is nothing to recover by densifying here. Going to 3.20 mm
+    #: would add padding, not slices.
+    #:
+    #: **Why the longer window gains rather than pads.** Expected fill from the spacing
+    #: alone is 8.43 of 9 at 32 mm and **10.29 of 11 at 40 mm** -- the same 94 %, so
+    #: about two more *real* slices. Measured fill at 32/9 is 7.92, so 0.52 of a slot is
+    #: the window genuinely overrunning the acquisition and the rest is simply how far
+    #: apart the slices are. An earlier reading of this compared 7.92 against the
+    #: *median* of what is available (9.2) rather than the mean of the minimum (8.43),
+    #: which inflated the overrun and wrongly argued against lengthening.
+    #:
+    #: **What the enlargement will and will not reach.** Measured row by row over 1500
+    #: studies, tissue runs from 7.1 mm below the top edge to the bottom edge itself,
+    #: peaking at 0.936 and still 0.782 where the box stops -- so the anatomy continues
+    #: past the bottom, and past both sides (columns 0.72 to 0.62). It does **not**
+    #: continue past the top: the first 4 mm carry 0.189 of tissue and the next 4 carry
+    #: 0.429, because `box_rise_mm = +8` puts the top edge 32 mm anterior of
+    #: `pf_centre` while the patella's cortex is at 25 and the skin just beyond.
+    #:
+    #: `box_rise_mm` is **left at +8 anyway**, so half the added height grows into that
+    #: air. Dropping it to 0 would trade 8 mm of air for 8 mm of tissue at no cost in
+    #: pixels or memory, and is the obvious next single variable if this does not pay.
+    "pf_oa_wide_d40": RoiSpec(
+        name="pf_oa_wide_d40", landmark="pf_centre", plane="Axial",
+        box_w_mm=64.0, box_h_mm=56.0, out_w=224, out_h=196,
+        box_rise_mm=8.0, lateral_mm=20.0, medial_mm=20.0, slots=11,
+        series=(("Axial", "PD", True), ("Axial", "T2", True))),
     # 50 % more extent at the same density
     "lateral_meniscus_d24": RoiSpec(name="lateral_meniscus_d24",
                                     lateral_mm=6.0, medial_mm=18.0, slots=7),
