@@ -525,13 +525,18 @@ SPECS = {
     #:
     #: Memory will be the question rather than the anatomy: 392 px of height against 280,
     #: and nine windows against five, is roughly **2.5x** what this column costs now.
+    #: **Two series, not three, and that is not a detail.** The shipped MCL expert reads
+    #: `mcl_fsonly` rather than `mcl`, because dropping the non-fat-suppressed coronal is
+    #: worth **+0.0117** on this column -- recorded in `rsna.infer.chain` beside the 197
+    #: studies the expert then abstains on. A first draft of this spec carried all three
+    #: series and would have re-introduced a loss more than twice the size of the gain it
+    #: was built to chase.
     "mcl_tall_d36": RoiSpec(
         name="mcl_tall_d36", landmark="mcl_centre", plane="Coronal",
         box_w_mm=32.0, box_h_mm=112.0, out_w=112, out_h=392,
         box_offset_mm=5.0, box_rise_mm=-4.0,
         lateral_mm=18.0, medial_mm=18.0, slots=11,
-        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
-                ("Coronal", "PD", False))),
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
     #: What the first collateral run was actually cut under — the two fat-suppressed
     #: series only, 95.5 % of studies. Kept so `experiments/expert_mcl_fsonly.json`
     #: still reproduces the number it published.
