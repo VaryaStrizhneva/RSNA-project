@@ -262,7 +262,7 @@ def main() -> int:
               f"matches and its bundle assert is now the only check")
     host_cells = len(nb["cells"])
     if sum(x is not None and x is not False for x in
-               (args.blend, args.weights, args.solo)) > 1:
+               (args.blend, args.weights)) + bool(args.solo) > 1:
         raise SystemExit("--blend, --weights and --solo set the same thing; pass one")
     if args.solo:
         solo = [c.strip() for c in args.solo.split(",") if c.strip()]
@@ -273,15 +273,31 @@ def main() -> int:
     else:
         blend = WEIGHTS[args.weights] if args.weights else (
             args.blend if args.blend is not None else EXPERT_BLEND)
+    # `--solo` with `--constant` is the measurement that prices OUR expert the way the
+    # void probes priced the host: our columns carry our expert outright, every other
+    # column is a constant 0.5, and the macro reads
+    # `(sum of our AUCs + (12 - n) * 0.5) / 12` -- so one submission inverts to our
+    # absolute AUC. The graft must run first and the voiding second, or the void would
+    # be overwritten.
+    if args.solo and not args.bare:
+        nb["cells"].append({"cell_type": "code", "execution_count": None,
+                            "metadata": {}, "outputs": [],
+                            "source": [GRAFT_CELL.format(blend=repr(blend),
+                                                         mirror=args.mirror_tta,
+                                                         jitter=args.jitter_tta)]})
     if args.constant:
         wanted = [c.strip() for c in args.constant.split(",") if c.strip()]
         unknown = [c for c in wanted if c not in TARGETS]
         if unknown:
             raise SystemExit(f"  REFUSED: {unknown} are not among the twelve targets")
+        overlap = sorted(set(wanted) & set(blend if isinstance(blend, dict) else ()))
+        if overlap:
+            raise SystemExit(f"  REFUSED: {overlap} are both handed to an expert and "
+                             f"voided; the voiding runs last and would erase the expert")
         nb["cells"].append({"cell_type": "code", "execution_count": None,
                             "metadata": {}, "outputs": [],
                             "source": [CONSTANT_CELL.format(columns=repr(wanted))]})
-    elif not args.bare:
+    elif not args.bare and not args.solo:
         nb["cells"].append({"cell_type": "code", "execution_count": None,
                             "metadata": {}, "outputs": [],
                             "source": [GRAFT_CELL.format(blend=repr(blend),
@@ -291,7 +307,9 @@ def main() -> int:
         if cell["cell_type"] == "code":
             compiles("".join(cell["source"]))
 
-    if args.constant:
+    if args.solo and args.constant:
+        tag = "only-" + "-".join(c.split()[0].lower()[:4] for c in solo)
+    elif args.constant:
         tag = "void-" + "-".join(c.split()[0].lower()[:4] for c in wanted)
     elif args.solo:
         tag = "solo-" + "-".join(c.split()[0].lower()[:4] for c in solo)
@@ -309,8 +327,8 @@ def main() -> int:
     (out / "notebook.ipynb").write_text(json.dumps(nb, indent=1) + "\n")
 
     # Their mounts, kept whole -- the weights the host loads are in there -- plus ours.
-    ours = ([] if (args.bare or args.constant)
-            else [f"{OWNER}/rsna-src", f"{OWNER}/{args.experts}"])
+    ours = ([] if (args.bare or (args.constant and not args.solo))
+             else [f"{OWNER}/rsna-src", f"{OWNER}/{args.experts}"])
     meta["dataset_sources"] = list(dict.fromkeys(
         list(meta.get("dataset_sources", [])) + ours))
     meta["id"] = f"{OWNER}/{slug}"
@@ -334,8 +352,14 @@ def main() -> int:
         # blend this notebook does not contain, and a log that reads as a graft is how a
         # measurement comes to be filed as an attempt at a score.
         print(f"  voided: {', '.join(wanted)} -> constant 0.5")
-        print(f"  the macro falls by sum(auc - 0.5) / 12 over those "
-              f"{len(wanted)} column(s); no expert or landmark is mounted")
+        if args.solo:
+            n = len(blend)
+            print(f"  kept by our experts outright: {', '.join(sorted(blend))}")
+            print(f"  so the macro reads (sum of our {n} AUCs + {12 - n} x 0.5) / 12, "
+                  f"and inverts to sum = 12 x macro - {(12 - n) * 0.5:g}")
+        else:
+            print(f"  the macro falls by sum(auc - 0.5) / 12 over those "
+                  f"{len(wanted)} column(s); no expert or landmark is mounted")
     elif not args.bare:
         print(f"  weights: {args.weights or 'flat ' + str(blend)}")
         if isinstance(blend, dict):
