@@ -746,6 +746,50 @@ defensible rule is the simple one — take the bundle where the delta is positiv
 shipped expert on MCL where it is indistinguishable from zero — and the choice is worth
 0.0002 either way.
 
+### The bundle on the two coronal OA columns, and the six of them pooled
+
+On these two the bundle is **the box alone**: their shipped runs already use
+`lr = 1e-4`, so only the region moved — 54 x 39 to 60 x 42 mm and 28 mm over 9 slots to
+35 over 11, the 3.50 mm pitch left at the coronal acquisition's own rate. Batch stayed at
+16 on both sides. One key apart.
+
+| | fold 0 | 1 | 2 | 3 | 4 | paired Δ | t | signs |
+|---|---|---|---|---|---|---|---|---|
+| Medial OA | +0.0125 | −0.0025 | +0.0027 | +0.0015 | +0.0075 | +0.0043 ± 0.0026 | 1.68 | 4/5 |
+| **Lateral OA** | +0.0085 | +0.0105 | +0.0130 | +0.0040 | +0.0189 | **+0.0110 ± 0.0025** | **4.45** | **5/5** |
+
+**Lateral OA is the largest single-column gain of the whole programme** — double the
+encoder change — and its out-of-fold figure rose with it, 0.8308 → 0.8404. Medial OA is
+positive and inconclusive alone, with a flat out-of-fold (−0.0005) because its pooling
+cost widened from −0.0084 to −0.0132.
+
+**A prediction made before the run came true, for the first time this session.** Lateral
+OA is the column the void probes had just priced as the **host's weakest (0.896)**, with
+the **smallest gap to our expert (+0.065)** of the four probed. [[experts-what-pays]]
+records that the gain tracks the host's weakness rather than the expert's quality, and
+that is exactly where the bundle paid most.
+
+| column | paired Δ | signs |
+|---|---|---|
+| **Lateral OA** | **+0.0110** | 5/5 |
+| Medial Meniscus | +0.0053 | 4/5 |
+| Lateral Meniscus | +0.0052 | 5/5 |
+| Medial OA | +0.0043 | 4/5 |
+| PF OA | +0.0042 | 3/5 |
+| MCL | −0.0020 | 3/5 |
+| **pooled** | **+0.0047** | **24/30, p = 0.00072** |
+
+**Projected macro +0.0023** over six columns, **+0.0025** shipping only the five positive
+ones — double the estimate from four columns and the largest measured lever since the
+encoder.
+
+**And it corrects a conclusion drawn three days earlier.** `medial_meniscus_d32_wide`
+measured −0.0019 and was written down as "enlarging a box toward the host's framing does
+not pay". On these two coronal columns the enlargement *is* the whole change, with no
+learning rate to carry it, and it took +0.0043 and +0.0110. **That conclusion does not
+generalise**: the box pays on the coronal OA columns and not on the sagittal meniscus, and
+nothing measured here says why.
+
 ### What the per-fold AUC is and what the out-of-fold figure is
 
 They are not the same measurement and the gap is **not** epoch-selection bias. Taken from
