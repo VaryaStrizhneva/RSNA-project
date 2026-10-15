@@ -41,10 +41,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import torch
 
 from ..config import TARGETS, Config
 from ..dicom import annotate, walk
 from ..roi import cache
+from ..expert.config import ExpertConfig
 from .experts import (JITTER_VIEWS, inplane_jitter, load_experts,
                       mirror_groups, score_experts)
 from .landmarks import load_landmarks, predict_landmarks
@@ -129,6 +131,31 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
                          "root, and pathlib's error for that is three frames deep")
     data_root, out = Path(data_root), Path(out)
     expert_runs = [Path(r) for r in expert_runs]
+
+    # An expert whose every column the mapping leaves to the host is dropped **here**,
+    # before anything is loaded. `_overwrite` already skips such a column, but it does so
+    # at the end: the cache would have been cut and the five folds run first, and thrown
+    # away after. That cost nothing while every column was named; it costs eight caches,
+    # eight inferences and three landmark models to use one expert as soon as a probe
+    # names a single column, which is exactly what the per-column measurements do.
+    #
+    # Dropping them here also shrinks `wanted`, so only the landmark models those experts
+    # actually hang off are run. Nothing changes for an ordinary submission, where the
+    # mapping names all eight.
+    if isinstance(blend, Mapping):
+        asked = {t for t, w in blend.items() if w is not None}
+        keep, drop = [], []
+        for run in expert_runs:
+            ck = torch.load(next(Path(run).glob("fold*.pt")), map_location="cpu",
+                            weights_only=False)
+            targets = set(ExpertConfig.from_dict(ck["config"]).targets)
+            (keep if targets & asked else drop).append(run)
+        if drop:
+            log(f"{len(drop)} expert(s) own no column this blend names and are not "
+                f"loaded: {', '.join(r.name for r in drop)}")
+        if not keep:
+            raise ValueError(f"no expert owns any of {sorted(asked)}; nothing to graft")
+        expert_runs = keep
     landmark_runs = [Path(r) for r in landmark_runs]
 
     loaded, wanted = _points_needed(expert_runs, device, log=log)
