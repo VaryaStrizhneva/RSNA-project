@@ -213,6 +213,17 @@ def main() -> int:
                          "and it is the whole point here: the vendored bytes are only "
                          "usable because KNOWN says what the scored source was, so a "
                          "copy that drifted cannot be grafted onto by accident.")
+    ap.add_argument("--solo", default=None, metavar="COL[,COL]",
+                    help="hand these columns ENTIRELY to our experts (weight 1.0) and "
+                         "leave every other column to the host. This is the measurement "
+                         "that makes the two comparable on the same footing: the macro "
+                         "moves by sum(auc_ours - auc_host) / 12 over the named columns, "
+                         "so one submission reads the difference directly and needs no "
+                         "separate estimate of either side. Out-of-fold figures cannot "
+                         "do this -- they are agreement with the label extractor on "
+                         "training studies, which the extractor itself only matches at "
+                         "0.841 against the 58 radiologist readings -- and the 58 gold "
+                         "studies cannot either, at +/-0.05.")
     ap.add_argument("--push", action="store_true")
     args = ap.parse_args()
 
@@ -250,10 +261,18 @@ def main() -> int:
         print(f"  SWAPPED {a} -> {b} in {hits} place(s); the host's hash no longer "
               f"matches and its bundle assert is now the only check")
     host_cells = len(nb["cells"])
-    if args.blend is not None and args.weights:
-        raise SystemExit("--blend and --weights set the same thing; pass one")
-    blend = WEIGHTS[args.weights] if args.weights else (
-        args.blend if args.blend is not None else EXPERT_BLEND)
+    if sum(x is not None and x is not False for x in
+               (args.blend, args.weights, args.solo)) > 1:
+        raise SystemExit("--blend, --weights and --solo set the same thing; pass one")
+    if args.solo:
+        solo = [c.strip() for c in args.solo.split(",") if c.strip()]
+        unknown = [c for c in solo if c not in TARGETS]
+        if unknown:
+            raise SystemExit(f"  REFUSED: {unknown} are not among the twelve targets")
+        blend = {c: 1.0 for c in solo}
+    else:
+        blend = WEIGHTS[args.weights] if args.weights else (
+            args.blend if args.blend is not None else EXPERT_BLEND)
     if args.constant:
         wanted = [c.strip() for c in args.constant.split(",") if c.strip()]
         unknown = [c for c in wanted if c not in TARGETS]
@@ -274,6 +293,8 @@ def main() -> int:
 
     if args.constant:
         tag = "void-" + "-".join(c.split()[0].lower()[:4] for c in wanted)
+    elif args.solo:
+        tag = "solo-" + "-".join(c.split()[0].lower()[:4] for c in solo)
     else:
         tag = args.weights or f"b{int(round((args.blend or EXPERT_BLEND) * 100)):02d}"
         if args.jitter_tta:
