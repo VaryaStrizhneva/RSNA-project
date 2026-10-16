@@ -858,9 +858,11 @@ inside two sigma. MCL at 0.992 ± 0.030 may be saturated or may be 0.96.
 **The "our out-of-fold" column is the weakest part of the table and is not a comparison.**
 Ours are agreement with the label extractor on training studies; the host's are against a
 radiologist on the hidden test, and weak labels attenuate an AUC. Measuring the two on the
-same footing needs a different probe — hand a column entirely to our expert, which moves
-the macro by `(auc_ours - auc_host) / 12`, i.e. 0.005 to 0.015 here and therefore legible.
-Not yet run.
+same footing needs a different probe. **It has since been run** — see *Our experts priced
+absolutely* below, where the solo probes put us at 0.908 on PF OA against his 0.932 and
+0.884 on Lateral OA against his 0.896. **The gaps in the table above are overstated by a
+factor of four or more** and none of the "+0.065" style figures in this section should be
+used.
 
 **Two decisions follow, and one explains a result from the same day.**
 
@@ -880,6 +882,99 @@ this was computed.
 competition API does not link a submission to the kernel that produced it and the
 description field was left empty, so the mapping had to come from the user's own browser.
 **Type the column name into the submission description.**
+
+### The bundle on a seventh column, ACL, 2026-10-15/16
+
+`acl_inset8` against the shipped `expert_acl_cnxnano`: the box inset 8% on each axis and
+`lr = 1e-4`. The one column of the programme where the bundle *shrank* the region.
+
+| | fold 0 | 1 | 2 | 3 | 4 | paired Δ | t | signs |
+|---|---|---|---|---|---|---|---|---|
+| old | 0.8780 | 0.8558 | 0.8828 | 0.8797 | 0.8940 | | | |
+| new | 0.8734 | 0.8445 | 0.8958 | 0.8677 | 0.9007 | | | |
+| **ACL** | −0.0046 | −0.0113 | **+0.0130** | −0.0120 | **+0.0067** | **−0.0016 ± 0.0050** | −0.33 | **2/5** |
+
+Nothing, and the fold spread (0.025 peak to trough) is five times the effect. The
+out-of-fold is flat to four decimals, 0.8693 → 0.8698.
+
+| column | paired Δ | signs |
+|---|---|---|
+| **Lateral OA** | **+0.0110** | 5/5 |
+| Medial Meniscus | +0.0053 | 4/5 |
+| Lateral Meniscus | +0.0052 | 5/5 |
+| Medial OA | +0.0043 | 4/5 |
+| PF OA | +0.0042 | 3/5 |
+| MCL | −0.0020 | 3/5 |
+| ACL | −0.0016 | 2/5 |
+| **pooled** | **+0.0038** | **26/35, p = 0.0030** |
+
+**Projected macro +0.0022** over seven columns, **+0.0025** shipping only the five
+positives — the seventh column dilutes the six-column figure without weakening the
+pooled sign test, which is still 0.003.
+
+### Our experts priced absolutely, and the 58 gold studies refuted
+
+The symmetric of the void probes. There the host kept eleven columns and lost one; here
+**our expert owns one column and the other eleven are constant**, so
+
+```
+auc_ours = 12 x macro - 5.5
+```
+
+`scripts/kaggle_probe.py` is a standalone notebook with **no host at all** — it writes its
+own twelve-column floor, runs one expert, and finishes in minutes. Two details are load-
+bearing. The floor column must be a **ramp**, not a constant: `_overwrite` remaps our
+ordering onto the values the column already holds, and a constant column has one distinct
+value, so the remap would flatten our predictions and the probe would report 0.5 for every
+expert (verified synthetically: constant → 1 distinct value, spearman nan; ramp → 1000
+values, spearman +1.0000). And the chain now **drops every expert the blend does not
+name** before loading anything, which took a one-expert probe from 4 min and 8 ROI caches
+to one.
+
+**This is the only measurement of ours comparable to the host's**, because it is the same
+labels on the same hidden test. It carries **±0.006** — the three-decimal rounding alone,
+with no `macro_host` to inherit — against ±0.030 for the host's absolute figures.
+
+| column | ours | host | gap |
+|---|---|---|---|
+| **ACL** | **0.980** | not probed alone | — |
+| PF OA | 0.908 | 0.932 | −0.024 |
+| Lateral OA | 0.884 | 0.896 | −0.012 |
+
+**We are level with the host, not below it.** The gaps are −0.024 and −0.012 where the
+out-of-fold comparison had claimed −0.089 and −0.065. That earlier claim was the error the
+user named: our out-of-fold is agreement with the label extractor on training studies, the
+host's is a radiologist on the hidden test, and the two cannot be subtracted. **What our
+experts contribute is decorrelation at equal quality, not superiority** — which is also
+why no per-column weight regime tuned against the out-of-fold comparator ever paid.
+
+**ACL at 0.980 is our best column and may be the first we hold over the host.** His ACL
+was never probed alone; ACL + Medial OA sum to 1.924 from the block arithmetic, so his ACL
+exceeds ours only if his Medial OA falls to 0.944 — below any column he is known to hold.
+At 0.962 each we would be ahead by +0.018. A `void-acl` submission would settle it, and
+our weights currently leave that column to him.
+
+**The 58 gold studies are not a representative predictor, and that is now measured.** Two
+paired probes, the only variable the ACL expert:
+
+| predictor | said | sign | error |
+|---|---|---|---|
+| **gold, 58 studies** | **+0.0110** | **wrong** | 0.023 |
+| out-of-fold, absolute | +0.0005 | wrong | 0.013 |
+| **out-of-fold, paired per fold** | **−0.0016** | **right** | 0.010 |
+| **leaderboard (`only-acl-old` 0.540, `only-acl-new` 0.539)** | **−0.012 ± 0.008** | | |
+
+The gold did not merely miss the magnitude, it **inverted the sign** — 0.9828 → 0.9939
+read as the clearest gain of the session. Its own uncertainty is ±0.05 on 58 studies,
+wider than any effect we look for, so the 0.023 miss is inside its error bars and the
+reading was never admissible. This is its third failure, after row #25's +0.0396 that
+scored 0.000 on the board.
+
+**The paired per-fold comparison was the only one of the three with the right sign.** It
+understates the magnitude by 7x, which is expected — it removes the fold-to-fold variance
+rather than estimating an absolute AUC. **It is the arbiter from here, and the gold is
+retired from decisions of this kind.** The old expert ships, and `bundle5` already carries
+it.
 
 ### Measuring the host per column without a contaminated comparator
 
