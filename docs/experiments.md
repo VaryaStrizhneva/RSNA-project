@@ -265,11 +265,33 @@ excuse it (0.9573 + 0.001 = 0.9583, which displays as 0.958), so that submission
 one to distrust, not this one. **Grafting onto each new public host is worth doing**, and
 the +0.001 has now been reproduced across a 0.002 change of host.
 
-Caveat on which weights earned it: two regimes went out a minute apart, `flat40` (0.40 on
-eight columns, MCL included) and `parity` (0.50 on seven, MCL dropped). One scored 0.959
-and the other was still `PENDING` hours later. The competition API does not link a
-submission to its kernel and the descriptions were empty again, so **the attribution comes
-from the browser and is not recorded here yet**.
+**Both regimes earned it, and that is the second result.** They went out a minute apart
+and read identically:
+
+| regime | allocation | score |
+|---|---|---|
+| `flat40` | all eight columns at 0.40, **MCL included** | **0.959** |
+| `parity` | seven at 0.50, **MCL handed back to the host** | **0.959** |
+
+`parity` predicted it would beat `flat40` and did not. But it did not lose either, so this
+is **not the fifth failed reweighting — it is a tie**, and the difference between the two
+*is* what our MCL column is worth, which is therefore under 0.001.
+
+**That closes the weight dimension.** Seven allocations have now been submitted — `flat`,
+`shrunk`, `corrected`, `divided`, flat 0.6, `flat40`, `parity` — and the whole spread
+between the best and worst of them is 0.002, with every pair inside 0.001 of its
+neighbour. **No further submission should be spent on a reweighting.** The out-of-fold
+optimum per column ranges 0.45 to 0.77 and its mean is 0.51, which is the arithmetic
+reason a flat 0.5 keeps matching everything: the macro averages twelve columns, so a
+per-column misallocation of 0.1 of weight costs a fraction of a thousandth.
+
+**Which to select, since the leaderboard cannot choose.** `parity`, on the per-column
+measurements rather than on the score. MCL is the host's **best** probed column (0.992)
+and the one where our expert is furthest behind, and `flat40` blends ours into it at 0.40
+while `parity` does not. On the seven that remain, the solo probes put us within **0.012
+to 0.024** of him — equal quality, where 0.5 is the decorrelation optimum rather than a
+default. Every per-column number points the same way, and none of them is the out-of-fold
+comparator that caused the four earlier failures.
 
 ### What 0.959 is worth in rank, 2026-10-16
 
