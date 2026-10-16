@@ -235,6 +235,15 @@ def main() -> int:
                          "sum(auc - 0.5) / 12 over the named columns and one submission "
                          "prices the host where we cannot otherwise see it. Deliberately "
                          "loses points; our standing score is unaffected.")
+    ap.add_argument("--keep", default=None, metavar="COL",
+                    help="the complement of --constant: void the ELEVEN other columns "
+                         "and leave this one to the host. The macro then reads "
+                         "(auc + 5.5) / 12 and inverts to auc = 12 x macro - 5.5, with "
+                         "no macro_host in it -- so the only error left is the three-"
+                         "decimal rounding, +/-0.006, against +/-0.030 for --constant on "
+                         "one column. It is the exact symmetric of --solo --constant, "
+                         "which is how our own experts were priced, so the two numbers "
+                         "are comparable")
     ap.add_argument("--local", type=Path, default=None, metavar="DIR",
                     help="read the host from a vendored copy under notebooks/external/ "
                          "instead of pulling it. Needed once the author takes the "
@@ -299,6 +308,15 @@ def main() -> int:
         print(f"  SWAPPED {a} -> {b} in {hits} place(s); the host's hash no longer "
               f"matches and its bundle assert is now the only check")
     host_cells = len(nb["cells"])
+    # `--keep` is `--constant` over the complement. Resolving it here rather than giving
+    # it a cell of its own means one voiding cell, one arithmetic, one thing to be wrong.
+    if args.keep:
+        if args.constant or args.solo:
+            raise SystemExit("--keep already decides every column; drop --constant/--solo")
+        if args.keep not in TARGETS:
+            raise SystemExit(f"  REFUSED: {args.keep!r} is not among the twelve targets")
+        args.constant = ",".join(c for c in TARGETS if c != args.keep)
+        args.bare = True
     if sum(x is not None and x is not False for x in
                (args.blend, args.weights)) + bool(args.solo) > 1:
         raise SystemExit("--blend, --weights and --solo set the same thing; pass one")
@@ -347,6 +365,8 @@ def main() -> int:
 
     if args.solo and args.constant:
         tag = "only-" + "-".join(c.split()[0].lower()[:4] for c in solo)
+    elif args.keep:
+        tag = "hostonly-" + args.keep.split()[0].lower()[:4]
     elif args.constant:
         tag = "void-" + "-".join(c.split()[0].lower()[:4] for c in wanted)
     elif args.solo:
@@ -395,6 +415,10 @@ def main() -> int:
             print(f"  kept by our experts outright: {', '.join(sorted(blend))}")
             print(f"  so the macro reads (sum of our {n} AUCs + {12 - n} x 0.5) / 12, "
                   f"and inverts to sum = 12 x macro - {(12 - n) * 0.5:g}")
+        elif args.keep:
+            print(f"  kept by the HOST: {args.keep} -- nothing of ours is mounted")
+            print(f"  so the macro reads (auc + 5.5) / 12 and inverts to "
+                  f"auc = 12 x macro - 5.5, at +/-0.006")
         else:
             print(f"  the macro falls by sum(auc - 0.5) / 12 over those "
                   f"{len(wanted)} column(s); no expert or landmark is mounted")
