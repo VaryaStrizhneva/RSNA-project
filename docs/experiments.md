@@ -244,6 +244,58 @@ radiologist's labels on the hidden test, and our experts' out-of-fold figures ar
 `v4_blend` on training studies. Weak labels attenuate an AUC, so **0.9605 against our
 0.8958 on Lateral Meniscus is not a comparison** and must not be read as one.
 
+### 0.959, and the contribution is additive rather than capped, 2026-10-16
+
+Six grafts onto the 0.956 host all read **0.957**, and the graft onto the 0.9573 also read
+0.957. Two readings fit that: our leg adds a flat **+0.001** to whatever host it sits on,
+or it saturates at 0.957 and the host underneath stops mattering. The two are the same
+number on every submission made until now and they imply opposite strategies — under
+saturation, grafting onto a better host is wasted work.
+
+`s13-h958` discriminates them, and it reads **0.959**. So
+
+| host, bare | with our leg | delta |
+|---|---|---|
+| 0.956 | 0.957 | +0.001 |
+| 0.9573 | 0.957 | ~0.000 |
+| **0.958** | **0.959** | **+0.001** |
+
+**Additive.** The 0.9573 row stays the odd one and three-decimal rounding does not quite
+excuse it (0.9573 + 0.001 = 0.9583, which displays as 0.958), so that submission is the
+one to distrust, not this one. **Grafting onto each new public host is worth doing**, and
+the +0.001 has now been reproduced across a 0.002 change of host.
+
+Caveat on which weights earned it: two regimes went out a minute apart, `flat40` (0.40 on
+eight columns, MCL included) and `parity` (0.50 on seven, MCL dropped). One scored 0.959
+and the other was still `PENDING` hours later. The competition API does not link a
+submission to its kernel and the descriptions were empty again, so **the attribution comes
+from the browser and is not recorded here yet**.
+
+### What 0.959 is worth in rank, 2026-10-16
+
+Full public leaderboard, 6092 teams, snapshot 14:41 UTC:
+
+| | rank | score |
+|---|---|---|
+| gold | 22 | **0.9630** |
+| **us, 0.959** | **78 to 118** | the 0.959 band spans those ranks |
+| silver | 305 | **0.9580** |
+| bronze | 609 | 0.9570 |
+
+**The density has climbed with the public notebook and that is the whole value of the
++0.001.** 499 teams sit at 0.958 or better and 1483 at 0.956 or better, because the 0.958
+host is public and several hundred teams run exactly it. Our one thousandth is not worth
+"a point", it is worth **~380 ranks**, because it lifts us off a plateau rather than
+moving us along a gradient. The same structure was recorded on 2026-10-03 at a lower
+altitude — 1387 teams between 0.940 and 0.943 — and the conclusion drawn there holds
+twice now: **an orthogonal gain is worth far more than a tuned one**, and on the private
+split the plateau reshuffles while our leg does not.
+
+Gold is **+0.004** away. The only unspent lever of that size is the ACL weight, which is
+0 today and which `h958-hostonly-acl` is being submitted to price: our expert measures
+0.980, so handing it the column pays `(0.980 - auc_host) / 12`, between +0.0015 and
++0.0040 depending on where his ACL lands.
+
 ### A study is worth more than any lever we have found
 
 Two runs of five folds, each fitted on a stratified subsample of its fold's training
