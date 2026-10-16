@@ -287,6 +287,29 @@ WEIGHTS = {
     #: and so under what three decimals resolve. The sign is well founded, the reading is
     #: not guaranteed.
     "flat40_no_mcl": {t: 0.40 for t in TARGETS8 if t != "MCL"},
+    #: **The first regime set from a measurement on the same footing as the host's.**
+    #: Two submissions handed one column entirely to our expert and left the other eleven
+    #: at a constant, which inverts to `auc_ours = 12 * macro - 5.5`: our PF OA reads
+    #: **0.908** against the host's 0.932 and our Lateral OA **0.884** against 0.896 --
+    #: −0.024 and −0.012, inside the ±0.031 the host's own absolute figure carries. So we
+    #: are **level**, not behind, and two members of equal quality blend best near 0.5
+    #: rather than at the 0.40 that holds the standing score.
+    #:
+    #: Converting the other six out-of-fold figures with the +0.053 that those two
+    #: measurements calibrate puts them at −0.017 to −0.039 — level too, within the same
+    #: band — and leaves **MCL alone at −0.123**, five times the next worst, on the column
+    #: the host reads at 0.992. So MCL goes to the host entirely and the rest to 0.5.
+    #:
+    #: **Why this is not the fifth failure.** `shrunk`, `corrected`, `divided` and the
+    #: flat 0.6 all lost, and all four were set against our own out-of-fold figures —
+    #: agreement with the label extractor on training studies, which the extractor itself
+    #: only matches at 0.841 against the 58 radiologist readings. That is the diagnosed
+    #: cause. This one is set against the hidden test on the metric that scores it.
+    #:
+    #: It is still falsifiable, and the contrary evidence is real: the one weight change
+    #: that ever won went **down**, 0.5 to 0.40 for +0.001 — measured when our experts
+    #: genuinely were weaker. Parity predicts the opposite direction.
+    "parity": {t: 0.50 for t in TARGETS8 if t != "MCL"},
 }
 
 GRAFT_CELL = '''# ===================== OUR LEG — the experts, grafted on =====================

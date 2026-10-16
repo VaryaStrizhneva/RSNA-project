@@ -64,8 +64,39 @@ KNOWN = {
     # their internal weight goes 0.7/0.3 -> 0.5/0.5, and `pct_on` ranks each model over
     # its own non-failed studies so a mean-filled failed row stops shifting the others.
     # Public LB 0.956 -- below our 0.957, but a better host to graft onto.
-    "heliosli/blend-mine-in-private-lb-luck-to-all-upvoters":
-        "f359aeecb1dba916d65ecc6b0c31909c8524a88b89c5b7a745701d5cb30a3d6d",
+    #: **One slug, two scored versions.** heliosli updates this notebook in place, so a
+    #: single hash here would refuse the newer one and silently date the guard. The value
+    #: is therefore a mapping of hash to what it scored, and a pull that matches neither
+    #: is still refused.
+    "heliosli/blend-mine-in-private-lb-luck-to-all-upvoters": {
+        "f359aeecb1dba916d65ecc6b0c31909c8524a88b89c5b7a745701d5cb30a3d6d": "0.956",
+        "e00557dc403f9eeba7f15b963caad9173278a67a34e4da4c640ed67f21c1afe7": "0.958",
+    },
+    #: **The same slug as the 0.956 above, updated in place on 2026-10-15 and now
+    #: bannered 0.958.** Our vendored copy of the 0.956 keeps the old hash, so the guard
+    #: separates them; this is the live one. Three stages like the 0.9573 -- Raptor-384,
+    #: Raptor-224 at A224 = 0.35, their own R6 -- plus two changes: **per-finding blend
+    #: weights** and flip TTA on their arm.
+    #:
+    #: Its weights mount is `rsna-knee-r6-frozen-fe055406-w1`, published the day after the
+    #: unversioned `fe055406` that Kaggle refused to submit against -- the same pattern as
+    #: `compact-v1` after `compact-r6cnxfsss`. So this host is graftable *and* submittable
+    #: where the 0.9573 was not.
+    #:
+    #: `W_RAPTOR_C = {'Medial OA': 0.5, 'Lateral OA': 0.2, 'PF OA': 0.6, 'Synovitis': 0.8,
+    #: "Baker's": 0.35}` is the weight their Raptor half carries per finding, default 0.5.
+    #: **They give Raptor 0.2 on Lateral OA**, which is independent confirmation of our
+    #: void probe: we measured the 0.956 host at **0.896 there, its weakest of four**, and
+    #: they down-weight Raptor on exactly that column. The consequence for us is that
+    #: Lateral OA on *this* host is 80 % their own model, so the parity we measured at
+    #: −0.012 against the 0.956 does not carry over to it.
+    #:
+    #: `DEADLINE_HOURS = 8.3` is unchanged across all three versions, and it caps the
+    #: host's own work rather than measuring it: stages 1 and 1b are capped at two hours
+    #: each and stage 2 runs to T0 + 8.3 h. So the extra 224 arm eats their budget inside
+    #: their cap, not the ~42 minutes of the nine hours our leg runs in -- and our grafts
+    #: onto the 0.956, which carries the same guard, completed on the real hidden test.
+
     #: Published 2026-10-14, banner 0.9573 — **above our own standing 0.957**, in one
     #: click and by anyone. Three stages: nartaa's 384-pixel Raptor, then nartaa's
     #: **224-pixel** one (a 0.8 centre crop of the same field, 0.945 alone) at A224 = 0.35
@@ -238,11 +269,18 @@ def main() -> int:
     want = KNOWN.get(args.host)
     print(f"host {args.host}")
     print(f"  code sha256 {got}")
-    if want and got != want:
-        raise SystemExit(f"  REFUSED: expected {want}\n"
-                         f"  The host's scored source changed. Read it again before "
-                         f"grafting; do not assume the recipe held.")
-    print(f"  {'known, unchanged' if want else 'not in KNOWN -- add the hash above'}")
+    accepted = ({want: ""} if isinstance(want, str) else dict(want or {}))
+    if accepted and got not in accepted:
+        raise SystemExit(
+            f"  REFUSED: expected one of\n"
+            + "".join(f"    {h}  ({lbl or 'known'})\n" for h, lbl in accepted.items())
+            + f"  The host's scored source changed. Read it again before grafting; do "
+              f"not assume the recipe held.")
+    if accepted:
+        lbl = accepted[got]
+        print(f"  known, unchanged" + (f" — the {lbl} version" if lbl else ""))
+    else:
+        print(f"  not in KNOWN -- add the hash above")
 
     if not args.keep_markdown:
         nb["cells"] = [c for c in nb["cells"] if c["cell_type"] == "code"]
