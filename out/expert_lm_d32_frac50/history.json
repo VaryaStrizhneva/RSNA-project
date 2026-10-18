@@ -1,0 +1,2340 @@
+{
+ "experiment": "expert_lm_d32_frac50",
+ "config": {
+  "targets": [
+   "Lateral Meniscus"
+  ],
+  "rois": [
+   "lateral_meniscus_d32"
+  ],
+  "encoder": "convnext_nano",
+  "encoder_weights": "",
+  "group": 3,
+  "dropout": 0.2,
+  "prior_logit": -1.1,
+  "ema_decay": 0.0,
+  "epochs": 30,
+  "batch": 32,
+  "lr": 0.0003,
+  "weight_decay": 0.0001,
+  "folds": 5,
+  "seed": 0,
+  "pool": "mean",
+  "one_channel": false,
+  "channel_order": []
+ },
+ "specs": [
+  {
+   "name": "lateral_meniscus_d32",
+   "landmark": "lat_centre",
+   "plane": "Sagittal",
+   "box_w_mm": 48.0,
+   "box_h_mm": 27.0,
+   "box_offset_mm": 0.0,
+   "box_rise_mm": 0.0,
+   "out_w": 224,
+   "out_h": 126,
+   "patch": 14,
+   "lateral_mm": 8.0,
+   "medial_mm": 24.0,
+   "slots": 9,
+   "decimate_to_mm": 3.3,
+   "landmark2": null,
+   "depth_inset_mm": 0.0,
+   "series": [
+    [
+     "Sagittal",
+     "PD",
+     true
+    ],
+    [
+     "Sagittal",
+     "PD",
+     false
+    ]
+   ]
+  }
+ ],
+ "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+ "run": {
+  "labels": "data/external/stevenleehans-rsna-knee-llm-report-labels/llm_labels_v4_blend.csv",
+  "weights": "assertedness",
+  "holdout_gold": true
+ },
+ "history": {
+  "0": [
+   {
+    "epoch": 1,
+    "loss": 0.5170613545292475,
+    "auc": 0.7617307156780841,
+    "per_target": [
+     0.7617307156780841
+    ],
+    "positives": 114,
+    "gold_auc": 0.6521739130434783,
+    "gold_per_target": [
+     0.6521739130434783
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 2,
+    "loss": 0.4663285115726245,
+    "auc": 0.8207207834400817,
+    "per_target": [
+     0.8207207834400817
+    ],
+    "positives": 114,
+    "gold_auc": 0.7130434782608696,
+    "gold_per_target": [
+     0.7130434782608696
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 3,
+    "loss": 0.43608633119049534,
+    "auc": 0.882959714100065,
+    "per_target": [
+     0.882959714100065
+    ],
+    "positives": 114,
+    "gold_auc": 0.7726708074534161,
+    "gold_per_target": [
+     0.7726708074534161
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 4,
+    "loss": 0.4002884222968959,
+    "auc": 0.8870323958043256,
+    "per_target": [
+     0.8870323958043256
+    ],
+    "positives": 114,
+    "gold_auc": 0.915527950310559,
+    "gold_per_target": [
+     0.915527950310559
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 5,
+    "loss": 0.41935767632678295,
+    "auc": 0.8481272626009467,
+    "per_target": [
+     0.8481272626009467
+    ],
+    "positives": 114,
+    "gold_auc": 0.7565217391304346,
+    "gold_per_target": [
+     0.7565217391304346
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 6,
+    "loss": 0.39564620622483526,
+    "auc": 0.8629676041956742,
+    "per_target": [
+     0.8629676041956742
+    ],
+    "positives": 114,
+    "gold_auc": 0.8273291925465838,
+    "gold_per_target": [
+     0.8273291925465838
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 7,
+    "loss": 0.40858140059967984,
+    "auc": 0.8619581360809431,
+    "per_target": [
+     0.8619581360809431
+    ],
+    "positives": 114,
+    "gold_auc": 0.791304347826087,
+    "gold_per_target": [
+     0.791304347826087
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 8,
+    "loss": 0.3913624835398226,
+    "auc": 0.8819850552306693,
+    "per_target": [
+     0.8819850552306693
+    ],
+    "positives": 114,
+    "gold_auc": 0.8074534161490684,
+    "gold_per_target": [
+     0.8074534161490684
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 9,
+    "loss": 0.38783472353113735,
+    "auc": 0.8785389399424488,
+    "per_target": [
+     0.8785389399424488
+    ],
+    "positives": 114,
+    "gold_auc": 0.760248447204969,
+    "gold_per_target": [
+     0.760248447204969
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 10,
+    "loss": 0.3724455811327528,
+    "auc": 0.9051448064605958,
+    "per_target": [
+     0.9051448064605958
+    ],
+    "positives": 114,
+    "gold_auc": 0.7552795031055901,
+    "gold_per_target": [
+     0.7552795031055901
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 11,
+    "loss": 0.3506375587726887,
+    "auc": 0.8546597976422537,
+    "per_target": [
+     0.8546597976422537
+    ],
+    "positives": 114,
+    "gold_auc": 0.7180124223602484,
+    "gold_per_target": [
+     0.7180124223602484
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 12,
+    "loss": 0.3316040202298337,
+    "auc": 0.910853522695628,
+    "per_target": [
+     0.910853522695628
+    ],
+    "positives": 114,
+    "gold_auc": 0.8298136645962733,
+    "gold_per_target": [
+     0.8298136645962733
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 13,
+    "loss": 0.33489668833722736,
+    "auc": 0.8979508957579133,
+    "per_target": [
+     0.8979508957579133
+    ],
+    "positives": 114,
+    "gold_auc": 0.8397515527950311,
+    "gold_per_target": [
+     0.8397515527950311
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 14,
+    "loss": 0.31611059521244067,
+    "auc": 0.903833658219623,
+    "per_target": [
+     0.903833658219623
+    ],
+    "positives": 114,
+    "gold_auc": 0.8322981366459627,
+    "gold_per_target": [
+     0.8322981366459627
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 15,
+    "loss": 0.2911854743563354,
+    "auc": 0.896871809152511,
+    "per_target": [
+     0.896871809152511
+    ],
+    "positives": 114,
+    "gold_auc": 0.7875776397515527,
+    "gold_per_target": [
+     0.7875776397515527
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 16,
+    "loss": 0.28288423411800917,
+    "auc": 0.911746959992574,
+    "per_target": [
+     0.911746959992574
+    ],
+    "positives": 114,
+    "gold_auc": 0.8447204968944099,
+    "gold_per_target": [
+     0.8447204968944099
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 17,
+    "loss": 0.2614932515416905,
+    "auc": 0.898658683746403,
+    "per_target": [
+     0.898658683746403
+    ],
+    "positives": 114,
+    "gold_auc": 0.8422360248447205,
+    "gold_per_target": [
+     0.8422360248447205
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 18,
+    "loss": 0.2503027972508738,
+    "auc": 0.9182910981156595,
+    "per_target": [
+     0.9182910981156595
+    ],
+    "positives": 114,
+    "gold_auc": 0.817391304347826,
+    "gold_per_target": [
+     0.817391304347826
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 19,
+    "loss": 0.22752481654432055,
+    "auc": 0.9114452798663325,
+    "per_target": [
+     0.9114452798663325
+    ],
+    "positives": 114,
+    "gold_auc": 0.8385093167701864,
+    "gold_per_target": [
+     0.8385093167701864
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 20,
+    "loss": 0.21840439680288962,
+    "auc": 0.9116541353383458,
+    "per_target": [
+     0.9116541353383458
+    ],
+    "positives": 114,
+    "gold_auc": 0.8695652173913043,
+    "gold_per_target": [
+     0.8695652173913043
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 21,
+    "loss": 0.20117554503860935,
+    "auc": 0.910899935022742,
+    "per_target": [
+     0.910899935022742
+    ],
+    "positives": 114,
+    "gold_auc": 0.8385093167701863,
+    "gold_per_target": [
+     0.8385093167701863
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 22,
+    "loss": 0.19721882974984936,
+    "auc": 0.9134874222593521,
+    "per_target": [
+     0.9134874222593521
+    ],
+    "positives": 114,
+    "gold_auc": 0.8322981366459627,
+    "gold_per_target": [
+     0.8322981366459627
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 23,
+    "loss": 0.19102152484528562,
+    "auc": 0.9167594913208948,
+    "per_target": [
+     0.9167594913208948
+    ],
+    "positives": 114,
+    "gold_auc": 0.831055900621118,
+    "gold_per_target": [
+     0.831055900621118
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 24,
+    "loss": 0.189677272508239,
+    "auc": 0.9159936879235124,
+    "per_target": [
+     0.9159936879235124
+    ],
+    "positives": 114,
+    "gold_auc": 0.8111801242236025,
+    "gold_per_target": [
+     0.8111801242236025
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 25,
+    "loss": 0.18560342729742874,
+    "auc": 0.9068156502367027,
+    "per_target": [
+     0.9068156502367027
+    ],
+    "positives": 114,
+    "gold_auc": 0.8149068322981367,
+    "gold_per_target": [
+     0.8149068322981367
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 26,
+    "loss": 0.18385762946231396,
+    "auc": 0.9088926018750579,
+    "per_target": [
+     0.9088926018750579
+    ],
+    "positives": 114,
+    "gold_auc": 0.8198757763975155,
+    "gold_per_target": [
+     0.8198757763975155
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 27,
+    "loss": 0.18163407371604903,
+    "auc": 0.9093915343915343,
+    "per_target": [
+     0.9093915343915343
+    ],
+    "positives": 114,
+    "gold_auc": 0.8136645962732919,
+    "gold_per_target": [
+     0.8136645962732919
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 28,
+    "loss": 0.18030260552991184,
+    "auc": 0.9088113803026083,
+    "per_target": [
+     0.9088113803026083
+    ],
+    "positives": 114,
+    "gold_auc": 0.8298136645962733,
+    "gold_per_target": [
+     0.8298136645962733
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 29,
+    "loss": 0.17986472450569485,
+    "auc": 0.909136266592407,
+    "per_target": [
+     0.909136266592407
+    ],
+    "positives": 114,
+    "gold_auc": 0.8260869565217391,
+    "gold_per_target": [
+     0.8260869565217391
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 30,
+    "loss": 0.1783566957852702,
+    "auc": 0.9092987097373062,
+    "per_target": [
+     0.9092987097373062
+    ],
+    "positives": 114,
+    "gold_auc": 0.8260869565217391,
+    "gold_per_target": [
+     0.8260869565217391
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   }
+  ],
+  "1": [
+   {
+    "epoch": 1,
+    "loss": 0.5008916072082303,
+    "auc": 0.6129572143480518,
+    "per_target": [
+     0.6129572143480518
+    ],
+    "positives": 131,
+    "gold_auc": 0.524223602484472,
+    "gold_per_target": [
+     0.524223602484472
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 2,
+    "loss": 0.4697609632429281,
+    "auc": 0.7747042122822329,
+    "per_target": [
+     0.7747042122822329
+    ],
+    "positives": 131,
+    "gold_auc": 0.7503105590062111,
+    "gold_per_target": [
+     0.7503105590062111
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 3,
+    "loss": 0.43269548794332885,
+    "auc": 0.8007534163343313,
+    "per_target": [
+     0.8007534163343313
+    ],
+    "positives": 131,
+    "gold_auc": 0.7366459627329193,
+    "gold_per_target": [
+     0.7366459627329193
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 4,
+    "loss": 0.3970704830497943,
+    "auc": 0.8036367251797926,
+    "per_target": [
+     0.8036367251797926
+    ],
+    "positives": 131,
+    "gold_auc": 0.7490683229813665,
+    "gold_per_target": [
+     0.7490683229813665
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 5,
+    "loss": 0.4187668780378668,
+    "auc": 0.8268689033483942,
+    "per_target": [
+     0.8268689033483942
+    ],
+    "positives": 131,
+    "gold_auc": 0.8111801242236025,
+    "gold_per_target": [
+     0.8111801242236025
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 6,
+    "loss": 0.4544886454144888,
+    "auc": 0.7567525767501464,
+    "per_target": [
+     0.7567525767501464
+    ],
+    "positives": 131,
+    "gold_auc": 0.7962732919254659,
+    "gold_per_target": [
+     0.7962732919254659
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 7,
+    "loss": 0.4311036209614945,
+    "auc": 0.8289126280089701,
+    "per_target": [
+     0.8289126280089701
+    ],
+    "positives": 131,
+    "gold_auc": 0.8074534161490684,
+    "gold_per_target": [
+     0.8074534161490684
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 8,
+    "loss": 0.37480552188384003,
+    "auc": 0.7854641464411574,
+    "per_target": [
+     0.7854641464411574
+    ],
+    "positives": 131,
+    "gold_auc": 0.8136645962732919,
+    "gold_per_target": [
+     0.8136645962732919
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 9,
+    "loss": 0.36242360045771865,
+    "auc": 0.8354967355641232,
+    "per_target": [
+     0.8354967355641232
+    ],
+    "positives": 131,
+    "gold_auc": 0.862111801242236,
+    "gold_per_target": [
+     0.862111801242236
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 10,
+    "loss": 0.3417899098826591,
+    "auc": 0.8101103611316711,
+    "per_target": [
+     0.8101103611316711
+    ],
+    "positives": 131,
+    "gold_auc": 0.8906832298136645,
+    "gold_per_target": [
+     0.8906832298136645
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 11,
+    "loss": 0.3505402760121392,
+    "auc": 0.8441356149401795,
+    "per_target": [
+     0.8441356149401795
+    ],
+    "positives": 131,
+    "gold_auc": 0.8745341614906833,
+    "gold_per_target": [
+     0.8745341614906833
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 12,
+    "loss": 0.3423488537244981,
+    "auc": 0.8362368953060616,
+    "per_target": [
+     0.8362368953060616
+    ],
+    "positives": 131,
+    "gold_auc": 0.9080745341614905,
+    "gold_per_target": [
+     0.9080745341614905
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 13,
+    "loss": 0.3144120343291665,
+    "auc": 0.848234111421659,
+    "per_target": [
+     0.848234111421659
+    ],
+    "positives": 131,
+    "gold_auc": 0.8546583850931677,
+    "gold_per_target": [
+     0.8546583850931677
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 14,
+    "loss": 0.29874102360274,
+    "auc": 0.8146396968659206,
+    "per_target": [
+     0.8146396968659206
+    ],
+    "positives": 131,
+    "gold_auc": 0.7850931677018633,
+    "gold_per_target": [
+     0.7850931677018633
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 15,
+    "loss": 0.3142521865792767,
+    "auc": 0.8378829221948498,
+    "per_target": [
+     0.8378829221948498
+    ],
+    "positives": 131,
+    "gold_auc": 0.8472049689440994,
+    "gold_per_target": [
+     0.8472049689440994
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 16,
+    "loss": 0.2753929229586403,
+    "auc": 0.8404458633908152,
+    "per_target": [
+     0.8404458633908152
+    ],
+    "positives": 131,
+    "gold_auc": 0.8559006211180124,
+    "gold_per_target": [
+     0.8559006211180124
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 17,
+    "loss": 0.25953003787832013,
+    "auc": 0.8483887716662432,
+    "per_target": [
+     0.8483887716662432
+    ],
+    "positives": 131,
+    "gold_auc": 0.8360248447204969,
+    "gold_per_target": [
+     0.8360248447204969
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 18,
+    "loss": 0.24179797035205378,
+    "auc": 0.8524099380254305,
+    "per_target": [
+     0.8524099380254305
+    ],
+    "positives": 131,
+    "gold_auc": 0.8559006211180124,
+    "gold_per_target": [
+     0.8559006211180124
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 19,
+    "loss": 0.2350990527164652,
+    "auc": 0.8428762386628517,
+    "per_target": [
+     0.8428762386628517
+    ],
+    "positives": 131,
+    "gold_auc": 0.8409937888198757,
+    "gold_per_target": [
+     0.8409937888198757
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 20,
+    "loss": 0.21909710761502166,
+    "auc": 0.8365904044365395,
+    "per_target": [
+     0.8365904044365395
+    ],
+    "positives": 131,
+    "gold_auc": 0.8608695652173913,
+    "gold_per_target": [
+     0.8608695652173913
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 21,
+    "loss": 0.20945079332042094,
+    "auc": 0.8482893472232961,
+    "per_target": [
+     0.8482893472232961
+    ],
+    "positives": 131,
+    "gold_auc": 0.8596273291925466,
+    "gold_per_target": [
+     0.8596273291925466
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 22,
+    "loss": 0.2067255406861408,
+    "auc": 0.8467869334187647,
+    "per_target": [
+     0.8467869334187647
+    ],
+    "positives": 131,
+    "gold_auc": 0.8434782608695652,
+    "gold_per_target": [
+     0.8434782608695652
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 23,
+    "loss": 0.19777425369258364,
+    "auc": 0.8421581732415683,
+    "per_target": [
+     0.8421581732415683
+    ],
+    "positives": 131,
+    "gold_auc": 0.8434782608695652,
+    "gold_per_target": [
+     0.8434782608695652
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 24,
+    "loss": 0.19455687747369696,
+    "auc": 0.8370875266512742,
+    "per_target": [
+     0.8370875266512742
+    ],
+    "positives": 131,
+    "gold_auc": 0.831055900621118,
+    "gold_per_target": [
+     0.831055900621118
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 25,
+    "loss": 0.18923129023356144,
+    "auc": 0.8453508025761978,
+    "per_target": [
+     0.8453508025761978
+    ],
+    "positives": 131,
+    "gold_auc": 0.8149068322981367,
+    "gold_per_target": [
+     0.8149068322981367
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 26,
+    "loss": 0.18661064701101973,
+    "auc": 0.8450193877663745,
+    "per_target": [
+     0.8450193877663745
+    ],
+    "positives": 131,
+    "gold_auc": 0.8111801242236024,
+    "gold_per_target": [
+     0.8111801242236024
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 27,
+    "loss": 0.1847742441428506,
+    "auc": 0.842633201135648,
+    "per_target": [
+     0.842633201135648
+    ],
+    "positives": 131,
+    "gold_auc": 0.8024844720496894,
+    "gold_per_target": [
+     0.8024844720496894
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 28,
+    "loss": 0.18435443597808734,
+    "auc": 0.8457816418289676,
+    "per_target": [
+     0.8457816418289676
+    ],
+    "positives": 131,
+    "gold_auc": 0.8173913043478261,
+    "gold_per_target": [
+     0.8173913043478261
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 29,
+    "loss": 0.1833216027609336,
+    "auc": 0.8459142077528972,
+    "per_target": [
+     0.8459142077528972
+    ],
+    "positives": 131,
+    "gold_auc": 0.8186335403726708,
+    "gold_per_target": [
+     0.8186335403726708
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 30,
+    "loss": 0.18218410366915683,
+    "auc": 0.8459583963942068,
+    "per_target": [
+     0.8459583963942068
+    ],
+    "positives": 131,
+    "gold_auc": 0.817391304347826,
+    "gold_per_target": [
+     0.817391304347826
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   }
+  ],
+  "2": [
+   {
+    "epoch": 1,
+    "loss": 0.516458349698046,
+    "auc": 0.7634333596560497,
+    "per_target": [
+     0.7634333596560497
+    ],
+    "positives": 145,
+    "gold_auc": 0.6956521739130435,
+    "gold_per_target": [
+     0.6956521739130435
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 2,
+    "loss": 0.501464289625602,
+    "auc": 0.775107484425726,
+    "per_target": [
+     0.775107484425726
+    ],
+    "positives": 145,
+    "gold_auc": 0.715527950310559,
+    "gold_per_target": [
+     0.715527950310559
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 3,
+    "loss": 0.4667411566373547,
+    "auc": 0.8639027814337106,
+    "per_target": [
+     0.8639027814337106
+    ],
+    "positives": 145,
+    "gold_auc": 0.7913043478260869,
+    "gold_per_target": [
+     0.7913043478260869
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 4,
+    "loss": 0.4324097763103934,
+    "auc": 0.8097394051066069,
+    "per_target": [
+     0.8097394051066069
+    ],
+    "positives": 145,
+    "gold_auc": 0.7304347826086957,
+    "gold_per_target": [
+     0.7304347826086957
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 5,
+    "loss": 0.439260183579047,
+    "auc": 0.8444239712204966,
+    "per_target": [
+     0.8444239712204966
+    ],
+    "positives": 145,
+    "gold_auc": 0.7664596273291926,
+    "gold_per_target": [
+     0.7664596273291926
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 6,
+    "loss": 0.46514141763630773,
+    "auc": 0.8563306133192945,
+    "per_target": [
+     0.8563306133192945
+    ],
+    "positives": 145,
+    "gold_auc": 0.8099378881987578,
+    "gold_per_target": [
+     0.8099378881987578
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 7,
+    "loss": 0.4318763329802793,
+    "auc": 0.8498990962534001,
+    "per_target": [
+     0.8498990962534001
+    ],
+    "positives": 145,
+    "gold_auc": 0.822360248447205,
+    "gold_per_target": [
+     0.822360248447205
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 8,
+    "loss": 0.40174128138719073,
+    "auc": 0.8153285952443625,
+    "per_target": [
+     0.8153285952443625
+    ],
+    "positives": 145,
+    "gold_auc": 0.7950310559006211,
+    "gold_per_target": [
+     0.7950310559006211
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 9,
+    "loss": 0.4189914881380906,
+    "auc": 0.8672633149074319,
+    "per_target": [
+     0.8672633149074319
+    ],
+    "positives": 145,
+    "gold_auc": 0.8211180124223602,
+    "gold_per_target": [
+     0.8211180124223602
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 10,
+    "loss": 0.3969355456971369,
+    "auc": 0.8253400017548478,
+    "per_target": [
+     0.8253400017548478
+    ],
+    "positives": 145,
+    "gold_auc": 0.7478260869565218,
+    "gold_per_target": [
+     0.7478260869565218
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 11,
+    "loss": 0.3714999204110234,
+    "auc": 0.8707730104413443,
+    "per_target": [
+     0.8707730104413443
+    ],
+    "positives": 145,
+    "gold_auc": 0.8298136645962733,
+    "gold_per_target": [
+     0.8298136645962733
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 12,
+    "loss": 0.36444771146830096,
+    "auc": 0.88436430639642,
+    "per_target": [
+     0.88436430639642
+    ],
+    "positives": 145,
+    "gold_auc": 0.8074534161490683,
+    "gold_per_target": [
+     0.8074534161490683
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 13,
+    "loss": 0.33725941006798293,
+    "auc": 0.8884355532157586,
+    "per_target": [
+     0.8884355532157586
+    ],
+    "positives": 145,
+    "gold_auc": 0.8186335403726709,
+    "gold_per_target": [
+     0.8186335403726709
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 14,
+    "loss": 0.3417559710771037,
+    "auc": 0.9038431166096342,
+    "per_target": [
+     0.9038431166096342
+    ],
+    "positives": 145,
+    "gold_auc": 0.8795031055900621,
+    "gold_per_target": [
+     0.8795031055900621
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 15,
+    "loss": 0.3310820546901456,
+    "auc": 0.8658506624550321,
+    "per_target": [
+     0.8658506624550321
+    ],
+    "positives": 145,
+    "gold_auc": 0.7875776397515527,
+    "gold_per_target": [
+     0.7875776397515527
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 16,
+    "loss": 0.3143114210779448,
+    "auc": 0.8945599719224357,
+    "per_target": [
+     0.8945599719224357
+    ],
+    "positives": 145,
+    "gold_auc": 0.8459627329192546,
+    "gold_per_target": [
+     0.8459627329192546
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 17,
+    "loss": 0.2814603732160967,
+    "auc": 0.8778801438975169,
+    "per_target": [
+     0.8778801438975169
+    ],
+    "positives": 145,
+    "gold_auc": 0.8459627329192545,
+    "gold_per_target": [
+     0.8459627329192545
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 18,
+    "loss": 0.2714748751042948,
+    "auc": 0.8763797490567692,
+    "per_target": [
+     0.8763797490567692
+    ],
+    "positives": 145,
+    "gold_auc": 0.8770186335403726,
+    "gold_per_target": [
+     0.8770186335403726
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 19,
+    "loss": 0.2544559766982577,
+    "auc": 0.8743353514082652,
+    "per_target": [
+     0.8743353514082652
+    ],
+    "positives": 145,
+    "gold_auc": 0.8422360248447206,
+    "gold_per_target": [
+     0.8422360248447206
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 20,
+    "loss": 0.24424679850262462,
+    "auc": 0.8625690971308239,
+    "per_target": [
+     0.8625690971308239
+    ],
+    "positives": 145,
+    "gold_auc": 0.8099378881987577,
+    "gold_per_target": [
+     0.8099378881987577
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 21,
+    "loss": 0.2210543801329023,
+    "auc": 0.8697639729753442,
+    "per_target": [
+     0.8697639729753442
+    ],
+    "positives": 145,
+    "gold_auc": 0.8273291925465838,
+    "gold_per_target": [
+     0.8273291925465838
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 22,
+    "loss": 0.2155123072942842,
+    "auc": 0.8646398174958322,
+    "per_target": [
+     0.8646398174958322
+    ],
+    "positives": 145,
+    "gold_auc": 0.8099378881987577,
+    "gold_per_target": [
+     0.8099378881987577
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 23,
+    "loss": 0.20377650117581178,
+    "auc": 0.8638940071948759,
+    "per_target": [
+     0.8638940071948759
+    ],
+    "positives": 145,
+    "gold_auc": 0.7962732919254658,
+    "gold_per_target": [
+     0.7962732919254658
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 24,
+    "loss": 0.19894245694156557,
+    "auc": 0.8687286127928403,
+    "per_target": [
+     0.8687286127928403
+    ],
+    "positives": 145,
+    "gold_auc": 0.7602484472049691,
+    "gold_per_target": [
+     0.7602484472049691
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 25,
+    "loss": 0.1948635923436959,
+    "auc": 0.8611564446784241,
+    "per_target": [
+     0.8611564446784241
+    ],
+    "positives": 145,
+    "gold_auc": 0.7863354037267081,
+    "gold_per_target": [
+     0.7863354037267081
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 26,
+    "loss": 0.19144264929925162,
+    "auc": 0.8602614723172763,
+    "per_target": [
+     0.8602614723172763
+    ],
+    "positives": 145,
+    "gold_auc": 0.7900621118012423,
+    "gold_per_target": [
+     0.7900621118012423
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 27,
+    "loss": 0.19082636648168894,
+    "auc": 0.859033078880407,
+    "per_target": [
+     0.859033078880407
+    ],
+    "positives": 145,
+    "gold_auc": 0.7900621118012422,
+    "gold_per_target": [
+     0.7900621118012422
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 28,
+    "loss": 0.18950265339063999,
+    "auc": 0.8590067561639028,
+    "per_target": [
+     0.8590067561639028
+    ],
+    "positives": 145,
+    "gold_auc": 0.7900621118012423,
+    "gold_per_target": [
+     0.7900621118012423
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 29,
+    "loss": 0.18714174368424746,
+    "auc": 0.8585768184609985,
+    "per_target": [
+     0.8585768184609985
+    ],
+    "positives": 145,
+    "gold_auc": 0.7913043478260869,
+    "gold_per_target": [
+     0.7913043478260869
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 30,
+    "loss": 0.18724265753908978,
+    "auc": 0.8585241730279899,
+    "per_target": [
+     0.8585241730279899
+    ],
+    "positives": 145,
+    "gold_auc": 0.7913043478260869,
+    "gold_per_target": [
+     0.7913043478260869
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   }
+  ],
+  "3": [
+   {
+    "epoch": 1,
+    "loss": 0.5101369344693725,
+    "auc": 0.7209443528066465,
+    "per_target": [
+     0.7209443528066465
+    ],
+    "positives": 133,
+    "gold_auc": 0.6732919254658385,
+    "gold_per_target": [
+     0.6732919254658385
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 2,
+    "loss": 0.48943408485931184,
+    "auc": 0.7491271921391635,
+    "per_target": [
+     0.7491271921391635
+    ],
+    "positives": 133,
+    "gold_auc": 0.7167701863354037,
+    "gold_per_target": [
+     0.7167701863354037
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 3,
+    "loss": 0.46127051108169115,
+    "auc": 0.7645189690241756,
+    "per_target": [
+     0.7645189690241756
+    ],
+    "positives": 133,
+    "gold_auc": 0.7341614906832298,
+    "gold_per_target": [
+     0.7341614906832298
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 4,
+    "loss": 0.4429719816155148,
+    "auc": 0.7700948198220992,
+    "per_target": [
+     0.7700948198220992
+    ],
+    "positives": 133,
+    "gold_auc": 0.7763975155279503,
+    "gold_per_target": [
+     0.7763975155279503
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 5,
+    "loss": 0.42664494959440097,
+    "auc": 0.7835638895354132,
+    "per_target": [
+     0.7835638895354132
+    ],
+    "positives": 133,
+    "gold_auc": 0.7714285714285715,
+    "gold_per_target": [
+     0.7714285714285715
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 6,
+    "loss": 0.4279719716118228,
+    "auc": 0.819751262409051,
+    "per_target": [
+     0.819751262409051
+    ],
+    "positives": 133,
+    "gold_auc": 0.8347826086956521,
+    "gold_per_target": [
+     0.8347826086956521
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 7,
+    "loss": 0.4034803355893781,
+    "auc": 0.7733027049454053,
+    "per_target": [
+     0.7733027049454053
+    ],
+    "positives": 133,
+    "gold_auc": 0.7354037267080745,
+    "gold_per_target": [
+     0.7354037267080745
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 8,
+    "loss": 0.4031288943807101,
+    "auc": 0.737611188131837,
+    "per_target": [
+     0.737611188131837
+    ],
+    "positives": 133,
+    "gold_auc": 0.7093167701863354,
+    "gold_per_target": [
+     0.7093167701863354
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 9,
+    "loss": 0.41232295457943247,
+    "auc": 0.7542577844341674,
+    "per_target": [
+     0.7542577844341674
+    ],
+    "positives": 133,
+    "gold_auc": 0.7416149068322981,
+    "gold_per_target": [
+     0.7416149068322981
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 10,
+    "loss": 0.42627749485628946,
+    "auc": 0.7444418583470789,
+    "per_target": [
+     0.7444418583470789
+    ],
+    "positives": 133,
+    "gold_auc": 0.7192546583850932,
+    "gold_per_target": [
+     0.7192546583850932
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 11,
+    "loss": 0.39510342671025184,
+    "auc": 0.8083060949817343,
+    "per_target": [
+     0.8083060949817343
+    ],
+    "positives": 133,
+    "gold_auc": 0.8149068322981367,
+    "gold_per_target": [
+     0.8149068322981367
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 12,
+    "loss": 0.3968321499736628,
+    "auc": 0.807678685273075,
+    "per_target": [
+     0.807678685273075
+    ],
+    "positives": 133,
+    "gold_auc": 0.7975155279503106,
+    "gold_per_target": [
+     0.7975155279503106
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 13,
+    "loss": 0.4000412364434537,
+    "auc": 0.8148938969226565,
+    "per_target": [
+     0.8148938969226565
+    ],
+    "positives": 133,
+    "gold_auc": 0.8285714285714285,
+    "gold_per_target": [
+     0.8285714285714285
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 14,
+    "loss": 0.37129072041555483,
+    "auc": 0.8113925459678806,
+    "per_target": [
+     0.8113925459678806
+    ],
+    "positives": 133,
+    "gold_auc": 0.7962732919254658,
+    "gold_per_target": [
+     0.7962732919254658
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 15,
+    "loss": 0.347393553171839,
+    "auc": 0.826409900929983,
+    "per_target": [
+     0.826409900929983
+    ],
+    "positives": 133,
+    "gold_auc": 0.7950310559006211,
+    "gold_per_target": [
+     0.7950310559006211
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 16,
+    "loss": 0.357652447465378,
+    "auc": 0.7925297766623828,
+    "per_target": [
+     0.7925297766623828
+    ],
+    "positives": 133,
+    "gold_auc": 0.7751552795031055,
+    "gold_per_target": [
+     0.7751552795031055
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 17,
+    "loss": 0.3349619272941818,
+    "auc": 0.8213602647264189,
+    "per_target": [
+     0.8213602647264189
+    ],
+    "positives": 133,
+    "gold_auc": 0.7838509316770186,
+    "gold_per_target": [
+     0.7838509316770186
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 18,
+    "loss": 0.3375762026018811,
+    "auc": 0.8260557180299334,
+    "per_target": [
+     0.8260557180299334
+    ],
+    "positives": 133,
+    "gold_auc": 0.7652173913043477,
+    "gold_per_target": [
+     0.7652173913043477
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 19,
+    "loss": 0.3118066125751091,
+    "auc": 0.8422772948522046,
+    "per_target": [
+     0.8422772948522046
+    ],
+    "positives": 133,
+    "gold_auc": 0.8,
+    "gold_per_target": [
+     0.8
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 20,
+    "loss": 0.30262043564000984,
+    "auc": 0.8454143433955009,
+    "per_target": [
+     0.8454143433955009
+    ],
+    "positives": 133,
+    "gold_auc": 0.8248447204968945,
+    "gold_per_target": [
+     0.8248447204968945
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 21,
+    "loss": 0.2870163461579705,
+    "auc": 0.8490674870217265,
+    "per_target": [
+     0.8490674870217265
+    ],
+    "positives": 133,
+    "gold_auc": 0.839751552795031,
+    "gold_per_target": [
+     0.839751552795031
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 22,
+    "loss": 0.2753038588688121,
+    "auc": 0.8457685262955503,
+    "per_target": [
+     0.8457685262955503
+    ],
+    "positives": 133,
+    "gold_auc": 0.7987577639751553,
+    "gold_per_target": [
+     0.7987577639751553
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 23,
+    "loss": 0.2577004677139669,
+    "auc": 0.8498568089132658,
+    "per_target": [
+     0.8498568089132658
+    ],
+    "positives": 133,
+    "gold_auc": 0.8285714285714286,
+    "gold_per_target": [
+     0.8285714285714286
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 24,
+    "loss": 0.2477496666705004,
+    "auc": 0.8539248525081209,
+    "per_target": [
+     0.8539248525081209
+    ],
+    "positives": 133,
+    "gold_auc": 0.8198757763975155,
+    "gold_per_target": [
+     0.8198757763975155
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 25,
+    "loss": 0.23660716435052284,
+    "auc": 0.8429249435837238,
+    "per_target": [
+     0.8429249435837238
+    ],
+    "positives": 133,
+    "gold_auc": 0.8273291925465839,
+    "gold_per_target": [
+     0.8273291925465839
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 26,
+    "loss": 0.22847813893161062,
+    "auc": 0.8473269310557686,
+    "per_target": [
+     0.8473269310557686
+    ],
+    "positives": 133,
+    "gold_auc": 0.7950310559006212,
+    "gold_per_target": [
+     0.7950310559006212
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 27,
+    "loss": 0.22309176562019206,
+    "auc": 0.8419534704864449,
+    "per_target": [
+     0.8419534704864449
+    ],
+    "positives": 133,
+    "gold_auc": 0.8136645962732919,
+    "gold_per_target": [
+     0.8136645962732919
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 28,
+    "loss": 0.22177842891161342,
+    "auc": 0.8403242291462167,
+    "per_target": [
+     0.8403242291462167
+    ],
+    "positives": 133,
+    "gold_auc": 0.8385093167701863,
+    "gold_per_target": [
+     0.8385093167701863
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 29,
+    "loss": 0.21610425845269235,
+    "auc": 0.8405468583976765,
+    "per_target": [
+     0.8405468583976765
+    ],
+    "positives": 133,
+    "gold_auc": 0.8322981366459627,
+    "gold_per_target": [
+     0.8322981366459627
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 30,
+    "loss": 0.21801273325621257,
+    "auc": 0.8404051852376566,
+    "per_target": [
+     0.8404051852376566
+    ],
+    "positives": 133,
+    "gold_auc": 0.8335403726708074,
+    "gold_per_target": [
+     0.8335403726708074
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   }
+  ],
+  "4": [
+   {
+    "epoch": 1,
+    "loss": 0.5102678343909127,
+    "auc": 0.7540507445141066,
+    "per_target": [
+     0.7540507445141066
+    ],
+    "positives": 145,
+    "gold_auc": 0.7118012422360249,
+    "gold_per_target": [
+     0.7118012422360249
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 2,
+    "loss": 0.47651622312409536,
+    "auc": 0.7626665360501567,
+    "per_target": [
+     0.7626665360501567
+    ],
+    "positives": 145,
+    "gold_auc": 0.7130434782608697,
+    "gold_per_target": [
+     0.7130434782608697
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 3,
+    "loss": 0.4306872497626713,
+    "auc": 0.7986089341692789,
+    "per_target": [
+     0.7986089341692789
+    ],
+    "positives": 145,
+    "gold_auc": 0.7763975155279503,
+    "gold_per_target": [
+     0.7763975155279503
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 4,
+    "loss": 0.43073293277195523,
+    "auc": 0.8364811912225705,
+    "per_target": [
+     0.8364811912225705
+    ],
+    "positives": 145,
+    "gold_auc": 0.7354037267080746,
+    "gold_per_target": [
+     0.7354037267080746
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 5,
+    "loss": 0.4240232852527073,
+    "auc": 0.8333953761755486,
+    "per_target": [
+     0.8333953761755486
+    ],
+    "positives": 145,
+    "gold_auc": 0.7913043478260869,
+    "gold_per_target": [
+     0.7913043478260869
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 6,
+    "loss": 0.4255482471329825,
+    "auc": 0.8438185736677116,
+    "per_target": [
+     0.8438185736677116
+    ],
+    "positives": 145,
+    "gold_auc": 0.7788819875776397,
+    "gold_per_target": [
+     0.7788819875776397
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 7,
+    "loss": 0.4211822419847761,
+    "auc": 0.6463655956112853,
+    "per_target": [
+     0.6463655956112853
+    ],
+    "positives": 145,
+    "gold_auc": 0.6745341614906832,
+    "gold_per_target": [
+     0.6745341614906832
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 8,
+    "loss": 0.41941928723880223,
+    "auc": 0.814537617554859,
+    "per_target": [
+     0.814537617554859
+    ],
+    "positives": 145,
+    "gold_auc": 0.7416149068322981,
+    "gold_per_target": [
+     0.7416149068322981
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 9,
+    "loss": 0.38857222287995474,
+    "auc": 0.8515282131661442,
+    "per_target": [
+     0.8515282131661442
+    ],
+    "positives": 145,
+    "gold_auc": 0.8024844720496894,
+    "gold_per_target": [
+     0.8024844720496894
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 10,
+    "loss": 0.4040865124974932,
+    "auc": 0.8488391457680251,
+    "per_target": [
+     0.8488391457680251
+    ],
+    "positives": 145,
+    "gold_auc": 0.7714285714285715,
+    "gold_per_target": [
+     0.7714285714285715
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 11,
+    "loss": 0.3683004116330828,
+    "auc": 0.8429467084639498,
+    "per_target": [
+     0.8429467084639498
+    ],
+    "positives": 145,
+    "gold_auc": 0.8099378881987578,
+    "gold_per_target": [
+     0.8099378881987578
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 12,
+    "loss": 0.3610273167746408,
+    "auc": 0.8581798589341694,
+    "per_target": [
+     0.8581798589341694
+    ],
+    "positives": 145,
+    "gold_auc": 0.8459627329192546,
+    "gold_per_target": [
+     0.8459627329192546
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 13,
+    "loss": 0.3323776396683284,
+    "auc": 0.8500489811912227,
+    "per_target": [
+     0.8500489811912227
+    ],
+    "positives": 145,
+    "gold_auc": 0.7801242236024846,
+    "gold_per_target": [
+     0.7801242236024846
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 14,
+    "loss": 0.33268161678314206,
+    "auc": 0.8677507836990597,
+    "per_target": [
+     0.8677507836990597
+    ],
+    "positives": 145,
+    "gold_auc": 0.8074534161490683,
+    "gold_per_target": [
+     0.8074534161490683
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 15,
+    "loss": 0.31784700657640186,
+    "auc": 0.8677213949843261,
+    "per_target": [
+     0.8677213949843261
+    ],
+    "positives": 145,
+    "gold_auc": 0.8347826086956521,
+    "gold_per_target": [
+     0.8347826086956521
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 16,
+    "loss": 0.29443937928336006,
+    "auc": 0.8732170846394984,
+    "per_target": [
+     0.8732170846394984
+    ],
+    "positives": 145,
+    "gold_auc": 0.8223602484472049,
+    "gold_per_target": [
+     0.8223602484472049
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 17,
+    "loss": 0.2896156611783164,
+    "auc": 0.8739224137931034,
+    "per_target": [
+     0.8739224137931034
+    ],
+    "positives": 145,
+    "gold_auc": 0.8385093167701864,
+    "gold_per_target": [
+     0.8385093167701864
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 18,
+    "loss": 0.28042108140672956,
+    "auc": 0.8700626959247648,
+    "per_target": [
+     0.8700626959247648
+    ],
+    "positives": 145,
+    "gold_auc": 0.8906832298136645,
+    "gold_per_target": [
+     0.8906832298136645
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 19,
+    "loss": 0.2543907777922494,
+    "auc": 0.8727566614420061,
+    "per_target": [
+     0.8727566614420061
+    ],
+    "positives": 145,
+    "gold_auc": 0.8621118012422361,
+    "gold_per_target": [
+     0.8621118012422361
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 20,
+    "loss": 0.24940467940058028,
+    "auc": 0.8578859717868339,
+    "per_target": [
+     0.8578859717868339
+    ],
+    "positives": 145,
+    "gold_auc": 0.8571428571428572,
+    "gold_per_target": [
+     0.8571428571428572
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 21,
+    "loss": 0.23831071899618422,
+    "auc": 0.8622746865203762,
+    "per_target": [
+     0.8622746865203762
+    ],
+    "positives": 145,
+    "gold_auc": 0.867080745341615,
+    "gold_per_target": [
+     0.867080745341615
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 22,
+    "loss": 0.22094055206435068,
+    "auc": 0.8608640282131661,
+    "per_target": [
+     0.8608640282131661
+    ],
+    "positives": 145,
+    "gold_auc": 0.8881987577639752,
+    "gold_per_target": [
+     0.8881987577639752
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 23,
+    "loss": 0.2141594282048089,
+    "auc": 0.8677997648902821,
+    "per_target": [
+     0.8677997648902821
+    ],
+    "positives": 145,
+    "gold_auc": 0.8745341614906832,
+    "gold_per_target": [
+     0.8745341614906832
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 24,
+    "loss": 0.2063981544801167,
+    "auc": 0.8554075235109718,
+    "per_target": [
+     0.8554075235109718
+    ],
+    "positives": 145,
+    "gold_auc": 0.8695652173913043,
+    "gold_per_target": [
+     0.8695652173913043
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 25,
+    "loss": 0.2002073083434786,
+    "auc": 0.8584933385579936,
+    "per_target": [
+     0.8584933385579936
+    ],
+    "positives": 145,
+    "gold_auc": 0.8658385093167702,
+    "gold_per_target": [
+     0.8658385093167702
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 26,
+    "loss": 0.20238453570434026,
+    "auc": 0.8592280564263322,
+    "per_target": [
+     0.8592280564263322
+    ],
+    "positives": 145,
+    "gold_auc": 0.8683229813664596,
+    "gold_per_target": [
+     0.8683229813664596
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 27,
+    "loss": 0.19745718160697392,
+    "auc": 0.860080329153605,
+    "per_target": [
+     0.860080329153605
+    ],
+    "positives": 145,
+    "gold_auc": 0.8770186335403727,
+    "gold_per_target": [
+     0.8770186335403727
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 28,
+    "loss": 0.19410628845010486,
+    "auc": 0.8596394984326019,
+    "per_target": [
+     0.8596394984326019
+    ],
+    "positives": 145,
+    "gold_auc": 0.8757763975155278,
+    "gold_per_target": [
+     0.8757763975155278
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 29,
+    "loss": 0.19423264287199293,
+    "auc": 0.8595807210031349,
+    "per_target": [
+     0.8595807210031349
+    ],
+    "positives": 145,
+    "gold_auc": 0.8770186335403727,
+    "gold_per_target": [
+     0.8770186335403727
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   },
+   {
+    "epoch": 30,
+    "loss": 0.19394977133614677,
+    "auc": 0.8596394984326018,
+    "per_target": [
+     0.8596394984326018
+    ],
+    "positives": 145,
+    "gold_auc": 0.8770186335403727,
+    "gold_per_target": [
+     0.8770186335403727
+    ],
+    "ema_auc": NaN,
+    "ema_gold_auc": NaN
+   }
+  ]
+ },
+ "oof": {
+  "per_target": {
+   "Lateral Meniscus": 0.877324834027597
+  },
+  "mean": 0.877324834027597,
+  "n": 4348
+ },
+ "gold": {
+  "per_target": {
+   "Lateral Meniscus": 0.8559006211180125
+  },
+  "mean": 0.8559006211180125,
+  "n": 58
+ }
+}
