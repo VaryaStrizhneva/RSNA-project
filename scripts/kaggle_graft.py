@@ -176,6 +176,64 @@ print(f"[void] {{len(COLUMNS)}} of {{len(sub.columns) - 1}} columns voided; the 
       f"should fall by sum(auc - 0.5) / 12 over them", flush=True)
 '''
 
+def source_is_current(skip: bool = False) -> None:
+    """Refuse to build if the published `rsna-src` is not the code in this checkout.
+
+    **This cost a submission on 2026-10-18.** `chain.py` was changed to average several
+    runs per column, committed, and the kernel built and pushed -- but the *dataset* the
+    notebook imports from was never republished, so the run loaded the previous chain
+    and raised on the very case the change existed to allow. It failed 8 minutes in, with
+    `submission.csv` already written by the host, so it looked like a late crash rather
+    than a stale mount.
+
+    Nothing about the local tree can reveal that: the code is committed, the tests pass,
+    the kernel is correct. The only authority is what Kaggle serves, so this downloads it
+    -- 180 KB, a second or two -- and compares. A timestamp would not do: a `git checkout`
+    rewrites mtimes, and the dataset's `lastUpdated` says when it was pushed, not what is
+    in it.
+    """
+
+    if skip:
+        print("  source check skipped")
+        return
+    import io
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as room:
+        try:
+            subprocess.run([str(Path(sys.executable).with_name("kaggle")), "datasets",
+                            "download", f"{OWNER}/rsna-src", "-p", room],
+                           check=True, capture_output=True, timeout=180)
+            archive = next(Path(room).glob("*.zip"))
+            zf = zipfile.ZipFile(archive)
+            inner = [n for n in zf.namelist() if n.endswith(".zip")]
+            if inner:
+                zf = zipfile.ZipFile(io.BytesIO(zf.read(inner[0])))
+            published = {n: zf.read(n) for n in zf.namelist() if n.endswith(".py")}
+        except Exception as exc:                                  # noqa: BLE001
+            print(f"  WARNING: could not read the published rsna-src ({exc}); "
+                  f"the mounted code is unverified")
+            return
+
+    local_root = ROOT / "src" / "rsna"
+    stale = []
+    for path in sorted(local_root.rglob("*.py")):
+        key = str(path.relative_to(local_root))
+        here = path.read_bytes()
+        there = published.get(key)
+        if there is None:
+            stale.append(f"{key} (not published)")
+        elif there != here:
+            stale.append(key)
+    if stale:
+        raise SystemExit(
+            f"  REFUSED: {len(stale)} file(s) differ from the published rsna-src: "
+            f"{', '.join(stale[:6])}{' ...' if len(stale) > 6 else ''}\n"
+            f"  Run `python -m scripts.kaggle_dataset --source` first, wait for Kaggle "
+            f"to process it, then build again. Pass --skip-source-check to override.")
+    print(f"  rsna-src matches this checkout ({len(published)} file(s))")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("host", help="owner/kernel-slug of the notebook to graft onto")
@@ -266,6 +324,9 @@ def main() -> int:
                          "training studies, which the extractor itself only matches at "
                          "0.841 against the 58 radiologist readings -- and the 58 gold "
                          "studies cannot either, at +/-0.05.")
+    ap.add_argument("--skip-source-check", action="store_true",
+                    help="build even if the published rsna-src is not this checkout. "
+                         "Only for a build that will not be run.")
     ap.add_argument("--push", action="store_true")
     args = ap.parse_args()
 
@@ -309,6 +370,8 @@ def main() -> int:
                                    for x in meta.get("dataset_sources", [])]
         print(f"  SWAPPED {a} -> {b} in {hits} place(s); the host's hash no longer "
               f"matches and its bundle assert is now the only check")
+    if not (args.bare or (args.constant and not args.solo)):
+        source_is_current(args.skip_source_check)
     host_cells = len(nb["cells"])
     # `--keep` is `--constant` over the complement. Resolving it here rather than giving
     # it a cell of its own means one voiding cell, one arithmetic, one thing to be wrong.
