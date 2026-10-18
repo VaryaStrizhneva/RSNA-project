@@ -321,16 +321,25 @@ search over pairs — and every figure is the paired per-fold delta, which is th
 predictor that has ever had the right sign ([[gold-58-is-not-a-predictor]]). The third
 run adds +0.0034 and the fourth +0.0005, so **k = 3 is where it stops**.
 
-| column | one run | two | three | ROI cuts for k=2 |
-|---|---|---|---|---|
-| ACL | 0.8781 | 0.8978 | 0.8987 | **1, shared** |
-| PF OA | 0.8488 | 0.8597 | 0.8671 | 2 |
-| Lateral Meniscus | 0.9031 | 0.9126 | 0.9140 | 2 |
-| MCL | 0.8235 | 0.8314 | 0.8357 | **1, shared** |
-| Medial OA | 0.8887 | 0.8949 | 0.8975 | 2 |
-| Medial Meniscus | 0.9213 | 0.9262 | 0.9274 | 2 |
-| Lateral OA | 0.8500 | 0.8544 | 0.8605 | 2 |
-| Baker's | 0.9158 | 0.9191 | 0.9215 | **1, shared** |
+| column | shipped run | partner, by the fixed rule | one | two | signs | ROI cuts |
+|---|---|---|---|---|---|---|
+| **ACL** | `acl_cnxnano` | `acl_v4` | 0.8781 | **0.8978** | 5/5 | **1, shared** |
+| **MCL** | `mcl_cnxnano` | `mcl_cnx_lr1e-4` | 0.8200 | **0.8314** | 5/5 | **1, shared** |
+| **PF OA** | `pf_oa_wide_lr1e-4` | `pf_oa_cnxnano` | 0.8488 | 0.8597 | 5/5 | 2 |
+| Lateral Meniscus | `lm_wide_s11_lr1e-4` | `lm_d32_cnx_jev` | 0.9031 | 0.9126 | 5/5 | 2 |
+| Medial OA | `medial_oa_wide_lr1e-4` | `medial_oa_cnxnano_b16` | 0.8887 | 0.8949 | 5/5 | 2 |
+| Medial Meniscus | `mm_wide_s11_lr1e-4` | `mm_d32_s11_cnxnano` | 0.9213 | 0.9262 | 5/5 | 2 |
+| Lateral OA | `lateral_oa_wide_lr1e-4` | `lateral_oa_cnxnano_b16` | 0.8500 | 0.8544 | 5/5 | 2 |
+| Baker's | `baker_cnxnano_b16` | `baker_axial_pilkwang` | 0.9158 | 0.9191 | 4/5 | **1, shared** |
+| **mean** | | | | | **+0.0088** | **13 cuts** |
+
+**Read the shipped column off the published dataset, not off the inventory.** The first
+version of this table had MCL's base as `expert_mcl_cnx_lr1e-4`; `bundle5` actually ships
+`expert_mcl_cnxnano`, and the partner dataset was built with a second copy of that same
+run. MCL with the right base is **+0.0114 over 5/5 folds and shares its cut** — the third
+largest gain of the eight and free in cutting time, not the +0.0078 first recorded. The
+duplicate would not have raised: the graft cell keys runs by directory name, so the copy
+collapsed into one entry and MCL would silently have carried a single run.
 
 **The mechanism is fully accounted for by one line of arithmetic.** An AUC counts
 (positive, negative) pairs. On ACL the two runs agree on 87.6 % of them — both right on
