@@ -1142,11 +1142,25 @@ host's is a radiologist on the hidden test, and the two cannot be subtracted. **
 experts contribute is decorrelation at equal quality, not superiority** — which is also
 why no per-column weight regime tuned against the out-of-fold comparator ever paid.
 
-**ACL at 0.980 is our best column and may be the first we hold over the host.** His ACL
-was never probed alone; ACL + Medial OA sum to 1.924 from the block arithmetic, so his ACL
-exceeds ours only if his Medial OA falls to 0.944 — below any column he is known to hold.
-At 0.962 each we would be ahead by +0.018. A `void-acl` submission would settle it, and
-our weights currently leave that column to him.
+**ACL at 0.980 is our best column, and it is not ahead of the host — measured
+2026-10-18.** The probe is the symmetric of our own: void the **eleven other** columns and
+leave ACL to the host, so `auc = 12 x macro - 5.5` with no `macro_host` in it and only the
+rounding left, **±0.006** against ±0.030 for voiding the column itself. `h958-hostonly-acl`
+read **0.541**, so his ACL is **0.992** and he is **+0.012 ahead of us**. The reading
+written down beforehand — that above 0.542 the arithmetic would be broken, since an AUC
+cannot exceed 1 — held.
+
+| column | ours | host | gap |
+|---|---|---|---|
+| ACL | 0.980 | **0.992** | **−0.012** |
+| PF OA | 0.908 | 0.932 | −0.024 |
+| Lateral OA | 0.884 | 0.896 | −0.012 |
+
+**Four columns now measured on the same footing and the host leads every one of them**, by
+0.012 to 0.024. The speculation two days earlier that ACL might be the first column we
+hold is refuted. By subtraction his Medial OA would fall near 0.932, but the 1.924 sum came
+off the 0.956 host and this probe off the 0.958, so that is an inference and not a
+measurement. **What we contribute is decorrelation at equal quality, and nothing else.**
 
 **The 58 gold studies are not a representative predictor, and that is now measured.** Two
 paired probes, the only variable the ACL expert:
