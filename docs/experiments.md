@@ -331,7 +331,9 @@ run adds +0.0034 and the fourth +0.0005, so **k = 3 is where it stops**.
 | Medial Meniscus | `mm_wide_s11_lr1e-4` | `mm_d32_s11_cnxnano` | 0.9213 | 0.9262 | 5/5 | 2 |
 | Lateral OA | `lateral_oa_wide_lr1e-4` | `lateral_oa_cnxnano_b16` | 0.8500 | 0.8544 | 5/5 | 2 |
 | Baker's | `baker_cnxnano_b16` | `baker_axial_pilkwang` | 0.9158 | 0.9191 | 4/5 | **1, shared** |
-| **mean** | | | | | **+0.0088** | **13 cuts** |
+| **mean** | | | | | **+0.0088, 39/40, p < 1e-5** | **13 cuts** |
+
+Reproduce with `python -m scripts.ensemble_probe` (add `--k 3`, or `--nested` for the selection test). It reads `holdout.csv` off disk and costs seconds.
 
 **Read the shipped column off the published dataset, not off the inventory.** The first
 version of this table had MCL's base as `expert_mcl_cnx_lr1e-4`; `bundle5` actually ships
