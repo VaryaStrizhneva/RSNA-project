@@ -252,6 +252,36 @@ SPECS = {
         box_offset_mm=4.0, box_rise_mm=8.0, depth_inset_mm=12.0,
         lateral_mm=0.0, medial_mm=0.0, slots=11,
         series=(("Sagittal", "PD", True), ("Sagittal", "PD", False))),
+    #: **The inset this spec's own documentation describes.** `depth_inset_mm` reads 12
+    #: on the shipped `acl` while the field's comment above says *"a window inset 8 mm at
+    #: each end spans 35 mm in the median and ranges from 27 to 48"* -- and 35 mm is what
+    #: 8 gives on the 51.4 mm separation measured here. So the prose records the intent
+    #: and the 12 drifted in after it without the comment following.
+    #:
+    #: Restoring 8 is worth more than any other window change on the books, and it is the
+    #: cheapest. Measured: the shipped window spans **27.4 mm** in the median and asks
+    #: **11 slots** of it, a pitch of **2.74 mm** against a sagittal through-plane
+    #: spacing of 3.30 -- finer than the acquisition, so it *cannot* be filled. Expected
+    #: fill is 85 % and **measured fill is 7.82 of 11, 71 %**, with every slot full on
+    #: only **11.3 %** of studies. That is the worst-filled window of the set: the
+    #: meniscus boxes sit at 93 %, `pf_oa` at 87 %, the two OA boxes at 84 %.
+    #:
+    #: At 8 mm the window is 35.4 mm, the pitch 3.54 -- just above the acquisition, where
+    #: the meniscus windows sat before their sweep -- and 11.7 slices are available for
+    #: 11 slots, so it fills. About **3.5 more real slices per study**, against 1.8 for
+    #: the OA enlargement and 2 for `pf_oa_wide_d40`.
+    #:
+    #: **Nothing else moves**: same box in plane, same resolution, same slot count, same
+    #: series. On the atlas page the candidate rectangle therefore sits exactly on the
+    #: shipped one, and what differs is which *slices* carry it -- which is the whole
+    #: content of this change.
+    "acl_inset8": RoiSpec(
+        name="acl_inset8", landmark="lat_centre", landmark2="med_centre",
+        plane="Sagittal",
+        box_w_mm=60.0, box_h_mm=52.0, out_w=210, out_h=182,
+        box_offset_mm=4.0, box_rise_mm=8.0, depth_inset_mm=8.0,
+        lateral_mm=0.0, medial_mm=0.0, slots=11,
+        series=(("Sagittal", "PD", True), ("Sagittal", "PD", False))),
     #: Tibiofemoral osteoarthritis, one spec per compartment, both hanging off the
     #: meniscus point that compartment already has — **no new annotation**. Projected
     #: onto a coronal slice the two points land one in each compartment, 57 mm apart on
@@ -281,10 +311,68 @@ SPECS = {
         lateral_mm=14.0, medial_mm=14.0, slots=9,
         series=(("Coronal", "PD", True), ("Coronal", "T2", True),
                 ("Coronal", "PD", False))),
+    #: **The medial compartment's frame and window, both enlarged.** 54 x 39 to **60 x 42 mm** -- the nearest expressible box to +10 % on
+    #: each axis, since holding 3/14 mm per pixel with both output sides divisible by 14
+    #: forces `box = 3 * k` and 59.4 and 42.9 are not expressible -- and the depth from
+    #: 28 mm over 9 slots to **35 over 11**, the 3.50 mm pitch unchanged.
+    #:
+    #: **The pitch is deliberately not touched, and the measurement is why.** Coronal
+    #: through-plane spacing is **3.50 mm** in the median (p5 3.00, p95 5.07), which is
+    #: this grid's pitch exactly. Holding 28 mm and spending the two extra slots on
+    #: density instead would put the pitch at 2.80 and drop the expected fill from 93 %
+    #: to **78 %** -- padding, not slices. Lengthening to 35 mm at 3.50 keeps 92 % and
+    #: buys about **1.8 more real slices** (10.16 of 11 against 8.33 of 9). Measured fill
+    #: today is 7.55 of 9, so 0.78 of a slot is the window genuinely overrunning the
+    #: acquisition and the rest is how far apart the slices are.
+    #:
+    #: **Unlike the patellofemoral box, nothing here is wasted.** Measured row by row and
+    #: column by column over 1200 studies, tissue sits between 0.76 and 0.83 across the
+    #: height and 0.74 and 0.89 across the width -- no dead band on any of the four
+    #: edges, where `pf_oa`'s top edge carries 0.13 because its +8 mm rise pushes it past
+    #: the skin. So an enlargement here reaches real pixels in every direction, and the
+    #: box is centred where it should be.
+    #:
+    #: Memory is the practical risk and not the anatomy: this column already trains at
+    #: **batch 16**, and nine windows at 280 x 196 px is about 1.5x what it costs now.
+    "medial_oa_wide_d35": RoiSpec(
+        name="medial_oa_wide_d35", landmark="med_centre", plane="Coronal",
+        box_w_mm=60.0, box_h_mm=42.0, out_w=280, out_h=196,
+        lateral_mm=17.5, medial_mm=17.5, slots=11,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
     "lateral_oa": RoiSpec(
         name="lateral_oa", landmark="lat_centre", plane="Coronal",
         box_w_mm=54.0, box_h_mm=39.0, out_w=252, out_h=182,
         lateral_mm=14.0, medial_mm=14.0, slots=9,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True),
+                ("Coronal", "PD", False))),
+    #: **The lateral compartment, the same change as the medial one.** 54 x 39 to **60 x 42 mm** -- the nearest expressible box to +10 % on
+    #: each axis, since holding 3/14 mm per pixel with both output sides divisible by 14
+    #: forces `box = 3 * k` and 59.4 and 42.9 are not expressible -- and the depth from
+    #: 28 mm over 9 slots to **35 over 11**, the 3.50 mm pitch unchanged.
+    #:
+    #: **The pitch is deliberately not touched, and the measurement is why.** Coronal
+    #: through-plane spacing is **3.50 mm** in the median (p5 3.00, p95 5.07), which is
+    #: this grid's pitch exactly. Holding 28 mm and spending the two extra slots on
+    #: density instead would put the pitch at 2.80 and drop the expected fill from 93 %
+    #: to **78 %** -- padding, not slices. Lengthening to 35 mm at 3.50 keeps 92 % and
+    #: buys about **1.8 more real slices** (10.16 of 11 against 8.33 of 9). Measured fill
+    #: today is 7.55 of 9, so 0.78 of a slot is the window genuinely overrunning the
+    #: acquisition and the rest is how far apart the slices are.
+    #:
+    #: **Unlike the patellofemoral box, nothing here is wasted.** Measured row by row and
+    #: column by column over 1200 studies, tissue sits between 0.76 and 0.83 across the
+    #: height and 0.74 and 0.89 across the width -- no dead band on any of the four
+    #: edges, where `pf_oa`'s top edge carries 0.13 because its +8 mm rise pushes it past
+    #: the skin. So an enlargement here reaches real pixels in every direction, and the
+    #: box is centred where it should be.
+    #:
+    #: Memory is the practical risk and not the anatomy: this column already trains at
+    #: **batch 16**, and nine windows at 280 x 196 px is about 1.5x what it costs now.
+    "lateral_oa_wide_d35": RoiSpec(
+        name="lateral_oa_wide_d35", landmark="lat_centre", plane="Coronal",
+        box_w_mm=60.0, box_h_mm=42.0, out_w=280, out_h=196,
+        lateral_mm=17.5, medial_mm=17.5, slots=11,
         series=(("Coronal", "PD", True), ("Coronal", "T2", True),
                 ("Coronal", "PD", False))),
     #: The coronal view of the same compartment, hanging off the same landmark — no new
@@ -395,6 +483,79 @@ SPECS = {
         #: being looked for is largely invisible.
         series=(("Coronal", "PD", True), ("Coronal", "T2", True),
                 ("Coronal", "PD", False))),
+    #: **Taller, asymmetrically, and a longer window.** 80 to **112 mm** of height --
+    #: +30 % of the current height added above and +10 % below, which also moves the box
+    #: up: the centre shifts by (0.30 - 0.10)/2 x 80 = 8 mm, so `box_rise_mm` goes from
+    #: **-12 to -4**. Width, offset and resolution are untouched, and 112 mm is
+    #: expressible exactly (`box = 4 * k` at 2/7 mm per pixel, 392 px = 14 x 28).
+    #:
+    #: **The asymmetry is measured, and only one half of it is supported.** Row by row
+    #: over 1200 studies the tissue fraction is **0.833 at the top edge**, peaks at 0.851
+    #: around 16-20 mm, then falls steadily to **0.615 at the bottom** -- so the ligament
+    #: does continue above the box, which is what the extra 24 mm up is for, while the
+    #: 8 mm down goes toward the thinnest part of the crop. That direction is the one to
+    #: drop first if this needs trimming.
+    #:
+    #: **The depth window is 36 mm over 11 slots, and the pitch is what chose it.**
+    #: `choose_slices` thins a surplus with `np.linspace` over *list positions*, with no
+    #: regard for which slice carries the landmark -- so a window with surplus can drop
+    #: the very slice it was centred on. Measured over 120 studies, the shipped 24/7
+    #: window keeps the landmark's own slice **98.3 %** of the time; an earlier draft of
+    #: this spec at 32 mm over 9 slots, which has 10.1 slices available for 9, kept it
+    #: only **90.0 %** -- one study in ten reframed onto a slice that is not the one the
+    #: point was placed on.
+    #:
+    #: A pitch just *above* the acquisition's leaves no surplus to thin, and that fixes
+    #: it without touching shared code:
+    #:
+    #: | window | landmark kept | fill | real slices |
+    #: |---|---|---|---|
+    #: | 24 mm / 7 slots, 4.00 | 98.3 % | 88 % | 6.17 |
+    #: | 32 mm / 9 slots, 4.00 | **90.0 %** | 90 % | 8.13 |
+    #: | 28 mm / 9 slots, 3.50 | 100 % | 82 % | 7.36 |
+    #: | 32 mm / 11 slots, 3.20 | 100 % | 76 % | 8.34 |
+    #: | **36 mm / 11 slots, 3.60** | **100 %** | 85 % | **9.40** |
+    #:
+    #: So 36/11 beats 32/9 on both counts at once -- never loses the landmark, and reads
+    #: 9.40 real slices against 8.13 -- because 3.60 sits just over the 3.51 mm coronal
+    #: spacing. **The proper fix is still a `keep_centre` rule in `choose_slices`**, which
+    #: would have to be opt-in: that function serves every region, so changing it would
+    #: alter the pixels of every cache and the input of all thirteen fitted packages, the
+    #: trap `PixelRules.sagittal_flip` is deliberately parked on.
+    #:
+    #: Memory will be the question rather than the anatomy: 392 px of height against 280,
+    #: and nine windows against five, is roughly **2.5x** what this column costs now.
+    #: **Two series, not three, and that is not a detail.** The shipped MCL expert reads
+    #: `mcl_fsonly` rather than `mcl`, because dropping the non-fat-suppressed coronal is
+    #: worth **+0.0117** on this column -- recorded in `rsna.infer.chain` beside the 197
+    #: studies the expert then abstains on. A first draft of this spec carried all three
+    #: series and would have re-introduced a loss more than twice the size of the gain it
+    #: was built to chase.
+    "mcl_tall_d36": RoiSpec(
+        name="mcl_tall_d36", landmark="mcl_centre", plane="Coronal",
+        box_w_mm=32.0, box_h_mm=112.0, out_w=112, out_h=392,
+        box_offset_mm=5.0, box_rise_mm=-4.0,
+        lateral_mm=18.0, medial_mm=18.0, slots=11,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
+    #: **The same box, grown about the centre it already had.** `mcl_tall_d36` + `lr =
+    #: 1e-4` measured **−0.0020, 3 of 5 folds**, while the same bundle took +0.0053 and
+    #: +0.0052 on the two meniscus columns. The one thing MCL did differently was *move*:
+    #: its `box_rise_mm` went −12 to −4, lifting the frame 8 mm, where both meniscus
+    #: bundles grew symmetrically about an unchanged centre. Repositioning is the
+    #: category this project keeps measuring at zero — the Effusion expert lost 0.025 for
+    #: bringing only better centring.
+    #:
+    #: So this holds the 112 mm height and puts the rise back to **−12**: +16 mm up and
+    #: +16 mm down instead of +24 and +8. One variable against `mcl_tall_d36`, and the
+    #: answer separates "the box was moved" from "the box was enlarged" — which are
+    #: inseparable in any asymmetric growth, and were therefore confounded in the first
+    #: attempt.
+    "mcl_tall_d36_centred": RoiSpec(
+        name="mcl_tall_d36_centred", landmark="mcl_centre", plane="Coronal",
+        box_w_mm=32.0, box_h_mm=112.0, out_w=112, out_h=392,
+        box_offset_mm=5.0, box_rise_mm=-12.0,
+        lateral_mm=18.0, medial_mm=18.0, slots=11,
+        series=(("Coronal", "PD", True), ("Coronal", "T2", True))),
     #: What the first collateral run was actually cut under — the two fat-suppressed
     #: series only, 95.5 % of studies. Kept so `experiments/expert_mcl_fsonly.json`
     #: still reproduces the number it published.
@@ -507,6 +668,42 @@ SPECS = {
                          box_w_mm=56.0, box_h_mm=48.0, out_w=196, out_h=168,
                          box_rise_mm=8.0, lateral_mm=20.0, medial_mm=20.0, slots=11,
                          series=(("Axial", "PD", True), ("Axial", "T2", True))),
+    #: **A larger frame and a longer window, on the plane with the thinnest resolution
+    #: margin of the set.** 56 x 48 to **64 x 56 mm** -- the nearest expressible box to
+    #: +15 % on each axis, since holding 2/7 mm per pixel with both output sides
+    #: divisible by 14 forces `box = 4 * k` and 64.4 and 55.2 are not expressible -- and
+    #: the depth from 32 mm over 9 slots to **40 over 11**, the 4.00 mm pitch unchanged.
+    #:
+    #: **The pitch is deliberately not touched, and that is measured.** Axial
+    #: through-plane spacing is **3.90 mm** in the median (p5 3.30, p95 5.70) against
+    #: this grid's 4.00, so unlike the sagittal meniscus windows -- 3.30 against 4.00,
+    #: a 21 % gap -- there is nothing to recover by densifying here. Going to 3.20 mm
+    #: would add padding, not slices.
+    #:
+    #: **Why the longer window gains rather than pads.** Expected fill from the spacing
+    #: alone is 8.43 of 9 at 32 mm and **10.29 of 11 at 40 mm** -- the same 94 %, so
+    #: about two more *real* slices. Measured fill at 32/9 is 7.92, so 0.52 of a slot is
+    #: the window genuinely overrunning the acquisition and the rest is simply how far
+    #: apart the slices are. An earlier reading of this compared 7.92 against the
+    #: *median* of what is available (9.2) rather than the mean of the minimum (8.43),
+    #: which inflated the overrun and wrongly argued against lengthening.
+    #:
+    #: **What the enlargement will and will not reach.** Measured row by row over 1500
+    #: studies, tissue runs from 7.1 mm below the top edge to the bottom edge itself,
+    #: peaking at 0.936 and still 0.782 where the box stops -- so the anatomy continues
+    #: past the bottom, and past both sides (columns 0.72 to 0.62). It does **not**
+    #: continue past the top: the first 4 mm carry 0.189 of tissue and the next 4 carry
+    #: 0.429, because `box_rise_mm = +8` puts the top edge 32 mm anterior of
+    #: `pf_centre` while the patella's cortex is at 25 and the skin just beyond.
+    #:
+    #: `box_rise_mm` is **left at +8 anyway**, so half the added height grows into that
+    #: air. Dropping it to 0 would trade 8 mm of air for 8 mm of tissue at no cost in
+    #: pixels or memory, and is the obvious next single variable if this does not pay.
+    "pf_oa_wide_d40": RoiSpec(
+        name="pf_oa_wide_d40", landmark="pf_centre", plane="Axial",
+        box_w_mm=64.0, box_h_mm=56.0, out_w=224, out_h=196,
+        box_rise_mm=8.0, lateral_mm=20.0, medial_mm=20.0, slots=11,
+        series=(("Axial", "PD", True), ("Axial", "T2", True))),
     # 50 % more extent at the same density
     "lateral_meniscus_d24": RoiSpec(name="lateral_meniscus_d24",
                                     lateral_mm=6.0, medial_mm=18.0, slots=7),
@@ -519,6 +716,153 @@ SPECS = {
     # the opposite test: more peripheral margin, nothing else changed
     "lateral_meniscus_l6": RoiSpec(name="lateral_meniscus_l6",
                                    lateral_mm=6.0, medial_mm=12.0, slots=5),
+    #: The same 32 mm at the acquisition's own rate, as `medial_meniscus_d32_s11` does
+    #: for the other compartment. Both shipped meniscus windows run a **4.00 mm** pitch
+    #: against a sagittal through-plane spacing of **3.30 mm** in the median, so
+    #: `choose_slices` thins a surplus on about seven series in ten; eleven slots over
+    #: the same window is 3.20 mm, which is the acquisition's.
+    #:
+    #: **This exists to give the question a second column, and for one reason.** The
+    #: effect is expected at about +0.0009 -- the window count rises 20 % where
+    #: `medial_meniscus_d32` raised it 132 % for +0.0056 -- against a paired standard
+    #: error of 0.0020 on five folds. No amount of pooling we can afford fixes that:
+    #: resolving +0.0009 by a t-test would need ~100 folds. What ten paired folds *can*
+    #: do is a **sign test**, which ignores magnitude: `d32` came out positive 5 of 5
+    #: (p = 0.031), and 9 or 10 of 10 here would read p = 0.011 or 0.001.
+    #:
+    #: `acl` is not a third column: its window is derived from the two meniscus points
+    #: and already runs a 2.68 mm pitch, finer than the acquisition, so densifying it
+    #: would add padding and nothing else.
+    "lateral_meniscus_d32_s11": RoiSpec(name="lateral_meniscus_d32_s11",
+                                        lateral_mm=8.0, medial_mm=24.0, slots=11),
+    #: The medial compartment's winning combination, transposed: the large frame, the
+    #: native pitch, and `lr = 1e-4` in the run that uses it. 48 x 27 to **57 x 33 mm**
+    #: on 266 x 154 px, +18.8 % and +22.2 % of side — the nearest expressible box to the
+    #: proportion the medial box actually received, since `box = 3 * k` quantises the
+    #: choice and 56.0 and 31.9 are not expressible.
+    #:
+    #: **The component that carries that combination is measured negative here**, and it
+    #: should be read knowing so. On the medial column `lr = 1e-4` was worth +0.0134
+    #: against +0.0024 for the pitch and −0.0019 for the frame, so it is nearly the whole
+    #: effect; on *this* column the same change was run on `lateral_meniscus_d32` itself
+    #: and cost **−0.0104**. Not an extrapolation — one variable, same wd, same thirty
+    #: epochs, the measurement that made `lr = 1e-4` across the board refusable in the
+    #: first place.
+    #:
+    #: It is built anyway because adding the components up has already proved a poor
+    #: predictor: on the medial side they summed to +0.0138 and the combination measured
+    #: +0.0053, 2.6x over. What that failure does not do is change a sign.
+    "lateral_meniscus_d32_wide_s11": RoiSpec(
+        name="lateral_meniscus_d32_wide_s11",
+        box_w_mm=57.0, box_h_mm=33.0, out_w=266, out_h=154,
+        lateral_mm=8.0, medial_mm=24.0, slots=11),
+    #: **The depth sweep the lateral compartment got and the medial one never did.**
+    #: The shipped pair is lopsided and the asymmetry is an accident of order, not a
+    #: finding: `lateral_meniscus_d32` carries 8 + 24 mm over 9 slots because that sweep
+    #: ran and won, while `medial_meniscus` is still on the original 4 + 12 over 5.
+    #: Measured on the lateral column with resnet18, the same table and the same
+    #: weighting, the four windows read **m20 0.8320, l6 0.8373, d24 0.8387, d32
+    #: 0.8476** -- so doubling the extent was worth +0.009 to +0.016, which is larger
+    #: than any test-time trick this project has found.
+    #:
+    #: **The acquisition supports it, and that is not true on every plane.** A longer
+    #: window at the same 4.0 mm pitch fills *better*, not worse, because more acquired
+    #: slices fall inside it and `choose_slices` thins a surplus down to `slots` where a
+    #: narrow window cannot be topped up: the 5-slot medial window finds 4.40 slices of
+    #: 5 (88 %) and fills every slot on 53.3 %, while the 9-slot lateral window finds
+    #: 8.41 of 9 (**93.4 %**) and fills every slot on **65.8 %**. The patellofemoral box
+    #: is the counter-example and the reason to measure rather than assume -- its axial
+    #: stacks find only 7.80 slices of 9, so lengthening *that* window buys padding.
+    #:
+    #: **The box in plane is deliberately untouched.** It is the only variable this spec
+    #: changes, and in plane the medial box is already the larger of the two (54 x 33
+    #: against 48 x 27). Coverage is not the difference either: both read the same two
+    #: sagittal series, so both see 82.5 % and 37.5 %, 99.8 % with at least one, and the
+    #: same 8 studies with neither.
+    #:
+    #: The anatomy argues the same way. The medial meniscus is the wide C against the
+    #: lateral's nearly closed O, and its posterior horn is the broader of the two, so
+    #: there is more of it to reach along the depth axis rather than less.
+    "medial_meniscus_d32": RoiSpec(
+        name="medial_meniscus_d32", landmark="med_centre",
+        box_w_mm=54.0, box_h_mm=33.0, out_w=252, out_h=154,
+        lateral_mm=8.0, medial_mm=24.0, slots=9),
+    #: **The same 32 mm, sampled at the rate it was acquired.** `medial_meniscus_d32`
+    #: won on five folds of five (+0.0056 paired, t = 2.82) and it still throws acquired
+    #: slices away: the sagittal through-plane spacing is **3.30 mm in the median** (p5
+    #: 3.00, p95 4.80) against this grid's 4.00 mm pitch, so `choose_slices` thins a
+    #: surplus on about seven series in ten. Eleven slots over the same window is a
+    #: 3.20 mm pitch, which is the acquisition's own.
+    #:
+    #: This is the side of the trade the `acl` spec already argued for and that the
+    #: meniscus windows have been on the wrong side of throughout -- *padding is the
+    #: cheaper mistake: a window whose centre slot is padding never reaches the encoder,
+    #: where a thinned stack has lost pixels that existed.*
+    #:
+    #: **And it separates two mechanisms that `d32` left entangled.** Lengthening the
+    #: window both showed more meniscus and gave more windows to pool, and the pooling
+    #: half is visible: the cross-fold calibration cost fell from −0.0111 to −0.0015
+    #: when the count went from 3 windows to 7. This spec holds the anatomy fixed and
+    #: moves the count to 9, so a gain here is the variance term and not new signal --
+    #: which is what decides whether enlarging the box *in plane* is worth a run.
+    #:
+    #: Extent is deliberately untouched, and so is everything in plane.
+    "medial_meniscus_d32_s11": RoiSpec(
+        name="medial_meniscus_d32_s11", landmark="med_centre",
+        box_w_mm=54.0, box_h_mm=33.0, out_w=252, out_h=154,
+        lateral_mm=8.0, medial_mm=24.0, slots=11),
+    #: **The same window, a larger frame, and not one pixel coarser.** `d32` is the
+    #: baseline this is one variable away from: depth, slots, landmark, plane, series and
+    #: millimetres per pixel are all held, and only the in-plane extent moves -- 54 x 33
+    #: to 63 x 39 mm, which is +16.7 % and +18.2 % of side and +37.9 % of area.
+    #:
+    #: The sizes are not free, and these are the available ones. Holding 3/14 mm per
+    #: pixel and requiring both output sides to divide by 14 -- so a patch embedding
+    #: keeps every row -- forces `box = 3 * patches`: 63 mm is 294 px and 39 mm is
+    #: 182 px, both exactly, where 62 or 38 are not expressible at all. Same reasoning
+    #: that fixed the original 54 x 33, and same purpose: **what differs from `d32` is
+    #: extent, not sharpness.**
+    #:
+    #: **Resolution has room here and did not on the axial box.** Sagittal acquisitions
+    #: are 0.332 mm/px in the median, and this crop is 0.214, so it oversamples by 1.55x
+    #: -- enlarging the box at a fixed pixel count would still oversample by 1.35x and
+    #: lose nothing that was acquired. `pf_oa` sits at 0.286 against an axial 0.312, a
+    #: margin of 1.09x, which is why the same proposal was refused there.
+    #:
+    #: **What the argument is weaker about.** The depth extension reached *more
+    #: meniscus* -- the posterior horn runs along that axis. In plane, 54 mm already
+    #: covers a 35-40 mm meniscus with margin, so the 4.5 mm added front and back is fat
+    #: pad and popliteal tissue and the 3 mm added above and below is condyle and
+    #: plateau. If `d32` paid because it saw more of the structure, this will not pay; if
+    #: it paid because context and pooled windows reduce variance, it may.
+    "medial_meniscus_d32_wide": RoiSpec(
+        name="medial_meniscus_d32_wide", landmark="med_centre",
+        box_w_mm=63.0, box_h_mm=39.0, out_w=294, out_h=182,
+        lateral_mm=8.0, medial_mm=24.0, slots=9),
+    #: The large frame *and* the native pitch, together, with `lr = 1e-4` in the run
+    #: that uses it. **Three changes at once, deliberately, and not an experiment**: a
+    #: row that moves cannot say which of the three moved it. It is a bid for the best
+    #: model on this column rather than for knowledge about it, which is a thing worth
+    #: wanting and is recorded here as what it is.
+    #:
+    #: What is already known about each part, so the result can be read against it:
+    #: the frame alone measured **−0.0019** over four paired folds and a fifth that
+    #: diverged, so it is the component with no support; the pitch is under measurement
+    #: as `medial_meniscus_d32_s11` and is expected at about +0.0009, below what five
+    #: folds resolve; and **`lr = 1e-4` is the strongest of the three** — on this exact
+    #: column with the original 5-slot box it took the out-of-fold figure from 0.8994 to
+    #: **0.9127**, one variable, +0.0133. That last one has never been adopted because
+    #: the same change costs the *lateral* compartment 0.0105, which is why it was
+    #: refused across the board and why the per-column case was left standing.
+    #:
+    #: Memory is the practical risk: nine windows at 294 x 182 px is about 1.8x what
+    #: `medial_meniscus_d32` peaked at, which is near the card rather than comfortably
+    #: inside it. If it does not fit at batch 32 the batch becomes a fourth change and
+    #: the comparison degrades further, so that is a decision and not a default.
+    "medial_meniscus_d32_wide_s11": RoiSpec(
+        name="medial_meniscus_d32_wide_s11", landmark="med_centre",
+        box_w_mm=63.0, box_h_mm=39.0, out_w=294, out_h=182,
+        lateral_mm=8.0, medial_mm=24.0, slots=11),
     #: The joint effusion, in the recess it actually fills.
     #:
     #: **Clinically there is no doubt where to look.** Fluid collects first and most in

@@ -50,6 +50,8 @@ from tools.atlas.study import load_series, series_headers        # noqa: E402
 LANDMARKS = Path("/data/mgr/rsna-knee/roi-infer/landmarks.csv")
 CACHE = Path("/data/mgr/rsna-knee/roi-cache")
 IN_COLOUR, OUT_COLOUR, MID_COLOUR = "#39d98a", "#5a6472", "#ffd166"
+#: A candidate box drawn over the shipped one, for `--compare`.
+CMP_COLOUR = "#ff6b9d"
 
 #: One entry per shipped expert. `run` is the directory its weights live in, which is
 #: also where its measured AUC is read from; `rois` is taken from the run's own config
@@ -158,7 +160,7 @@ ships.</p>
     },
     "acl": {
         "target": "ACL",
-        "run": "expert_acl",
+        "run": "expert_acl_cnxnano",
         "title": "Anterior cruciate ligament tear",
         "subtitle": "a box with no landmark of its own, placed between two that have one",
         "condition": """
@@ -221,7 +223,7 @@ and where a tear is most often read.</p>
     },
     "medial_meniscus": {
         "target": "Medial Meniscus",
-        "run": "expert_medial_meniscus",
+        "run": "expert_mm_d32_cnxnano",
         "title": "Medial meniscus tear",
         "subtitle": "the same reading as the lateral side, on a structure that moves less",
         "condition": """
@@ -253,20 +255,43 @@ two horn apexes on the joint line, which is what the box is meant to hold.</p>
 <p><b>54 × 33 mm at 0.214 mm/px</b> — slightly larger than the lateral box in both
 directions, because the medial meniscus is longer front to back.</p>
 
-<p>Where the two differ is the <b>depth window: 16 mm here against 32 on the lateral
-side</b>, 12 mm inward and 4 mm outward, over <b>5 slots</b> rather than 9. This box is
-the <i>unswept</i> version of the design. The lateral one went through
-<code>_d24</code>, <code>_d32</code>, <code>_l6</code> and <code>_m20</code> before
-settling at 32 mm; nothing equivalent was ever run for the medial side, which still
-carries the original 16 mm. Given that the sweep moved the lateral column and that the
-anatomy is comparable, <b>this is the most obvious untested change in the whole set</b> —
-and it costs one training to find out.</p>
+<p><b>The depth window was the unswept half of this design, and the sweep has now
+run.</b> The lateral box went through <code>_d24</code>, <code>_d32</code>,
+<code>_l6</code> and <code>_m20</code> before settling at 32 mm, and nothing equivalent
+had ever been tried here — this side still carried the original 16 mm over 5 slots. On
+2026-10-13 the lateral window was copied onto this box with nothing else moved, and it
+<b>paid: +0.0056 ± 0.0020 of held-out AUC, paired on five folds of five, t = 2.82</b>.
+The same size as the encoder change, which was worth +0.004 of leaderboard across eight
+columns. So the box above is now <b>8 + 24 mm over 9 slots</b>.</p>
+
+<p>Two things that measurement also settled. The out-of-fold figure moved much further
+than the quality did — 0.8994 to 0.9146 — because a window pooling <b>7</b> depth
+windows instead of 3 leaves the five folds agreeing about the scale of their outputs:
+the cross-fold calibration cost fell from −0.0111 to −0.0015. And the acquisition
+<i>allowed</i> the extension, which is not true everywhere: a longer window at the same
+4.0 mm pitch fills <i>better</i> here (8.41 slices of 9 against 4.40 of 5), where
+<a href="pf_oa.html">the patellofemoral box</a> finds only 7.80 of 9 and lengthening it
+would buy padding.</p>
+
+<p>What is drawn in <b style="color:#ff6b9d">pink</b> is the next question rather than a
+finding: <code>medial_meniscus_d32_wide</code> keeps this depth window and this
+resolution exactly, and widens the frame to 63 × 39 mm — +16.7 % and +18.2 % of side,
++37.9 % of area. The sizes are forced: holding 3/14 mm per pixel with both output sides
+divisible by 14 makes 63 and 39 the nearest expressible box to a flat +15 %.
+<b>Why it might not pay:</b> the depth extension reached more <i>meniscus</i>, because
+the posterior horn runs along that axis, while 54 mm in plane already covers a
+35–40 mm meniscus with margin — so the margin added is fat pad, popliteal tissue,
+condyle and plateau. <b>Why it might:</b> measured on this crop, every one of the four
+edges carries <i>more</i> tissue than its centre (0.81 to 0.91 against 0.77), no study
+has the box running off the acquired image, and if what the depth window bought was
+context and pooled windows rather than more of the structure, context in plane is the
+same bet.</p>
 """,
         "study": None,
     },
     "mcl": {
         "target": "MCL",
-        "run": "expert_mcl_fsonly",
+        "run": "expert_mcl_cnxnano",
         "title": "Medial collateral ligament injury",
         "subtitle": "a tall thin box on a coronal landmark, and the one case where removing a sequence paid",
         "condition": """
@@ -314,7 +339,7 @@ two sequences that agree, which is a mistake this project made and corrected.</p
     },
     "lateral_oa": {
         "target": "Lateral OA",
-        "run": "expert_lateral_oa_coronal",
+        "run": "expert_lateral_oa_cnxnano_b16",
         "title": "Lateral tibiofemoral osteoarthritis",
         "subtitle": "cartilage and bone in the plane that shows the joint space",
         "condition": """
@@ -354,7 +379,7 @@ without reaching the notch.</p>
     },
     "medial_oa": {
         "target": "Medial OA",
-        "run": "expert_medial_oa",
+        "run": "expert_medial_oa_cnxnano_b16",
         "title": "Medial tibiofemoral osteoarthritis",
         "subtitle": "the same box on the other compartment, and the side that wears first",
         "condition": """
@@ -389,7 +414,7 @@ compartment. The key now includes the landmark.</p>
     },
     "pf_oa": {
         "target": "PF OA",
-        "run": "expert_pf_oa",
+        "run": "expert_pf_oa_cnxnano",
         "title": "Patellofemoral osteoarthritis",
         "subtitle": "the kneecap against its groove, in the only plane that sees both facets",
         "condition": """
@@ -425,6 +450,31 @@ field has sprung before.</p>
 
 <p>Depth window <b>symmetric, ±16 mm</b> over <b>9 slots</b>, which spans the patella from
 its upper to its lower pole on most studies.</p>
+
+<p><b>Measured over 1500 studies, row by row, the top of this box is air.</b> Tissue runs
+from <b>7.1 mm below the top edge</b> to the bottom edge itself: the first 4 mm carry
+0.189 of lit pixels and the next 4 carry 0.429, against a peak of 0.936 at 28&ndash;32 mm
+and still <b>0.782 where the box stops</b>. So the anatomy continues past the bottom and
+past both sides (columns 0.72 falling to 0.62), and does <i>not</i> continue past the top
+&mdash; the rise of +8 mm puts that edge 32 mm anterior of <code>pf_centre</code> while
+the patellar cortex is at 25 and the skin just beyond. Dropping the rise to 0 would trade
+8 mm of air for 8 mm of tissue at no cost in pixels, and is the cheapest single variable
+available here.</p>
+
+<p><b>The depth window is short because of how far apart the slices are, not because it
+overruns.</b> Axial through-plane spacing is 3.90 mm in the median (p5 3.30, p95 5.70),
+so the fill expected from spacing alone is 8.43 of 9 against a measured 7.92 &mdash; only
+0.52 of a slot of genuine overrun. At <b>40 mm over 11 slots</b> the expected fill is
+10.29 of 11, the same 94 %, so about two more <i>real</i> slices. And the 4.00 mm pitch is
+already the acquisition's: unlike the sagittal meniscus windows, which sample 21 % coarser
+than their 3.30 mm, nothing is recoverable by densifying this one.</p>
+
+<p>What is drawn in <b style="color:#ff6b9d">pink</b> is <code>pf_oa_wide_d40</code>:
+64 &times; 56 mm on 224 &times; 196 px at the same 0.286 mm/px &mdash; the nearest
+expressible box to +15 % on each axis, since holding 2/7 mm per pixel with both output
+sides divisible by 14 forces <code>box = 4 * k</code> &mdash; with the depth at 40 mm over
+11 slots and <b>the rise left at +8</b>, so half the added height grows into the air
+measured above.</p>
 """,
         "study": None,
     },
@@ -541,12 +591,49 @@ def _marks(spec, geometry, point, second) -> list[tuple[int, int, int, str, str]
     return out
 
 
-def _frames(series, stems, stack, spec, geometry, point, eight, second=None):
+def _dashed_rect(img, r0, r1, c0, c1, bgr, thick, dash=9):
+    """A dashed rectangle, because a candidate box can sit a few pixels off the shipped one.
+
+    `medial_oa_wide_d35` differs from `medial_oa` by **6 source pixels** at the top and
+    bottom edges, and at a line thickness of two or three, downscaled to a 420 px viewer,
+    two solid rectangles that close together read as one thick line. `pf_oa_wide_d40` is
+    16 px off and was legible solid; these are not. Dashing the candidate separates them
+    at any spacing, and it also reads as "proposed" without needing the legend.
+    """
+
+    for c in range(c0, c1, dash * 2):
+        e = min(c + dash, c1)
+        cv2.line(img, (c, r0), (e, r0), bgr, thick)
+        cv2.line(img, (c, r1), (e, r1), bgr, thick)
+    for r in range(r0, r1, dash * 2):
+        e = min(r + dash, r1)
+        cv2.line(img, (c0, r), (c0, e), bgr, thick)
+        cv2.line(img, (c1, r), (c1, e), bgr, thick)
+
+
+def _frames(series, stems, stack, spec, geometry, point, eight, second=None,
+            compare_rc=None, compare_kept=None):
     """The series' slices with the crop drawn on each, green where it was kept.
 
     `box_rc` comes off the stack: `extract` reports where it cropped, so this drawing
     cannot disagree with the crop. Each landmark goes on the one slice it sits on — the
     box is the same in plane on every slice of a parallel stack, a point is not.
+
+    `compare_rc` is a second box, from a second `extract` call under a candidate spec,
+    drawn **dashed and on top**. On top because a proposal that sits six pixels off the
+    shipped box disappears under it otherwise, which is how `medial_oa_wide_d35` came to
+    be invisible on its own page; dashed because at that spacing two solid rectangles
+    read as one thick line whichever is drawn first. It comes off that call's own
+    `box_rc` for the same reason the first one does: a candidate drawn from its
+    millimetres rather than from the cropper could disagree with what a run would
+    actually read.
+
+    `compare_kept` is the set of SOPs that candidate's own window kept, and the candidate
+    rectangle is drawn **only on those slices**. Drawing it on every slice would claim a
+    depth window the proposal does not have: `pf_oa_wide_d40` reaches 40 mm over 11 slots
+    where `pf_oa` reaches 32 over 9, so which slices each one takes is half of what the
+    comparison is for. With no set given the box is drawn everywhere, which is right only
+    when the two windows coincide.
     """
 
     kept = {s for s in stack.sop if s}
@@ -563,6 +650,10 @@ def _frames(series, stems, stack, spec, geometry, point, eight, second=None):
         bgr = tuple(int(colour[j:j + 2], 16) for j in (5, 3, 1))
         thick = max(1, int(round(min(rgb.shape[:2]) / 260))) + (1 if inside else 0)
         cv2.rectangle(rgb, (c0, r0), (c1, r1), bgr, thick)
+        if compare_rc is not None and (compare_kept is None or sop in compare_kept):
+            k0, k1, j0, j1 = (int(round(v)) for v in compare_rc)
+            cbgr = tuple(int(CMP_COLOUR[j:j + 2], 16) for j in (5, 3, 1))
+            _dashed_rect(rgb, k0, k1, j0, j1, cbgr, thick)
         for home, mr, mc, mcol, _ in marks:
             if i != home:
                 continue
@@ -585,7 +676,7 @@ def _legend(marks: list) -> str:
 
 
 def more_examples(spec, points: pd.DataFrame, config: Config, n: int,
-                  skip: str) -> str:
+                  skip: str, compare=None) -> str:
     """The same box on several more studies, scrollable, nothing else.
 
     Spread across the studies carrying the landmark rather than taken consecutively, so
@@ -604,7 +695,7 @@ def more_examples(spec, points: pd.DataFrame, config: Config, n: int,
     blocks = []
     for study in dict.fromkeys(picked):
         try:
-            one = series_with_box(study, spec, points, config)
+            one = series_with_box(study, spec, points, config, compare)
         except Exception as exc:                                   # noqa: BLE001
             blocks.append(f"<p class='note'>&hellip;{P._esc(study[-12:])}: "
                           f"{P._esc(type(exc).__name__)}</p>")
@@ -618,29 +709,48 @@ def more_examples(spec, points: pd.DataFrame, config: Config, n: int,
 
 
 def series_with_box(study: str, spec, points: pd.DataFrame,
-                    config: Config) -> tuple[str, str] | None:
-    """One scrollable series with the crop drawn on it, and a line about this study."""
+                    config: Config, compare=None) -> tuple[str, str] | None:
+    """One scrollable series with the crop drawn on it, and a line about this study.
+
+    Takes `compare` so the examples carry the candidate box as well. They are the part of
+    the page that says whether a proposal holds across the corpus rather than on one
+    favourable study, which is exactly where a candidate needs to be seen.
+    """
 
     built = _extract_for(study, spec, points, config)
     if built is None:
         return None
     series, stems, stack, row, eight, geometry, point, second = built
+    cmp_rc, cmp_kept, cmp_live = None, None, None
+    if compare is not None:
+        other = _extract_for(study, compare, points, config)
+        if other is not None:
+            cmp_rc = other[2].box_rc
+            cmp_kept = {sop for sop in other[2].sop if sop}
+            cmp_live = int(other[2].valid.sum())
     frames, flagged, marks = _frames(series, stems, stack, spec, geometry, point, eight,
-                                     second)
+                                     second, cmp_rc, cmp_kept)
     live = int(stack.valid.sum())
     lr = (("posterior", "anterior") if spec.plane == "Sagittal"
           else ("medial", "lateral"))
     note = (f"{spec.plane} {row['weight']}{'-FS' if bool(row['fatsat']) else ''} "
             f"&middot; {len(stems)} slices at {stack.native_spacing_mm:.1f} mm "
-            f"&middot; {live} of {spec.slots} slots kept")
+            f"&middot; {live} of {spec.slots} slots kept"
+            + ("" if cmp_live is None else
+               f" &middot; candidate {cmp_live} of {compare.slots}"))
     return (P.viewer(f"ex-{study[-8:]}", frames, lr[0], lr[1], series.mm_per_px,
                      flagged=flagged,
                      caption=f"<b style='color:{IN_COLOUR}'>Green</b> = this slice "
-                             f"reached the branch. {_legend(marks)}"),
+                             f"reached the branch. {_legend(marks)}"
+                             + ("" if cmp_rc is None else
+                                f" &nbsp; <b style='color:{CMP_COLOUR}'>Pink</b> = "
+                                f"<code>{P._esc(compare.name)}</code>, on the slices "
+                                f"its own window keeps.")),
             note)
 
 
-def panels(study: str, spec, points: pd.DataFrame, config: Config) -> str:
+def panels(study: str, spec, points: pd.DataFrame, config: Config,
+           compare=None) -> str:
     """The series as it arrives, and the stack as the branch receives it.
 
     Both come out of one `extract` call, so neither can drift from the pipeline nor from
@@ -653,8 +763,15 @@ def panels(study: str, spec, points: pd.DataFrame, config: Config) -> str:
                 f"box's series, or has no predicted "
                 f"<code>{P._esc(spec.landmark)}</code>.</p>")
     series, stems, stack, row, eight, geometry, point, second = built
+    compare_rc, compare_kept, compare_live = None, None, None
+    if compare is not None:
+        other = _extract_for(study, compare, points, config)
+        if other is not None:
+            compare_rc = other[2].box_rc
+            compare_kept = {sop for sop in other[2].sop if sop}
+            compare_live = int(other[2].valid.sum())
     left_frames, flagged, marks = _frames(series, stems, stack, spec, geometry, point,
-                                          eight, second)
+                                          eight, second, compare_rc, compare_kept)
 
     right_frames = []
     for slot in range(stack.volume.shape[0]):
@@ -692,6 +809,21 @@ def panels(study: str, spec, points: pd.DataFrame, config: Config) -> str:
          f"<code>bowtie_direction</code> = {stack.toward_bowtie:+.0f}"),
         ("crop mirrored", "yes, to put lateral on the right" if stack.flipped else "no"),
     ]
+    if compare is not None:
+        dw = 100 * (compare.box_w_mm / spec.box_w_mm - 1)
+        dh = 100 * (compare.box_h_mm / spec.box_h_mm - 1)
+        da = 100 * (compare.box_w_mm * compare.box_h_mm
+                    / (spec.box_w_mm * spec.box_h_mm) - 1)
+        same_px = abs(compare.mm_per_px - spec.mm_per_px) < 1e-9
+        facts.append((
+            f"candidate <code>{P._esc(compare.name)}</code>",
+            f"{compare.box_w_mm:g}&times;{compare.box_h_mm:g} mm on "
+            f"{compare.out_w}&times;{compare.out_h} px "
+            f"({compare.mm_per_px:.4f} mm/px"
+            + (", unchanged" if same_px else "") + "), "
+            f"{compare.lateral_mm:g}+{compare.medial_mm:g} mm over {compare.slots} "
+            f"slots &mdash; {dw:+.1f} % of width, {dh:+.1f} % of height, "
+            f"{da:+.1f} % of area"))
     fact_rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in facts)
 
     return f"""
@@ -703,7 +835,12 @@ def panels(study: str, spec, points: pd.DataFrame, config: Config) -> str:
               caption=f"The rectangle is the crop, on every slice. Each cross is on "
                       f"the one slice its point sits on. {_legend(marks)}. "
                       f"<b style='color:{IN_COLOUR}'>Green</b> = this slice reached the "
-                      f"branch, grey = dropped.")}
+                      f"branch, grey = dropped."
+                      + ("" if compare is None else
+                         f" <b style='color:{CMP_COLOUR}'>Pink</b> = the candidate "
+                         f"<code>{P._esc(compare.name)}</code>, on the slices its own "
+                         f"window keeps &mdash; {compare_live} of {compare.slots} "
+                         f"against this box's {len(flagged)}."))}
   </div>
   <div>
     <h4>The stack the branch receives
@@ -880,12 +1017,25 @@ def spec_of(run: str, recorded: dict) -> tuple[object, bool]:
 
 
 def build(key: str, out_dir: Path, study: str | None,
-          examples: int = 6) -> Path:
+          examples: int = 6, compare: str | None = None) -> Path:
     entry = EXPERTS[key]
     config = Config()
     points = landmark_table()
     recorded = json.loads((ROOT / "out" / entry["run"] / "history.json").read_text())
     spec, from_registry = spec_of(entry["run"], recorded)
+    # A candidate region drawn over the shipped one. Resolved from the registry rather
+    # than described, so the page cannot show a box a run would not actually read.
+    cmp_spec = None
+    if compare:
+        from rsna.roi.config import SPECS
+        if compare not in SPECS:
+            raise SystemExit(f"no region named {compare!r} in the registry")
+        cmp_spec = SPECS[compare]
+        if cmp_spec.plane != spec.plane or cmp_spec.landmark != spec.landmark:
+            raise SystemExit(
+                f"{compare} is {cmp_spec.plane} around {cmp_spec.landmark} and "
+                f"{spec.name} is {spec.plane} around {spec.landmark}; drawing one over "
+                f"the other would put two different questions in one rectangle")
 
     if study is None:
         study = entry["study"]
@@ -921,7 +1071,7 @@ consulted &mdash; is explained once in
 this series to <code>rsna.roi.extract</code> with the spec above and the predicted
 <code>{P._esc(spec.landmark)}</code>; nothing here is drawn from a description of where
 the box should be.</p>
-{panels(study, spec, points, config)}
+{panels(study, spec, points, config, cmp_spec)}
 
 <h2>What is measured about it</h2>
 {measured(entry, spec)}
@@ -931,7 +1081,7 @@ the box should be.</p>
 <code>{P._esc(spec.landmark)}</code>, so the series the box falls back to varies rather
 than repeating one choice. Each is its own <code>rsna.roi.extract</code> call: what is
 green is what that study's crop kept.</p>
-{more_examples(spec, points, config, examples, study)}
+{more_examples(spec, points, config, examples, study, cmp_spec)}
 """
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{key}.html"
@@ -946,8 +1096,12 @@ def main() -> int:
     ap.add_argument("--study", default=None, help="Show this study instead of a default.")
     ap.add_argument("--examples", type=int, default=6,
                     help="How many further studies to show the box on, at the foot.")
+    ap.add_argument("--compare", default=None, metavar="REGION",
+                    help="Draw a candidate region from the registry over the shipped "
+                         "one, in pink, with its own `extract` call. Refused unless it "
+                         "shares the shipped box's plane and landmark.")
     args = ap.parse_args()
-    out = build(args.expert, args.out, args.study, args.examples)
+    out = build(args.expert, args.out, args.study, args.examples, args.compare)
     print(f"{out}  ({out.stat().st_size / 1e6:.1f} MB)")
     return 0
 

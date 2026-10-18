@@ -275,6 +275,41 @@ WEIGHTS = {
     #: column gains. So the expert we actually ship on that column is the only one with a
     #: measured case against it, and this asks what the host does with it alone.
     "no_acl": {t: 0.5 for t in TARGETS8 if t != "ACL"},
+    #: MCL handed back to the host entirely, every other column at the 0.40 that holds
+    #: the standing score. **Priced, not guessed**: one void submission per column put the
+    #: host at **0.992 on MCL** -- its best of the five probed, and 0.176 above our
+    #: expert's out-of-fold 0.8160 -- against 0.896 on Lateral OA, its weakest. A column
+    #: absent from this mapping is left to the host untouched, so the difference between
+    #: this regime and `flat40` on the same host *is* what our MCL column is worth.
+    #:
+    #: Expect it small: our expert blended at 0.40 against a 0.992 host probably costs
+    #: that column 0.02 to 0.03, which is 0.002 to 0.003 of macro once divided by twelve
+    #: and so under what three decimals resolve. The sign is well founded, the reading is
+    #: not guaranteed.
+    "flat40_no_mcl": {t: 0.40 for t in TARGETS8 if t != "MCL"},
+    #: **The first regime set from a measurement on the same footing as the host's.**
+    #: Two submissions handed one column entirely to our expert and left the other eleven
+    #: at a constant, which inverts to `auc_ours = 12 * macro - 5.5`: our PF OA reads
+    #: **0.908** against the host's 0.932 and our Lateral OA **0.884** against 0.896 --
+    #: −0.024 and −0.012, inside the ±0.031 the host's own absolute figure carries. So we
+    #: are **level**, not behind, and two members of equal quality blend best near 0.5
+    #: rather than at the 0.40 that holds the standing score.
+    #:
+    #: Converting the other six out-of-fold figures with the +0.053 that those two
+    #: measurements calibrate puts them at −0.017 to −0.039 — level too, within the same
+    #: band — and leaves **MCL alone at −0.123**, five times the next worst, on the column
+    #: the host reads at 0.992. So MCL goes to the host entirely and the rest to 0.5.
+    #:
+    #: **Why this is not the fifth failure.** `shrunk`, `corrected`, `divided` and the
+    #: flat 0.6 all lost, and all four were set against our own out-of-fold figures —
+    #: agreement with the label extractor on training studies, which the extractor itself
+    #: only matches at 0.841 against the 58 radiologist readings. That is the diagnosed
+    #: cause. This one is set against the hidden test on the metric that scores it.
+    #:
+    #: It is still falsifiable, and the contrary evidence is real: the one weight change
+    #: that ever won went **down**, 0.5 to 0.40 for +0.001 — measured when our experts
+    #: genuinely were weaker. Parity predicts the opposite direction.
+    "parity": {t: 0.50 for t in TARGETS8 if t != "MCL"},
 }
 
 GRAFT_CELL = '''# ===================== OUR LEG — the experts, grafted on =====================
@@ -298,6 +333,13 @@ from pathlib import Path
 # A float weights every column the same; a mapping weights each one on its own, and a
 # column it does not name is left to the host untouched rather than defaulted.
 BLEND = {blend}
+# Test-time averaging. MIRROR reads each sagittal region a second time with its depth
+# axis reversed -- that axis follows the knee's side, so both signs are in the training
+# data -- and costs one extra pass on three of the eight experts. JITTER averages five
+# in-plane affines from the training distribution over all eight, so it costs five passes
+# and is the one that has to fit in what the host leaves of the nine hours.
+MIRROR_TTA = {mirror}
+JITTER_TTA = {jitter}
 INPUT = Path("/kaggle/input")
 
 
@@ -371,6 +413,7 @@ else:
         expert_runs=experts, landmark_runs=landmarks, package=None,
         data_root=root, split="test_series", out="submission.csv",
         scratch=scratch, blend=BLEND, workers=4,
+        mirror_tta=MIRROR_TTA, jitter_tta=JITTER_TTA,
         device="cuda" if torch.cuda.is_available() else "cpu", log=print)
 
     before = pd.read_csv("/kaggle/working/_public_before_experts.csv")
@@ -389,7 +432,7 @@ def patch_experts(nb: dict) -> None:
     """
 
     nb["cells"].append({"cell_type": "code", "execution_count": None, "metadata": {},
-                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND)]})
+                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND, mirror=True, jitter=False)]})
 
 
 #: RadImageNet is **not** here on purpose. Removing it also removes

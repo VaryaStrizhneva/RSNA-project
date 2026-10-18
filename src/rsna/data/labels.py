@@ -82,6 +82,12 @@ LABEL_SOURCES = [
     LabelSource(
         "riad_hybrid",
         EXTERNAL_ROOT / "riadmohamed42-jev-knee-labels" / "HYBRID_labels_scores.csv",
+        # Not contaminated in this field's sense -- it copies no gold row -- but
+        # `karttikjangid05/rsna-knee-public-llm-label-sets-compared` records it as
+        # `tuned_on_gold`: its **column choice per finding was made on gold-58**. The
+        # practical consequence is the one this flag exists for, so scoring a model
+        # trained on this table against the gold measures nothing either. Train on it
+        # freely; read only the out-of-fold figure.
         contaminated=False,
         # No silence level: this table has no explicit "the report does not say" score,
         # and its modal value covers only 10% of cells — nothing sharp enough to anchor
