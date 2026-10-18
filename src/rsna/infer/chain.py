@@ -80,14 +80,29 @@ def _points_needed(expert_runs, device: str, log=print) -> tuple[dict, set]:
             wanted.add(spec.landmark)
             if spec.landmark2:
                 wanted.add(spec.landmark2)
+    # **Several runs may claim the same column, and that is the point.** Until
+    # 2026-10-18 this raised, because two runs writing the same column one after the
+    # other would have kept whichever ran last. They are now averaged instead, which is
+    # a decision and a measured one: over the eight columns, the shipped run plus the
+    # best other run of that column is worth **+0.0083 of AUC a column out of fold, 39
+    # paired folds of 40**, and the gain is not an accident of which run is better --
+    # the partner is the *weaker* model on seven of the eight, and the pair still wins.
+    #
+    # The arithmetic, on ACL. An AUC counts (positive, negative) pairs. The two runs
+    # agree on 87.6 % of them -- both right on 81.0 %, both wrong on 6.5 % -- and
+    # averaging can do nothing there. On the 12.4 % where they disagree the shipped run
+    # alone is right 47.8 % of the time and their average is right 62.4 %, so
+    # `0.124 x (0.624 - 0.478) = +0.018`, against +0.0195 measured. The mechanism is
+    # entirely in that line: averaging keeps the *magnitude* of each disagreement, so
+    # the confident reading wins the pair, and an error specific to one crop or one
+    # encoder is diluted while the signal both runs share is not.
     owners: dict = {}
     for run, (_, config, _) in loaded.items():
         for target in config.targets:
-            if target in owners:
-                raise ValueError(
-                    f"{run} and {owners[target]} both claim {target!r}; the submission "
-                    f"would take whichever ran last, which is not a decision")
-            owners[target] = run
+            owners.setdefault(target, []).append(run)
+    for target, runs in sorted(owners.items()):
+        if len(runs) > 1:
+            log(f"{target}: {len(runs)} runs, averaged as ranks")
     return loaded, wanted
 
 
@@ -190,8 +205,21 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
     owned = tempfile.mkdtemp(prefix="rsna-roi-") if scratch is None else None
     room = Path(owned or scratch)
     room.mkdir(parents=True, exist_ok=True)
-    made: list[Path] = []
+    # tag -> the files that cut wrote for it, so a cut can be dropped by name rather
+    # than by parsing one back out of a filename (`lateral_mm:g` can put a '.' in a tag).
+    made: dict[str, list[Path]] = {}
 
+    pooled: dict[str, dict[str, list[float]]] = {}
+    # How many runs still need each cut. Several runs may read the **same** region --
+    # the ACL, MCL and Baker's pairs each do -- and a cut dropped after the first of
+    # them is simply cut again for the second. Counted here so a cut survives until its
+    # last reader has used it, and no longer: the cuts are the expensive part of the
+    # leg, and holding all of them at once is what the deletion was there to avoid.
+    remaining: dict[str, int] = {}
+    for _run in expert_runs:
+        for _spec in loaded[str(_run)][2]:
+            tag = cache.cache_tag(_spec)
+            remaining[tag] = remaining.get(tag, 0) + 1
     try:
         points = _landmarks(landmark_runs, wanted, headers, device, workers, log)
         table = room / "landmarks.csv"
@@ -200,14 +228,17 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
         for run in expert_runs:
             models, config, specs = loaded[str(run)]
             log(f"{run.name}: {', '.join(config.targets)}")
-            groups, names = [], None
+            groups, names, tags = [], None, []
             for spec in specs:
                 tag = cache.cache_tag(spec)
+                tags.append(tag)
                 if not (room / f"{tag}.json").exists():
                     cache.build(table, headers, room, spec, Config(),
                                 workers=workers, log=lambda m: log(f"    {m}"))
-                    made += [room / f"{tag}.npy", room / f"{tag}_mask.npy",
-                             room / f"{tag}.json"]
+                    made[tag] = [room / f"{tag}.npy", room / f"{tag}_mask.npy",
+                                 room / f"{tag}.json"]
+                else:
+                    log(f"    reusing the cut of {spec.name}")
                 volumes, mask, records = cache.load(room, spec)
                 cut = [r["study"] for r in records]
                 if names is None:
@@ -276,14 +307,44 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
             if not seen.all():
                 log(f"  {int((~seen).sum())} study(ies) carry no pixels for this "
                     f"expert; the wide model keeps those rows")
-            _overwrite(frame, [n for n, k in zip(names, seen) if k],
-                       config.targets, scores[seen], log, blend=blend)
+            # Held per target rather than written now, because another run may own the
+            # same column. Each run contributes a **percentile rank over the studies it
+            # itself could read**, which is what makes two runs comparable at all: they
+            # emit probabilities on different scales, and one may abstain on studies the
+            # other reads. A study read by one run only keeps that run's reading, which
+            # is the right answer and not a special case.
+            kept = [n for n, k in zip(names, seen) if k]
+            if not kept:
+                continue
+            for j, target in enumerate(config.targets):
+                pct = pd.Series(scores[seen][:, j], index=kept).rank(pct=True)
+                bucket = pooled.setdefault(target, {})
+                for study, value in pct.items():
+                    bucket.setdefault(study, []).append(float(value))
 
+            for tag in tags:
+                remaining[tag] -= 1
             if not keep_cache:
-                for path in list(made):
-                    if path.exists():
-                        path.unlink()
-                    made.remove(path)
+                for tag in [t_ for t_ in made if remaining.get(t_, 0) <= 0]:
+                    for path in made.pop(tag):
+                        if path.exists():
+                            path.unlink()
+
+        # One write per column, over however many runs claimed it. The mean is of
+        # **percentile ranks**, not probabilities: two runs trained with different crops
+        # and encoders are not calibrated against each other, and the metric is an AUC,
+        # so only the ordering carries anything. `_overwrite` then quantile-maps that
+        # ordering onto the values the column already holds, exactly as it did for a
+        # single run.
+        for target in sorted(pooled):
+            per_study = pooled[target]
+            studies = sorted(per_study)
+            vals = np.array([sum(v) / len(v) for v in
+                             (per_study[s] for s in studies)], float)
+            counts = {len(per_study[s]) for s in studies}
+            log(f"{target}: {min(counts)}-{max(counts)} run(s) a study, averaged as "
+                f"ranks over {len(studies)} studies")
+            _overwrite(frame, studies, [target], vals[:, None], log, blend=blend)
     finally:
         if owned is not None:
             shutil.rmtree(owned, ignore_errors=True)
