@@ -351,6 +351,29 @@ ROI box (a different crop is different pixels and so different errors), a differ
 encoder, or a different label table. Medial Meniscus is decorrelated by **cropping
 alone** — three boxes, one encoder — and still takes +0.0061.
 
+**Choosing the partner per column is worth less than not choosing it.** The obvious
+improvement on the fixed rule is to search, per column, for the partner that ensembles
+best — the first exploratory sweep found pairs worth +0.0027 (PF OA), +0.0026 (Lateral
+OA) and +0.0036 (Baker's) more than the ones shipped. Priced honestly, by selecting on
+four folds and judging on the fifth the search never saw, rotated:
+
+| | selection | fixed rule | |
+|---|---|---|---|
+| over 35 held-out folds | | | **−0.0006, 9/35 signs, p = 0.999** |
+| both against the single run | +0.0078 | **+0.0084** | |
+
+**The search is significantly worse**, and those three "missed" gains were its luck. ACL
+is the clearest case: the search picks `expert_acl` — the *weakest* of seven ACL runs at
+0.8626 — and picks it **5 times of 5**, so the choice is stable rather than erratic. It
+wins on the four folds that chose it and loses 0.0018 on the fifth. Selection catches the
+largest decorrelation visible in those studies, and that decorrelation does not
+reproduce.
+
+The same table carries the unbiased confirmation of the lever itself: **the fixed rule
+beats the single run by +0.0084 on folds that chose nothing**, against the +0.0083 the
+in-sample figure reported. The ensemble is real; only the choice of partner is not. So
+k = 3 ships the three best by out-of-fold, with no search.
+
 **And it refutes a row of the zero table.** "Averaging resnet18 with convnext_nano:
 +0.00018" is contradicted by +0.0118 on PF OA, +0.0069 on Baker's and +0.0065 on MCL,
 all same-box cross-encoder pairs. How the old figure was taken is not recorded; this one
