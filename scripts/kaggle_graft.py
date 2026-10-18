@@ -189,12 +189,14 @@ def main() -> int:
                     help="carry the host's prose across. Off by default: it describes "
                          "their run, and ours is no longer theirs once a cell is added.")
     ap.add_argument("--experts", default="rsna-knee-experts",
-                    help="which of our weight datasets to mount. The chain discovers "
-                         "every `expert_*` directory under /kaggle/input and each run "
-                         "overwrites its own column, so mounting two datasets that own "
-                         "the same column makes the later one win silently -- one "
-                         "dataset per configuration, and each must carry the landmark "
-                         "runs too.")
+                    help="which of our weight datasets to mount; comma-separated for "
+                         "several. The chain discovers every `expert_*` directory under "
+                         "/kaggle/input. **Two datasets owning the same column is now "
+                         "the intended case** -- since 2026-10-18 the runs that claim a "
+                         "column are averaged as ranks rather than overwriting one "
+                         "another, which is worth +0.0083 of AUC a column out of fold "
+                         "over 39 paired folds of 40. Between the mounts there must "
+                         "still be exactly one copy of each landmark run.")
     ap.add_argument("--bare", action="store_true",
                     help="push the host with NO graft: a pure reproduction, to learn "
                          "what it scores on our own account. Worth a submission only "
@@ -386,7 +388,8 @@ def main() -> int:
 
     # Their mounts, kept whole -- the weights the host loads are in there -- plus ours.
     ours = ([] if (args.bare or (args.constant and not args.solo))
-             else [f"{OWNER}/rsna-src", f"{OWNER}/{args.experts}"])
+             else [f"{OWNER}/rsna-src"]
+                  + [f"{OWNER}/{s.strip()}" for s in args.experts.split(",") if s.strip()])
     meta["dataset_sources"] = list(dict.fromkeys(
         list(meta.get("dataset_sources", [])) + ours))
     meta["id"] = f"{OWNER}/{slug}"

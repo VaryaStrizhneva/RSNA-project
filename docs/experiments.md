@@ -293,6 +293,92 @@ to 0.024** of him — equal quality, where 0.5 is the decorrelation optimum rath
 default. Every per-column number points the same way, and none of them is the out-of-fold
 comparator that caused the four earlier failures.
 
+### The runs we had already thrown away, averaged, 2026-10-18
+
+Four days from the deadline the proposed lever was to retrain with the 58 gold studies
+folded back in. **It is worth +0.00018 of macro and was dropped on arithmetic alone**:
+4348 to 4407 studies is 0.019 of a doubling, the learning curve is +0.016 of AUC per
+doubling ([[data-is-the-binding-constraint]]), so +0.0003 a column — three times under
+the leaderboard's rounding and thirty times under the noise of our own paired comparison.
+Nor does it pay through label quality: 59 radiologist readings among 4348 extractor labels
+do not move a fit.
+
+Looking for a replacement turned up the largest lever of the programme, and it needs **no
+training at all**. Every column has between 4 and 16 runs on disk from earlier
+experiments, each with a `holdout.csv` over the same 4348 studies and the same
+report-hash folds. Averaging their **ranks** — not their probabilities, which are not
+calibrated against each other — prices out as:
+
+| k runs a column | gain a column | signs | macro over 8 |
+|---|---|---|---|
+| 2 | **+0.0083** | 39/40 | +0.0056 |
+| **3** | **+0.0117** | 39/40 | **+0.0078** |
+| 4 | +0.0122 | 38/40 | +0.0081 |
+| 5 | +0.0134 | 34/35 | +0.0090 |
+
+The rule is fixed in advance — the shipped run plus the next best by out-of-fold, no
+search over pairs — and every figure is the paired per-fold delta, which is the only
+predictor that has ever had the right sign ([[gold-58-is-not-a-predictor]]). The third
+run adds +0.0034 and the fourth +0.0005, so **k = 3 is where it stops**.
+
+| column | one run | two | three | ROI cuts for k=2 |
+|---|---|---|---|---|
+| ACL | 0.8781 | 0.8978 | 0.8987 | **1, shared** |
+| PF OA | 0.8488 | 0.8597 | 0.8671 | 2 |
+| Lateral Meniscus | 0.9031 | 0.9126 | 0.9140 | 2 |
+| MCL | 0.8235 | 0.8314 | 0.8357 | **1, shared** |
+| Medial OA | 0.8887 | 0.8949 | 0.8975 | 2 |
+| Medial Meniscus | 0.9213 | 0.9262 | 0.9274 | 2 |
+| Lateral OA | 0.8500 | 0.8544 | 0.8605 | 2 |
+| Baker's | 0.9158 | 0.9191 | 0.9215 | **1, shared** |
+
+**The mechanism is fully accounted for by one line of arithmetic.** An AUC counts
+(positive, negative) pairs. On ACL the two runs agree on 87.6 % of them — both right on
+81.0 %, both wrong on 6.5 % — and averaging can do nothing there. They disagree on
+**12.4 %**, where the shipped run alone is right **47.8 %** of the time and their average
+is right **62.4 %**. So `0.124 x (0.624 - 0.478) = +0.018` against **+0.0195** measured.
+Averaging keeps the *magnitude* of each disagreement, so the confident reading takes the
+pair, and an error specific to one crop or one encoder is diluted while the signal both
+runs share is not.
+
+**The partner is the weaker model on seven columns of eight** — `lateral_oa_coronal` is
+0.028 below the run it joins — and the pair still wins every time. A run is worth keeping
+because it errs *elsewhere*, not because it scores well. That is why an inventory we had
+been treating as superseded drafts turned out to be the asset.
+
+**What decorrelates them, measured as Kendall's tau between 0.45 and 0.70**: a different
+ROI box (a different crop is different pixels and so different errors), a different
+encoder, or a different label table. Medial Meniscus is decorrelated by **cropping
+alone** — three boxes, one encoder — and still takes +0.0061.
+
+**And it refutes a row of the zero table.** "Averaging resnet18 with convnext_nano:
++0.00018" is contradicted by +0.0118 on PF OA, +0.0069 on Baker's and +0.0065 on MCL,
+all same-box cross-encoder pairs. How the old figure was taken is not recorded; this one
+is pre-specified, paired per fold, and 39/40.
+
+**The sober number.** These are out-of-fold AUCs, i.e. agreement with the extractor, and
+our ACL measures **0.980** on the hidden test — +0.0197 cannot be added to that.
+Transferred as a relative error reduction on the three columns whose true AUC the solo
+probes gave:
+
+| column | out of fold | error cut | true AUC | expected |
+|---|---|---|---|---|
+| ACL | 0.8781 → 0.8987 | 16.9 % | 0.980 | 0.9834 (**+0.0034**) |
+| PF OA | 0.8488 → 0.8671 | 12.1 % | 0.908 | 0.9192 (**+0.0112**) |
+| Lateral OA | 0.8500 → 0.8605 | 7.0 % | 0.884 | 0.8921 (**+0.0081**) |
+
+**Macro +0.0050 at k = 3**, and less again after the 0.5 blend with the host. So expect
+**+0.002 to +0.004**, not +0.0078. At 0.959 with gold at 0.963 and the silver cut 0.001
+below us, that is the range that decides something.
+
+**What it cost in code.** `chain.py` raised when two runs claimed a column; it now holds
+each run's **percentile rank over the studies that run could read** and writes one
+average per column at the end, so a study only one run could cut keeps that run's reading
+without a special case. Verified against the old path on synthetic data: with one run per
+column the written column is **identical to the bit** at blend None, 0.5 and 0.4. A cut is
+now also kept until its last reader has used it — the three shared-cut columns were
+cutting the same region twice. k = 2 needs **13 cuts and 16 models** against 8 and 8.
+
 ### What 0.959 is worth in rank, 2026-10-16
 
 Full public leaderboard, 6092 teams, snapshot 14:41 UTC:
@@ -1081,7 +1167,7 @@ was a line.
 | adding a plane to an existing expert — Effusion, medial meniscus coronal | **0.000**, three times. The one plane that ever paid was Baker's axial, and that was a *new* expert |
 | Contusion on the OA boxes | **−0.00084** of macro in blend |
 | `weight_decay = 0.05` against our 1e-4 | **+0.0002** on both encoders — the best-epoch rule already absorbs the post-peak drift it would have fixed |
-| averaging resnet18 with convnext_nano | **+0.00018** |
+| ~~averaging resnet18 with convnext_nano~~ | ~~**+0.00018**~~ — **refuted 2026-10-18**: same-box cross-encoder pairs take +0.0118 (PF OA), +0.0069 (Baker's), +0.0065 (MCL), paired per fold |
 | more epochs | no run of fifty keeps its last epoch; the median kept epoch is 10 of 30 for resnet18 and 15 for convnext |
 | `lr = 1e-4` across the board | +0.0045 on ACL and +0.0036 on MCL but **−0.0051 on Lateral Meniscus**, our largest contributor. Mean +0.0010 over three columns against +0.0055 predicted from one. Not generalised |
 
