@@ -370,8 +370,8 @@ four folds and judging on the fifth the search never saw, rotated:
 
 | | selection | fixed rule | |
 |---|---|---|---|
-| over 35 held-out folds | | | **−0.0006, 9/35 signs, p = 0.999** |
-| both against the single run | +0.0078 | **+0.0084** | |
+| over 40 held-out folds | | | **−0.0004, 10/40 signs, p = 1.000** |
+| both against the single run | +0.0084 | **+0.0088** | |
 
 **The search is significantly worse**, and those three "missed" gains were its luck. ACL
 is the clearest case: the search picks `expert_acl` — the *weakest* of seven ACL runs at
