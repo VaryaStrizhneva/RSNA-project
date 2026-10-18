@@ -413,6 +413,35 @@ column the written column is **identical to the bit** at blend None, 0.5 and 0.4
 now also kept until its last reader has used it — the three shared-cut columns were
 cutting the same region twice. k = 2 needs **13 cuts and 16 models** against 8 and 8.
 
+### Two runs lost to a dataset that was never republished, 2026-10-18
+
+`s15-h958-k2-flat50` and `-flat40` both failed with
+
+```
+ValueError: .../partners2/expert_acl_v4 and .../bundle5/expert_acl_cnxnano
+both claim 'ACL'; the submission would take whichever ran last
+```
+
+— **the exception removed from `chain.py` that same morning.** The notebook imports from
+the mounted `rsna-src` dataset, not from this repository, and that dataset still held the
+15 October copy. The change was committed, rehearsed locally on three studies, and built
+into correct kernels; none of that reaches Kaggle.
+
+**It reads as a late crash rather than a stale mount**, which is the part worth
+remembering. The host writes `submission.csv` in its own cells before our graft runs, so
+the failed kernel's output contains a complete submission, `ours_sub.csv`, and the host's
+intermediate files. Only the traceback says `In [8]`.
+
+Cheap, as these go: the raise lands at **503 s**, so two queue slots were lost and not two
+nine-hour runs — on a queue that had just taken 1 h 20 to clear, three days from the
+deadline.
+
+**The guard.** `scripts/kaggle_graft` now downloads the published `rsna-src` (180 KB) and
+compares all 60 Python files against the checkout before building, refusing with the names
+of the ones that differ. A timestamp would not do: a `git checkout` rewrites mtimes, and
+the dataset's `lastUpdated` says when it was pushed, not what is in it. `--skip-source-check`
+exists for a build that will not be run. Proved by making `chain.py` drift on purpose.
+
 ### What 0.959 is worth in rank, 2026-10-16
 
 Full public leaderboard, 6092 teams, snapshot 14:41 UTC:
