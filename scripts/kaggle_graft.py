@@ -68,6 +68,14 @@ KNOWN = {
     #: single hash here would refuse the newer one and silently date the guard. The value
     #: is therefore a mapping of hash to what it scored, and a pull that matches neither
     #: is still refused.
+    #: The 0.958 pipeline plus goodpjw2008's 2.5D ConvNeXt reader, bannered 0.9586 and
+    #: published after it. **Same `DEADLINE_HOURS = 8.3`**, so the extra arm comes out of
+    #: the host's own budget and leaves our leg the same ~42 minutes. It mounts
+    #: `heliosli/rsna-knee-r6-frozen-fe055406` rather than the `-w1` copy, and that plain
+    #: slug is the one Kaggle refused to submit on 2026-10-15 as a non-versioned dataset
+    #: -- which is cheap to discover, since the refusal lands before the run.
+    "heliosli/this-is-best-public-dataset-new-version-0-9586":
+        "aea92881dc5cb4d87f947fb022af27058ce24872e811d16ef95f5852ad0726a8",
     "heliosli/blend-mine-in-private-lb-luck-to-all-upvoters": {
         "f359aeecb1dba916d65ecc6b0c31909c8524a88b89c5b7a745701d5cb30a3d6d": "0.956",
         "e00557dc403f9eeba7f15b963caad9173278a67a34e4da4c640ed67f21c1afe7": "0.958",
