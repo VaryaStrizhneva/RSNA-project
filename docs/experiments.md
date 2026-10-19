@@ -413,6 +413,46 @@ column the written column is **identical to the bit** at blend None, 0.5 and 0.4
 now also kept until its last reader has used it — the three shared-cut columns were
 cutting the same region twice. k = 2 needs **13 cuts and 16 models** against 8 and 8.
 
+### The ensemble measures zero on the leaderboard, 2026-10-19
+
+Three submissions of the k = 2 ensemble on the 0.958 host, against the two k = 1
+submissions of two days earlier:
+
+| | weights | runs a column | score |
+|---|---|---|---|
+| `s13-h958-parity` | 0.5 on 7 | 1 | **0.959** |
+| `s13-h958-flat40` | 0.4 on 8 | 1 | **0.959** |
+| `s15-k2-parity` | 0.5 on 7 | **2** | **0.959** |
+| `s15-k2-flat50` | 0.5 on 8 | **2** | **0.959** |
+| `s15-k2-flat40` | 0.4 on 8 | **2** | **0.959** |
+
+**The leg ran.** A missing mount would have taken the graft's `SOFT FAIL` path and left the
+bare host at 0.958; a raise would have failed the notebook with no score at all. 0.959 is
+the host's 0.958 plus our usual thousandth, so the ensemble was in and bought nothing
+visible — the gain is bounded under about 0.001, not proven to be zero.
+
+**The out-of-fold measurement was right and the projection from it was wrong, by 2x to
+4x, and the error is identifiable.** Three steps were sound: +0.0088 a column over 39
+paired folds of 40; the nested test confirming +0.0088 on folds that chose nothing; the
+transfer onto the true scale as a relative error cut, giving about +0.0043 of macro. The
+fourth step was written as "and less again after the 0.5 blend with the host" and **never
+quantified**. Quantified now: the blend is in rank space, so improving our side by d moves
+the column by roughly d/2, and by less when the host is the better ranker and owns the
+contested pairs. On ACL our 0.980 becomes 0.9834, the blended column moves ~+0.0017, and
+divided by twelve that is **+0.00014 of macro** — about **+0.001 over eight columns**,
+exactly at the rounding floor.
+
+**The right projection was ~+0.001.** This is the failure mode [[component-sums-mispredict-bundles]]
+already records: a component arithmetic not carried through to the quantity that is
+actually scored. The rule it implies is sharper than the one written there — **never
+quote a projected macro without propagating every stage between the measurement and the
+metric**, and the blend is a stage.
+
+**What this leaves.** Measured zero on the board, in order: the mirror TTA, the jitter
+TTA, seven weight allocations, and now the k = 2 ensemble. The only thing that has moved
+the score in a week is **the host** — 0.956, 0.9573, 0.958 — with our orthogonal
+thousandth on top of each.
+
 ### Two runs lost to a dataset that was never republished, 2026-10-18
 
 `s15-h958-k2-flat50` and `-flat40` both failed with
