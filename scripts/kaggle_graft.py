@@ -68,6 +68,13 @@ KNOWN = {
     #: single hash here would refuse the newer one and silently date the guard. The value
     #: is therefore a mapping of hash to what it scored, and a pull that matches neither
     #: is still refused.
+    #: A *different* pipeline from heliosli's, not a fork of it: the same CoAtNet and R6
+    #: plus the 2.5D MIL reader **and** `heliosli/rsna-knee-compact-r7cnxfsss`, an R7 arm
+    #: no heliosli host carries. Bannered LB 0.958, 384 votes, `DEADLINE_HOURS = 8.3`, and
+    #: it mounts the R6 bundle from `rostigor` rather than the heliosli copy its owner
+    #: republished and broke -- so no swap is needed.
+    "goodpjw2008/rsna-knee-coatnet-r6-2-5d-mil-lb-0-958":
+        "8ca205f6e1fe802e074292c6de6c822e020fa6ae9230e59d851b2afa4b01c775",
     #: The 0.958 pipeline plus goodpjw2008's 2.5D ConvNeXt reader, bannered 0.9586 and
     #: published after it. **Same `DEADLINE_HOURS = 8.3`**, so the extra arm comes out of
     #: the host's own budget and leaves our leg the same ~42 minutes. It mounts
