@@ -413,6 +413,51 @@ column the written column is **identical to the bit** at blend None, 0.5 and 0.4
 now also kept until its last reader has used it — the three shared-cut columns were
 cutting the same region twice. k = 2 needs **13 cuts and 16 models** against 8 and 8.
 
+### The 0.9586 host, and a public notebook broken by its own author, 2026-10-19
+
+With everything of ours measuring zero, the only lever with a record is the host — 0.956,
+0.9573, 0.958, each worth about +0.002 with our thousandth on top. A sweep of the public
+notebooks found exactly one above our 0.958:
+
+| notebook | what it actually is |
+|---|---|
+| **`heliosli/this-is-best-public-dataset-new-version-0-9586`** | the 0.958 pipeline **plus goodpjw2008's 2.5D ConvNeXt reader**; `DEADLINE_HOURS = 8.3` unchanged, so the extra arm comes out of **its own** budget and our leg keeps the same ~42 minutes |
+| `lavinwins/top-1-gold` | 13 cells, **no mounts, never writes `submission.csv`** — a write-up, not a pipeline |
+| `lavinwins/rsna-gold-medal` | mounts the old apex/d4 lineage (`mattiaangeli`, `antoinegg1`, `prvsiyan v52`), the generation already priced below this one |
+| `prvsiyan/the-bee-s-knees-final-rsna-push` | 151 cells, **never writes `submission.csv`** |
+| `goodpjw2008/...lb-0-958` | a real pipeline and the sibling of the above, not an improvement |
+
+**A title is not a score.** Both "gold" notebooks are marketing; six cross-searches for
+0.959, 0.96 and 9586 return nothing above 0.9586.
+
+**And the 0.9586 is broken on Kaggle right now, by its own author.** The first graft failed
+in 102 s on the *host's own* assertion:
+
+```
+assert manifest['bundle_id'] == BUNDLE_ID
+AssertionError: ('8c7b666e27dc0e8f', 'fe055406fad6a12f')
+```
+
+Its code expects bundle `fe055406fad6a12f` and mounts
+`heliosli/rsna-knee-r6-frozen-fe055406`, which now holds a different bundle — the owner
+republished the dataset after publishing the notebook. Three hosts expect the **same**
+bundle and mount three different copies of it:
+
+| host | slug mounted | state |
+|---|---|---|
+| 0.9586 | `heliosli/rsna-knee-r6-frozen-fe055406` | **broken** |
+| 0.958, ours | `heliosli/...-fe055406-w1` | works — it produced all five 0.959s |
+| goodpjw2008 | `rostigor/rsna-knee-r6-fe055406` | a third owner's copy |
+
+`--swap-dataset rsna-knee-r6-frozen-fe055406=rsna-knee-r6-frozen-fe055406-w1` fixes it, and
+it rewrites **both** `C_SLUG` in the code and the mount in the metadata. The host's hash no
+longer matches after a swap, so its own bundle assert becomes the only check — which is
+precisely the check that caught this, and the argument for never having removed it.
+
+**Two guards earned their keep in one day**: this assert, and our own source check that
+refuses a build when the published `rsna-src` is not the checkout. Both failures were
+invisible locally and both land in under two minutes rather than after nine hours.
+
 ### The ensemble measures zero on the leaderboard, 2026-10-19
 
 Three submissions of the k = 2 ensemble on the 0.958 host, against the two k = 1

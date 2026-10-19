@@ -310,6 +310,25 @@ WEIGHTS = {
     #: that ever won went **down**, 0.5 to 0.40 for +0.001 — measured when our experts
     #: genuinely were weaker. Parity predicts the opposite direction.
     "parity": {t: 0.50 for t in TARGETS8 if t != "MCL"},
+    #: `parity` lowered, so that 0.50 / 0.40 / 0.30 form a ladder over **the same seven
+    #: columns** and the weight is the only variable between them.
+    #:
+    #: **The case for going down is the strongest it has been**, and it is not the old
+    #: one. The solo probes now price us against the host on the same hidden test with
+    #: the same labels: he reads 0.992 on ACL to our 0.980, 0.932 to our 0.908 on PF OA,
+    #: 0.896 to our 0.884 on Lateral OA. He leads every column measured that way, so his
+    #: share should rise and ours fall -- and the one weight change that ever won went
+    #: down, 0.5 to 0.40 for +0.001.
+    #:
+    #: **The case against is the sweep already done.** Seven allocations span 0.15 to
+    #: 0.77 and the whole spread is 0.002; `divided` is the only low point tested, at
+    #: 0.15 on three columns, and it **lost 0.002**. At w = 0 our leg is worth nothing by
+    #: construction and at w = 0.5 it is worth +0.001 of macro, so lowering hands part of
+    #: that back -- about 0.0004 at w = 0.3, under what three decimals resolve. And the
+    #: leaderboard shows only a team's *best* submission, so two of our own attempts
+    #: cannot be told apart below a thousandth anyway.
+    "parity40": {t: 0.40 for t in TARGETS8 if t != "MCL"},
+    "parity30": {t: 0.30 for t in TARGETS8 if t != "MCL"},
 }
 
 GRAFT_CELL = '''# ===================== OUR LEG — the experts, grafted on =====================
