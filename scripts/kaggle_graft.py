@@ -303,6 +303,12 @@ def main() -> int:
                          "above 15 -- so 10 names a population. Shipped on a prior: out "
                          "of fold two of five columns are WORSE on those studies and "
                          "two are better, all inside one sigma")
+    ap.add_argument("--landmark-apart-mm", type=float, default=None,
+                    help="abstain where lat_centre and med_centre come back closer than "
+                         "this, in mm -- anatomically impossible, the plateau holds them "
+                         "~50 mm apart. Independent of --landmark-spread-mm: the two "
+                         "collapsed studies have fold spreads of 4.6 and 2.6 mm, so the "
+                         "spread check misses both")
     ap.add_argument("--jitter-tta", action="store_true",
                     help="also average five in-plane affines drawn from the training "
                          "augmentation, over all eight experts. Worth +0.0009 a column "
@@ -428,7 +434,8 @@ def main() -> int:
                             "source": [GRAFT_CELL.format(blend=repr(blend),
                                                          mirror=args.mirror_tta,
                                                          jitter=args.jitter_tta,
-                                                         spread=args.landmark_spread_mm)]})
+                                                         spread=args.landmark_spread_mm,
+                                                         apart=args.landmark_apart_mm)]})
     if args.constant:
         wanted = [c.strip() for c in args.constant.split(",") if c.strip()]
         unknown = [c for c in wanted if c not in TARGETS]
@@ -447,7 +454,8 @@ def main() -> int:
                             "source": [GRAFT_CELL.format(blend=repr(blend),
                                                          mirror=args.mirror_tta,
                                                          jitter=args.jitter_tta,
-                                                         spread=args.landmark_spread_mm)]})
+                                                         spread=args.landmark_spread_mm,
+                                                         apart=args.landmark_apart_mm)]})
     for cell in nb["cells"]:
         if cell["cell_type"] == "code":
             compiles("".join(cell["source"]))

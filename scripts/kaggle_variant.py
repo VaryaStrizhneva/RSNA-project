@@ -366,6 +366,15 @@ JITTER_TTA = {jitter}
 # out of fold those 97 studies move ACL 0.871 -> 0.782 and Medial Meniscus 0.916 -> 0.884
 # but Medial OA 0.874 -> 0.917, every one inside one sigma at ~5 positives a column.
 LANDMARK_SPREAD_MM = {spread}
+# The other half, and it catches what the spread cannot: a model confident and wrong.
+# `landmark_both` returns the two compartment centres, which the tibial plateau holds
+# ~50 mm apart in everyone (median 52.6, p1 41.1 over 4407). The two studies where they
+# collapse sit at 2.0 and 4.8 mm **with fold spreads of 4.6 and 2.6** -- five folds
+# agreeing on an impossible answer, which LANDMARK_SPREAD_MM at 10 misses entirely.
+# The next study up is 18.4 mm, so anything in [6, 35] catches those two and nothing
+# else; 25 is under half the median and leaves margin for a hidden-test collapse that
+# lands at 15 rather than 2.
+LANDMARK_APART_MM = {apart}
 INPUT = Path("/kaggle/input")
 
 
@@ -441,6 +450,7 @@ else:
         scratch=scratch, blend=BLEND, workers=4,
         mirror_tta=MIRROR_TTA, jitter_tta=JITTER_TTA,
         landmark_spread_mm=LANDMARK_SPREAD_MM,
+        landmark_apart_mm=LANDMARK_APART_MM,
         device="cuda" if torch.cuda.is_available() else "cpu", log=print)
 
     before = pd.read_csv("/kaggle/working/_public_before_experts.csv")
@@ -459,7 +469,7 @@ def patch_experts(nb: dict) -> None:
     """
 
     nb["cells"].append({"cell_type": "code", "execution_count": None, "metadata": {},
-                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND, mirror=True, jitter=False, spread=None)]})
+                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND, mirror=True, jitter=False, spread=None, apart=None)]})
 
 
 #: RadImageNet is **not** here on purpose. Removing it also removes

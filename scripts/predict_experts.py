@@ -64,6 +64,13 @@ def main() -> int:
                          "off exceeds this, in mm. 10 sits in the empty gap of a "
                          "bimodal distribution: median 1.26 mm, then 2.25 %% of studies "
                          "above 15 mm and out to 55.7")
+    ap.add_argument("--landmark-apart-mm", type=float, default=None,
+                    help="abstain where lat_centre and med_centre come back closer than "
+                         "this, in mm. The tibial plateau holds them ~50 mm apart in "
+                         "everyone (median 52.6, p1 41.1), so 25 is anatomically "
+                         "impossible. Catches what the spread cannot: the two collapsed "
+                         "studies sit at 2.0 and 4.8 mm with fold spreads of 4.6 and "
+                         "2.6, i.e. five folds agreeing on an impossible answer")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = ap.parse_args()
 
@@ -73,7 +80,8 @@ def main() -> int:
         encoder=args.encoder, out=args.out, scratch=args.scratch,
         device=args.device, workers=args.workers, keep_cache=args.keep_cache,
         blend=args.blend,
-        landmark_spread_mm=args.landmark_spread_mm, log=log)
+        landmark_spread_mm=args.landmark_spread_mm,
+        landmark_apart_mm=args.landmark_apart_mm, log=log)
     log(f"done -> {out}")
     return 0
 

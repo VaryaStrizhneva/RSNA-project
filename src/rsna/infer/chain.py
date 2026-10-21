@@ -114,6 +114,7 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
                           mirror_tta: bool = True,
                           jitter_tta: bool = False,
                           landmark_spread_mm: float | None = None,
+                          landmark_apart_mm: float | None = None,
                           log=print) -> Path:
     """Write a submission whose expert columns come from experts. Returns the path.
 
@@ -227,7 +228,24 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
     #
     # Abstention is **per expert, over the points its own specs name** -- an expert
     # hanging off `med_centre` is not penalised for a disagreement about `pf_centre`.
+    # `landmark_apart_mm` is the other half, and it catches what the spread cannot: a
+    # model that is **confident and wrong**. `landmark_both` predicts the centres of the
+    # lateral and medial compartments, which the tibial plateau holds about 50 mm apart
+    # in everyone -- median 52.6, p1 41.1 over 4407 studies. When it returns them 2 mm
+    # apart the answer is not uncertain, it is anatomically impossible.
+    #
+    # Measured: the two studies where the pair collapses sit at **1.97 and 4.75 mm, with
+    # fold spreads of only 4.63 and 2.56 mm** -- the five folds agree on the impossible
+    # answer, so `landmark_spread_mm` at 10 misses both. The next study up is at 18.4 mm,
+    # so any threshold in [6, 35] catches those two and nothing else new; 25 is chosen
+    # because it is under half the median and the extra margin is free on this corpus
+    # while covering a hidden-test collapse that lands at 15 or 20 rather than 2.
+    #
+    # When the pair collapses it is the **model** that failed, so both of its points are
+    # suspect and every expert hanging off either one abstains.
+    APART_PAIR = ("lat_centre", "med_centre")
     spreads: dict[str, dict[str, float]] = {}
+    too_close: set = set()
     pooled: dict[str, dict[str, list[float]]] = {}
     # How many runs still need each cut. Several runs may read the **same** region --
     # the ACL, MCL and Baker's pairs each do -- and a cut dropped after the first of
@@ -243,6 +261,19 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
         points = _landmarks(landmark_runs, wanted, headers, device, workers, log)
         table = room / "landmarks.csv"
         points.to_csv(table, index=False)
+        if landmark_apart_mm is not None:
+            seats = points[points["point"].isin(APART_PAIR)].pivot_table(
+                index="study", columns="point", values=["x_mm", "y_mm", "z_mm"])
+            if all(p_ in points["point"].values for p_ in APART_PAIR):
+                gap = np.sqrt(sum((seats[(a, APART_PAIR[0])]
+                                   - seats[(a, APART_PAIR[1])]) ** 2
+                                  for a in ("x_mm", "y_mm", "z_mm")))
+                too_close = set(gap[gap < landmark_apart_mm].dropna().index)
+                log(f"{'/'.join(APART_PAIR)} closer than {landmark_apart_mm:g} mm: "
+                    f"{len(too_close)} of {len(gap)} studies — anatomically impossible, "
+                    f"so both points are dropped there")
+            else:
+                log(f"neither {APART_PAIR} is predicted here; the apart check is idle")
         if landmark_spread_mm is not None:
             if "spread_mm" not in points.columns:
                 raise ValueError("landmark_spread_mm was asked for but the landmark "
@@ -350,6 +381,15 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
                         f"{'/'.join(sorted(needed))} its crop hangs off is disagreed on "
                         f"by more than {landmark_spread_mm:g} mm")
                 seen = seen & ~shaky
+            hangs_on = {sp.landmark for sp in specs} | {
+                sp.landmark2 for sp in specs if sp.landmark2}
+            if too_close and (set(APART_PAIR) & hangs_on):
+                broken = np.array([n in too_close for n in names])
+                if broken.any():
+                    log(f"  {int((broken & seen).sum())} study(ies) abstained: "
+                        f"{'/'.join(APART_PAIR)} came back closer than "
+                        f"{landmark_apart_mm:g} mm, which is not a knee")
+                seen = seen & ~broken
             # Held per target rather than written now, because another run may own the
             # same column. Each run contributes a **percentile rank over the studies it
             # itself could read**, which is what makes two runs comparable at all: they

@@ -169,7 +169,7 @@ def main() -> int:
     nb["cells"] = ([c for c in nb["cells"] if c["cell_type"] == "code"]
                    + [cell(STASH_A)] + b_cells
                    + [cell(BLEND_CELL.format(w_host=args.w_host)),
-                      cell(GRAFT_CELL.format(blend=args.blend, mirror=True, jitter=False, spread=None))])
+                      cell(GRAFT_CELL.format(blend=args.blend, mirror=True, jitter=False, spread=None, apart=None))])
     for cell in nb["cells"]:
         if cell["cell_type"] == "code":
             compiles("".join(cell["source"]))
