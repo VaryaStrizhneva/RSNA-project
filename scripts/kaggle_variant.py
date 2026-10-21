@@ -359,6 +359,13 @@ BLEND = {blend}
 # and is the one that has to fit in what the host leaves of the nine hours.
 MIRROR_TTA = {mirror}
 JITTER_TTA = {jitter}
+# Abstain where the five folds of the landmark model disagree about the point an expert's
+# crop hangs off, in mm; None keeps every study. The spread is bimodal over the corpus --
+# median 1.26 mm, then 2.25 % of studies above 15 mm and out to 55.7 -- so 10 names a
+# population rather than cutting a tail. Shipped on a prior rather than a measurement:
+# out of fold those 97 studies move ACL 0.871 -> 0.782 and Medial Meniscus 0.916 -> 0.884
+# but Medial OA 0.874 -> 0.917, every one inside one sigma at ~5 positives a column.
+LANDMARK_SPREAD_MM = {spread}
 INPUT = Path("/kaggle/input")
 
 
@@ -433,6 +440,7 @@ else:
         data_root=root, split="test_series", out="submission.csv",
         scratch=scratch, blend=BLEND, workers=4,
         mirror_tta=MIRROR_TTA, jitter_tta=JITTER_TTA,
+        landmark_spread_mm=LANDMARK_SPREAD_MM,
         device="cuda" if torch.cuda.is_available() else "cpu", log=print)
 
     before = pd.read_csv("/kaggle/working/_public_before_experts.csv")
@@ -451,7 +459,7 @@ def patch_experts(nb: dict) -> None:
     """
 
     nb["cells"].append({"cell_type": "code", "execution_count": None, "metadata": {},
-                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND, mirror=True, jitter=False)]})
+                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND, mirror=True, jitter=False, spread=None)]})
 
 
 #: RadImageNet is **not** here on purpose. Removing it also removes

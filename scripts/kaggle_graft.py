@@ -296,6 +296,13 @@ def main() -> int:
                          "and the second reading is worth +0.0024 a column over 15 "
                          "paired folds, for one extra pass on three of the eight "
                          "experts.")
+    ap.add_argument("--landmark-spread-mm", type=float, default=None,
+                    help="abstain where the five landmark folds disagree by more than "
+                         "this, in mm, about a point the expert's crop hangs off. The "
+                         "spread is bimodal -- median 1.26 mm, then 2.25 %% of studies "
+                         "above 15 -- so 10 names a population. Shipped on a prior: out "
+                         "of fold two of five columns are WORSE on those studies and "
+                         "two are better, all inside one sigma")
     ap.add_argument("--jitter-tta", action="store_true",
                     help="also average five in-plane affines drawn from the training "
                          "augmentation, over all eight experts. Worth +0.0009 a column "
@@ -420,7 +427,8 @@ def main() -> int:
                             "metadata": {}, "outputs": [],
                             "source": [GRAFT_CELL.format(blend=repr(blend),
                                                          mirror=args.mirror_tta,
-                                                         jitter=args.jitter_tta)]})
+                                                         jitter=args.jitter_tta,
+                                                         spread=args.landmark_spread_mm)]})
     if args.constant:
         wanted = [c.strip() for c in args.constant.split(",") if c.strip()]
         unknown = [c for c in wanted if c not in TARGETS]
@@ -438,7 +446,8 @@ def main() -> int:
                             "metadata": {}, "outputs": [],
                             "source": [GRAFT_CELL.format(blend=repr(blend),
                                                          mirror=args.mirror_tta,
-                                                         jitter=args.jitter_tta)]})
+                                                         jitter=args.jitter_tta,
+                                                         spread=args.landmark_spread_mm)]})
     for cell in nb["cells"]:
         if cell["cell_type"] == "code":
             compiles("".join(cell["source"]))

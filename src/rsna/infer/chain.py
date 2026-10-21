@@ -113,6 +113,7 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
                           blend: float | Mapping[str, float] | None = None,
                           mirror_tta: bool = True,
                           jitter_tta: bool = False,
+                          landmark_spread_mm: float | None = None,
                           log=print) -> Path:
     """Write a submission whose expert columns come from experts. Returns the path.
 
@@ -209,6 +210,24 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
     # than by parsing one back out of a filename (`lateral_mm:g` can put a '.' in a tag).
     made: dict[str, list[Path]] = {}
 
+    # `landmark_spread_mm` makes an expert abstain where the point it hangs off is not
+    # agreed on. `predict_landmarks` keeps the spread between the five folds beside each
+    # point, and that spread is **bimodal over the corpus**: median 1.26 mm, then 99 of
+    # 4407 studies (2.25 %) above 15 mm and out to 55.7. The gap between 2 and 15 mm is
+    # empty, so a threshold of 10 mm names a population rather than cutting a tail.
+    #
+    # **The out-of-fold evidence does not support it and is too thin to refuse it.** On
+    # those 97 studies ACL falls 0.871 -> 0.782 and Medial Meniscus 0.916 -> 0.884, but
+    # Medial OA *rises* 0.874 -> 0.917 and Lateral Meniscus 0.893 -> 0.899. With ~5
+    # positives in 97 studies an AUC carries 0.07 to 0.10, so every one of those is
+    # inside one sigma and two of five have the wrong sign. The reason to ship it is a
+    # prior, not a measurement: an expert reading a crop centred on a point its own folds
+    # disagree about by 15 to 55 mm is being asked about the wrong anatomy, and the wide
+    # model's answer for that row is the thing it is there for.
+    #
+    # Abstention is **per expert, over the points its own specs name** -- an expert
+    # hanging off `med_centre` is not penalised for a disagreement about `pf_centre`.
+    spreads: dict[str, dict[str, float]] = {}
     pooled: dict[str, dict[str, list[float]]] = {}
     # How many runs still need each cut. Several runs may read the **same** region --
     # the ACL, MCL and Baker's pairs each do -- and a cut dropped after the first of
@@ -224,6 +243,17 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
         points = _landmarks(landmark_runs, wanted, headers, device, workers, log)
         table = room / "landmarks.csv"
         points.to_csv(table, index=False)
+        if landmark_spread_mm is not None:
+            if "spread_mm" not in points.columns:
+                raise ValueError("landmark_spread_mm was asked for but the landmark "
+                                 "table carries no spread_mm column")
+            wide = points.pivot_table(index="study", columns="point",
+                                      values="spread_mm", aggfunc="max")
+            spreads = {c: wide[c].to_dict() for c in wide.columns}
+            flagged = {c: int((wide[c] > landmark_spread_mm).sum()) for c in wide.columns}
+            log(f"landmark spread over {landmark_spread_mm:g} mm: "
+                + ", ".join(f"{k} {v}" for k, v in sorted(flagged.items()))
+                + f" of {len(wide)} studies")
 
         for run in expert_runs:
             models, config, specs = loaded[str(run)]
@@ -307,6 +337,19 @@ def run_expert_submission(expert_runs, landmark_runs, package, data_root,
             if not seen.all():
                 log(f"  {int((~seen).sum())} study(ies) carry no pixels for this "
                     f"expert; the wide model keeps those rows")
+            if landmark_spread_mm is not None:
+                needed = {sp.landmark for sp in specs} | {
+                    sp.landmark2 for sp in specs if sp.landmark2}
+                worst = np.zeros(len(names))
+                for point in sorted(needed):
+                    per = spreads.get(point, {})
+                    worst = np.maximum(worst, [per.get(n, 0.0) for n in names])
+                shaky = worst > landmark_spread_mm
+                if shaky.any():
+                    log(f"  {int((shaky & seen).sum())} study(ies) abstained: the "
+                        f"{'/'.join(sorted(needed))} its crop hangs off is disagreed on "
+                        f"by more than {landmark_spread_mm:g} mm")
+                seen = seen & ~shaky
             # Held per target rather than written now, because another run may own the
             # same column. Each run contributes a **percentile rank over the studies it
             # itself could read**, which is what makes two runs comparable at all: they

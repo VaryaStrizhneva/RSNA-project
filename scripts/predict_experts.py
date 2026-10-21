@@ -59,6 +59,11 @@ def main() -> int:
     ap.add_argument("--keep-cache", action="store_true",
                     help="leave the regions on disk — 10 GB for 1300 studies")
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--landmark-spread-mm", type=float, default=None,
+                    help="abstain where the fold spread on the points an expert hangs "
+                         "off exceeds this, in mm. 10 sits in the empty gap of a "
+                         "bimodal distribution: median 1.26 mm, then 2.25 %% of studies "
+                         "above 15 mm and out to 55.7")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = ap.parse_args()
 
@@ -67,7 +72,8 @@ def main() -> int:
         data_root=args.dicom_root or args.data_root, split=args.split,
         encoder=args.encoder, out=args.out, scratch=args.scratch,
         device=args.device, workers=args.workers, keep_cache=args.keep_cache,
-        blend=args.blend, log=log)
+        blend=args.blend,
+        landmark_spread_mm=args.landmark_spread_mm, log=log)
     log(f"done -> {out}")
     return 0
 
