@@ -413,6 +413,76 @@ column the written column is **identical to the bit** at blend None, 0.5 and 0.4
 now also kept until its last reader has used it — the three shared-cut columns were
 cutting the same region twice. k = 2 needs **13 cuts and 16 models** against 8 and 8.
 
+### Why 0.959 was the ceiling, 2026-10-21
+
+Nine submissions read **0.959**, and between them they move every variable we control:
+
+| dimension | what was tried | result |
+|---|---|---|
+| **host** | heliosli 0.958, heliosli 0.9586, **goodpjw2008** (a different pipeline, extra R7 arm) | 0.959 |
+| **weight** | 0.30, 0.40, 0.50 (and 0.15-0.77 earlier) | 0.959 |
+| **MCL** | handed to the host / blended | 0.959 |
+| **runs a column** | 1 / 2 | 0.959 |
+
+**The explanation is an attenuation chain, and it is arithmetic rather than bad luck.**
+Our expert enters a **rank blend at 0.5**, and the macro averages **twelve** columns:
+
+```
+our column improves by d
+  -> the blended column moves ~d/2   (less, since the host is the better ranker
+                                      and owns the pairs the two disagree on)
+    -> the macro moves ~d/24
+```
+
+So **+0.001 of macro needs +0.024 of AUC on a column**. The k = 2 ensemble — the largest
+lever of the whole project, +0.0088 a column over 39 paired folds of 40, confirmed by a
+nested test on folds that chose nothing — delivered about **+0.0045** on the true scale.
+**Five times too small.** Every other lever was smaller still: the encoder +0.0056 a
+column, the depth window +0.0056, the coronal box +0.0110 at best. None of them clears
++0.024, so none of them could ever have been visible, and the leaderboard agreeing with
+that is the measurement working rather than failing.
+
+**Two things would have broken the ceiling. Neither was reachable.**
+
+**Data.** +0.016 of AUC per doubling of training studies, measured twice independently —
+**ten times any other lever found**. It would have meant doubling 4407 studies.
+[[data-is-the-binding-constraint]] recorded this early and it stayed true to the end: it
+is the only answer to "what would have worked".
+
+**An expert that actually beats the host somewhere**, which would justify weight 1.0 and
+remove the `/2`. We never had one. Four columns priced on the same footing — same hidden
+test, same radiologist labels, by the solo and `--keep` probes — and the host leads all
+four: ACL 0.992 to 0.980, PF OA 0.932 to 0.908, Lateral OA 0.896 to 0.884, and MCL 0.992
+to roughly 0.82 out of fold. **Our whole contribution was decorrelation at slightly lower
+quality**, which is worth exactly the +0.001 it measured, repeatedly, on every host.
+
+### Where 0.959 stands, 2026-10-21
+
+6320 teams:
+
+| | rank | score |
+|---|---|---|
+| gold | 23 | 0.9650 |
+| **us, 0.959** | **152 - 233** | the band holds 82 teams |
+| silver | 316 | **0.9580** |
+| bronze | 632 | 0.9580 |
+
+**The pile grew from 499 teams at >=0.958 on 16 October to 1732 on 21 October**, and the
+silver cut sits exactly on 0.958. That pile runs the same public notebooks, so it
+reshuffles on the private split — and our thousandth is the only part of our submission
+that does not move with it. That is the whole argument for selecting two grafts rather
+than a bare host.
+
+**Selecting deliberately matters for a reason that is not "avoiding a coin toss".** Kaggle's
+automatic pick is the best *public* score, compared unrounded, so it does discriminate
+between nine submissions displaying 0.959. But choosing the best of nine candidates whose
+true spread is under 0.001 is choosing on the **sampling noise of the public split**, which
+is the classic trap. The deliberate pick can use what the public split cannot see: that
+k = 2 beats k = 1 out of fold by +0.0088 a column over 39 folds of 40, that MCL belongs to
+a host reading 0.992 there, and that `goodpjw2008`'s pipeline is the most decorrelated
+second draw available. And since the final rank takes the **best** of the two selected,
+diversity is worth more than safety: two near-identical picks are one draw.
+
 ### The 0.9586 host, and a public notebook broken by its own author, 2026-10-19
 
 With everything of ours measuring zero, the only lever with a record is the host — 0.956,
