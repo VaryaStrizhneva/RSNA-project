@@ -339,6 +339,10 @@ WEIGHTS = {
     #: for weeks because ACL is the one column of eight where `convnext_nano` *loses* to
     #: `resnet18`, on four folds of five.
     "parity40_no_acl": {t: 0.40 for t in TARGETS8 if t not in ("MCL", "ACL")},
+    #: The same six columns at 0.50, so that the ACL removal is tested at both weights
+    #: rather than confounded with one. Against the scored 0.959 of `parity` and
+    #: `parity40`, the pair isolates the removal twice over.
+    "parity_no_acl": {t: 0.50 for t in TARGETS8 if t not in ("MCL", "ACL")},
     "parity30": {t: 0.30 for t in TARGETS8 if t != "MCL"},
 }
 
