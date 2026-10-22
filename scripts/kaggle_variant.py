@@ -328,6 +328,17 @@ WEIGHTS = {
     #: leaderboard shows only a team's *best* submission, so two of our own attempts
     #: cannot be told apart below a thousandth anyway.
     "parity40": {t: 0.40 for t in TARGETS8 if t != "MCL"},
+    #: MCL **and ACL** both handed back. ACL is the only other column where the host
+    #: reads **0.992**, and that figure is our tightest measurement of him anywhere --
+    #: +/-0.006, from the `--keep` probe where `macro_host` cancels, against +/-0.030 for
+    #: the void probes. At 0.992 only 0.008 of headroom is left, so mixing our ordering
+    #: in at 0.40 can pull the column down rather than up: our solo probe puts us at
+    #: 0.980 there, below him. The same logic that sent MCL back, on the same number.
+    #:
+    #: Independent support, never submitted until now: `no_acl` has sat in this mapping
+    #: for weeks because ACL is the one column of eight where `convnext_nano` *loses* to
+    #: `resnet18`, on four folds of five.
+    "parity40_no_acl": {t: 0.40 for t in TARGETS8 if t not in ("MCL", "ACL")},
     "parity30": {t: 0.30 for t in TARGETS8 if t != "MCL"},
 }
 
