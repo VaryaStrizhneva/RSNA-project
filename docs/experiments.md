@@ -413,6 +413,56 @@ column the written column is **identical to the bit** at blend None, 0.5 and 0.4
 now also kept until its last reader has used it — the three shared-cut columns were
 cutting the same region twice. k = 2 needs **13 cuts and 16 models** against 8 and 8.
 
+### Final result: 211 of 6425, silver, 2026-10-23
+
+| | |
+|---|---|
+| **private score** | **0.945** |
+| **rank** | **211 / 6425 — top 3.28 %** |
+| silver cut | rank 321 — **110 ranks of margin** |
+| bronze cut | rank 642 |
+| gold cut | rank 23 at private 0.960 — never in reach |
+
+**The private split behaved, and that is the first thing worth recording.** Our public
+scores mapped monotonically onto private with a near-constant shift: 0.957 → 0.942,
+0.958 → 0.942, **0.959 → 0.945**. No reshuffle disaster, and the whole field dropped
+~0.014 together (the public top was 0.968, the private 0.960).
+
+**Within the 0.959 band, private split 0.944 / 0.945.** So the choice of finals was worth
+a real thousandth that the public leaderboard could not show — exactly the argument for
+selecting deliberately rather than taking Kaggle's best-public pick, and for preferring
+two decorrelated draws since the final rank takes the better of the two.
+
+**We held position through the reshuffle, which is where the orthogonal leg paid.** Public
+rank was 152–233 of 6320 on 21 October with **1732 teams at 0.958 or better**, almost all
+running the same public notebook. Private rank 211 of 6425. The pile moved and we did not
+move with it.
+
+**And the last open question closed against the idea we spent the final day on.** Mapping
+submissions to kernels by timestamp (descriptions were empty again — the method note from
+2026-10-13 went unheeded to the end):
+
+| kernel | ACL | private |
+|---|---|---|
+| `s15-h958-k2-flat40` | blended | **0.945** |
+| `s16-h9586-k2-parity` / `parity40` | blended | **0.945** |
+| `s16-h9586-k2-parity30` | blended | **0.945** |
+| `s20-h9586-k3-guards` | blended | **0.945** |
+| `s21-h9586-k2-parity40-guards` | blended | **0.945** |
+| **`s23-h9586-k2-p40-no-acl-guards`** | **handed back** | **0.944** |
+
+**Every submission that reached 0.945 kept ACL blended; the one that handed it back lost a
+thousandth.** The decorrelation argument was right — our 0.980 against the host's 0.992 is
+close enough that averaging the two orderings beats his alone, where MCL at ~0.82 against
+0.992 was not. The rule the two cases give together: **hand a column back when the gap to
+the host is ~0.17, keep blending when it is ~0.012**, and the deciding quantity is the gap,
+not the host's absolute strength — he reads 0.992 on both.
+
+Three of the last five submissions never scored at all, so `s22`, `s24` and `s25` — the
+runs that would have priced the ACL removal without the guards, at two weights — never
+produced a number. The one-variable measurement was never obtained; `s23` is the whole
+evidence, and it confounds the removal with the guards.
+
 ### Why 0.959 was the ceiling, 2026-10-21
 
 Nine submissions read **0.959**, and between them they move every variable we control:
