@@ -331,7 +331,9 @@ run adds +0.0034 and the fourth +0.0005, so **k = 3 is where it stops**.
 | Medial Meniscus | `mm_wide_s11_lr1e-4` | `mm_d32_s11_cnxnano` | 0.9213 | 0.9262 | 5/5 | 2 |
 | Lateral OA | `lateral_oa_wide_lr1e-4` | `lateral_oa_cnxnano_b16` | 0.8500 | 0.8544 | 5/5 | 2 |
 | Baker's | `baker_cnxnano_b16` | `baker_axial_pilkwang` | 0.9158 | 0.9191 | 4/5 | **1, shared** |
-| **mean** | | | | | **+0.0088** | **13 cuts** |
+| **mean** | | | | | **+0.0088, 39/40, p < 1e-5** | **13 cuts** |
+
+Reproduce with `python -m scripts.ensemble_probe` (add `--k 3`, or `--nested` for the selection test). It reads `holdout.csv` off disk and costs seconds.
 
 **Read the shipped column off the published dataset, not off the inventory.** The first
 version of this table had MCL's base as `expert_mcl_cnx_lr1e-4`; `bundle5` actually ships
@@ -368,8 +370,8 @@ four folds and judging on the fifth the search never saw, rotated:
 
 | | selection | fixed rule | |
 |---|---|---|---|
-| over 35 held-out folds | | | **−0.0006, 9/35 signs, p = 0.999** |
-| both against the single run | +0.0078 | **+0.0084** | |
+| over 40 held-out folds | | | **−0.0004, 10/40 signs, p = 1.000** |
+| both against the single run | +0.0084 | **+0.0088** | |
 
 **The search is significantly worse**, and those three "missed" gains were its luck. ACL
 is the clearest case: the search picks `expert_acl` — the *weakest* of seven ACL runs at
@@ -410,6 +412,240 @@ without a special case. Verified against the old path on synthetic data: with on
 column the written column is **identical to the bit** at blend None, 0.5 and 0.4. A cut is
 now also kept until its last reader has used it — the three shared-cut columns were
 cutting the same region twice. k = 2 needs **13 cuts and 16 models** against 8 and 8.
+
+### Final result: 211 of 6425, silver, 2026-10-23
+
+| | |
+|---|---|
+| **private score** | **0.945** |
+| **rank** | **211 / 6425 — top 3.28 %** |
+| silver cut | rank 321 — **110 ranks of margin** |
+| bronze cut | rank 642 |
+| gold cut | rank 23 at private 0.960 — never in reach |
+
+**The private split behaved, and that is the first thing worth recording.** Our public
+scores mapped monotonically onto private with a near-constant shift: 0.957 → 0.942,
+0.958 → 0.942, **0.959 → 0.945**. No reshuffle disaster, and the whole field dropped
+~0.014 together (the public top was 0.968, the private 0.960).
+
+**Within the 0.959 band, private split 0.944 / 0.945.** So the choice of finals was worth
+a real thousandth that the public leaderboard could not show — exactly the argument for
+selecting deliberately rather than taking Kaggle's best-public pick, and for preferring
+two decorrelated draws since the final rank takes the better of the two.
+
+**We held position through the reshuffle, which is where the orthogonal leg paid.** Public
+rank was 152–233 of 6320 on 21 October with **1732 teams at 0.958 or better**, almost all
+running the same public notebook. Private rank 211 of 6425. The pile moved and we did not
+move with it.
+
+**And the last open question closed against the idea we spent the final day on.** Mapping
+submissions to kernels by timestamp (descriptions were empty again — the method note from
+2026-10-13 went unheeded to the end):
+
+| kernel | ACL | private |
+|---|---|---|
+| `s15-h958-k2-flat40` | blended | **0.945** |
+| `s16-h9586-k2-parity` / `parity40` | blended | **0.945** |
+| `s16-h9586-k2-parity30` | blended | **0.945** |
+| `s20-h9586-k3-guards` | blended | **0.945** |
+| `s21-h9586-k2-parity40-guards` | blended | **0.945** |
+| **`s23-h9586-k2-p40-no-acl-guards`** | **handed back** | **0.944** |
+
+**Every submission that reached 0.945 kept ACL blended; the one that handed it back lost a
+thousandth.** The decorrelation argument was right — our 0.980 against the host's 0.992 is
+close enough that averaging the two orderings beats his alone, where MCL at ~0.82 against
+0.992 was not. The rule the two cases give together: **hand a column back when the gap to
+the host is ~0.17, keep blending when it is ~0.012**, and the deciding quantity is the gap,
+not the host's absolute strength — he reads 0.992 on both.
+
+Three of the last five submissions never scored at all, so `s22`, `s24` and `s25` — the
+runs that would have priced the ACL removal without the guards, at two weights — never
+produced a number. The one-variable measurement was never obtained; `s23` is the whole
+evidence, and it confounds the removal with the guards.
+
+### Why 0.959 was the ceiling, 2026-10-21
+
+Nine submissions read **0.959**, and between them they move every variable we control:
+
+| dimension | what was tried | result |
+|---|---|---|
+| **host** | heliosli 0.958, heliosli 0.9586, **goodpjw2008** (a different pipeline, extra R7 arm) | 0.959 |
+| **weight** | 0.30, 0.40, 0.50 (and 0.15-0.77 earlier) | 0.959 |
+| **MCL** | handed to the host / blended | 0.959 |
+| **runs a column** | 1 / 2 | 0.959 |
+
+**The explanation is an attenuation chain, and it is arithmetic rather than bad luck.**
+Our expert enters a **rank blend at 0.5**, and the macro averages **twelve** columns:
+
+```
+our column improves by d
+  -> the blended column moves ~d/2   (less, since the host is the better ranker
+                                      and owns the pairs the two disagree on)
+    -> the macro moves ~d/24
+```
+
+So **+0.001 of macro needs +0.024 of AUC on a column**. The k = 2 ensemble — the largest
+lever of the whole project, +0.0088 a column over 39 paired folds of 40, confirmed by a
+nested test on folds that chose nothing — delivered about **+0.0045** on the true scale.
+**Five times too small.** Every other lever was smaller still: the encoder +0.0056 a
+column, the depth window +0.0056, the coronal box +0.0110 at best. None of them clears
++0.024, so none of them could ever have been visible, and the leaderboard agreeing with
+that is the measurement working rather than failing.
+
+**Two things would have broken the ceiling. Neither was reachable.**
+
+**Data.** +0.016 of AUC per doubling of training studies, measured twice independently —
+**ten times any other lever found**. It would have meant doubling 4407 studies.
+[[data-is-the-binding-constraint]] recorded this early and it stayed true to the end: it
+is the only answer to "what would have worked".
+
+**An expert that actually beats the host somewhere**, which would justify weight 1.0 and
+remove the `/2`. We never had one. Four columns priced on the same footing — same hidden
+test, same radiologist labels, by the solo and `--keep` probes — and the host leads all
+four: ACL 0.992 to 0.980, PF OA 0.932 to 0.908, Lateral OA 0.896 to 0.884, and MCL 0.992
+to roughly 0.82 out of fold. **Our whole contribution was decorrelation at slightly lower
+quality**, which is worth exactly the +0.001 it measured, repeatedly, on every host.
+
+### Where 0.959 stands, 2026-10-21
+
+6320 teams:
+
+| | rank | score |
+|---|---|---|
+| gold | 23 | 0.9650 |
+| **us, 0.959** | **152 - 233** | the band holds 82 teams |
+| silver | 316 | **0.9580** |
+| bronze | 632 | 0.9580 |
+
+**The pile grew from 499 teams at >=0.958 on 16 October to 1732 on 21 October**, and the
+silver cut sits exactly on 0.958. That pile runs the same public notebooks, so it
+reshuffles on the private split — and our thousandth is the only part of our submission
+that does not move with it. That is the whole argument for selecting two grafts rather
+than a bare host.
+
+**Selecting deliberately matters for a reason that is not "avoiding a coin toss".** Kaggle's
+automatic pick is the best *public* score, compared unrounded, so it does discriminate
+between nine submissions displaying 0.959. But choosing the best of nine candidates whose
+true spread is under 0.001 is choosing on the **sampling noise of the public split**, which
+is the classic trap. The deliberate pick can use what the public split cannot see: that
+k = 2 beats k = 1 out of fold by +0.0088 a column over 39 folds of 40, that MCL belongs to
+a host reading 0.992 there, and that `goodpjw2008`'s pipeline is the most decorrelated
+second draw available. And since the final rank takes the **best** of the two selected,
+diversity is worth more than safety: two near-identical picks are one draw.
+
+### The 0.9586 host, and a public notebook broken by its own author, 2026-10-19
+
+With everything of ours measuring zero, the only lever with a record is the host — 0.956,
+0.9573, 0.958, each worth about +0.002 with our thousandth on top. A sweep of the public
+notebooks found exactly one above our 0.958:
+
+| notebook | what it actually is |
+|---|---|
+| **`heliosli/this-is-best-public-dataset-new-version-0-9586`** | the 0.958 pipeline **plus goodpjw2008's 2.5D ConvNeXt reader**; `DEADLINE_HOURS = 8.3` unchanged, so the extra arm comes out of **its own** budget and our leg keeps the same ~42 minutes |
+| `lavinwins/top-1-gold` | 13 cells, **no mounts, never writes `submission.csv`** — a write-up, not a pipeline |
+| `lavinwins/rsna-gold-medal` | mounts the old apex/d4 lineage (`mattiaangeli`, `antoinegg1`, `prvsiyan v52`), the generation already priced below this one |
+| `prvsiyan/the-bee-s-knees-final-rsna-push` | 151 cells, **never writes `submission.csv`** |
+| `goodpjw2008/...lb-0-958` | a real pipeline and the sibling of the above, not an improvement |
+
+**A title is not a score.** Both "gold" notebooks are marketing; six cross-searches for
+0.959, 0.96 and 9586 return nothing above 0.9586.
+
+**And the 0.9586 is broken on Kaggle right now, by its own author.** The first graft failed
+in 102 s on the *host's own* assertion:
+
+```
+assert manifest['bundle_id'] == BUNDLE_ID
+AssertionError: ('8c7b666e27dc0e8f', 'fe055406fad6a12f')
+```
+
+Its code expects bundle `fe055406fad6a12f` and mounts
+`heliosli/rsna-knee-r6-frozen-fe055406`, which now holds a different bundle — the owner
+republished the dataset after publishing the notebook. Three hosts expect the **same**
+bundle and mount three different copies of it:
+
+| host | slug mounted | state |
+|---|---|---|
+| 0.9586 | `heliosli/rsna-knee-r6-frozen-fe055406` | **broken** |
+| 0.958, ours | `heliosli/...-fe055406-w1` | works — it produced all five 0.959s |
+| goodpjw2008 | `rostigor/rsna-knee-r6-fe055406` | a third owner's copy |
+
+`--swap-dataset rsna-knee-r6-frozen-fe055406=rsna-knee-r6-frozen-fe055406-w1` fixes it, and
+it rewrites **both** `C_SLUG` in the code and the mount in the metadata. The host's hash no
+longer matches after a swap, so its own bundle assert becomes the only check — which is
+precisely the check that caught this, and the argument for never having removed it.
+
+**Two guards earned their keep in one day**: this assert, and our own source check that
+refuses a build when the published `rsna-src` is not the checkout. Both failures were
+invisible locally and both land in under two minutes rather than after nine hours.
+
+### The ensemble measures zero on the leaderboard, 2026-10-19
+
+Three submissions of the k = 2 ensemble on the 0.958 host, against the two k = 1
+submissions of two days earlier:
+
+| | weights | runs a column | score |
+|---|---|---|---|
+| `s13-h958-parity` | 0.5 on 7 | 1 | **0.959** |
+| `s13-h958-flat40` | 0.4 on 8 | 1 | **0.959** |
+| `s15-k2-parity` | 0.5 on 7 | **2** | **0.959** |
+| `s15-k2-flat50` | 0.5 on 8 | **2** | **0.959** |
+| `s15-k2-flat40` | 0.4 on 8 | **2** | **0.959** |
+
+**The leg ran.** A missing mount would have taken the graft's `SOFT FAIL` path and left the
+bare host at 0.958; a raise would have failed the notebook with no score at all. 0.959 is
+the host's 0.958 plus our usual thousandth, so the ensemble was in and bought nothing
+visible — the gain is bounded under about 0.001, not proven to be zero.
+
+**The out-of-fold measurement was right and the projection from it was wrong, by 2x to
+4x, and the error is identifiable.** Three steps were sound: +0.0088 a column over 39
+paired folds of 40; the nested test confirming +0.0088 on folds that chose nothing; the
+transfer onto the true scale as a relative error cut, giving about +0.0043 of macro. The
+fourth step was written as "and less again after the 0.5 blend with the host" and **never
+quantified**. Quantified now: the blend is in rank space, so improving our side by d moves
+the column by roughly d/2, and by less when the host is the better ranker and owns the
+contested pairs. On ACL our 0.980 becomes 0.9834, the blended column moves ~+0.0017, and
+divided by twelve that is **+0.00014 of macro** — about **+0.001 over eight columns**,
+exactly at the rounding floor.
+
+**The right projection was ~+0.001.** This is the failure mode [[component-sums-mispredict-bundles]]
+already records: a component arithmetic not carried through to the quantity that is
+actually scored. The rule it implies is sharper than the one written there — **never
+quote a projected macro without propagating every stage between the measurement and the
+metric**, and the blend is a stage.
+
+**What this leaves.** Measured zero on the board, in order: the mirror TTA, the jitter
+TTA, seven weight allocations, and now the k = 2 ensemble. The only thing that has moved
+the score in a week is **the host** — 0.956, 0.9573, 0.958 — with our orthogonal
+thousandth on top of each.
+
+### Two runs lost to a dataset that was never republished, 2026-10-18
+
+`s15-h958-k2-flat50` and `-flat40` both failed with
+
+```
+ValueError: .../partners2/expert_acl_v4 and .../bundle5/expert_acl_cnxnano
+both claim 'ACL'; the submission would take whichever ran last
+```
+
+— **the exception removed from `chain.py` that same morning.** The notebook imports from
+the mounted `rsna-src` dataset, not from this repository, and that dataset still held the
+15 October copy. The change was committed, rehearsed locally on three studies, and built
+into correct kernels; none of that reaches Kaggle.
+
+**It reads as a late crash rather than a stale mount**, which is the part worth
+remembering. The host writes `submission.csv` in its own cells before our graft runs, so
+the failed kernel's output contains a complete submission, `ours_sub.csv`, and the host's
+intermediate files. Only the traceback says `In [8]`.
+
+Cheap, as these go: the raise lands at **503 s**, so two queue slots were lost and not two
+nine-hour runs — on a queue that had just taken 1 h 20 to clear, three days from the
+deadline.
+
+**The guard.** `scripts/kaggle_graft` now downloads the published `rsna-src` (180 KB) and
+compares all 60 Python files against the checkout before building, refusing with the names
+of the ones that differ. A timestamp would not do: a `git checkout` rewrites mtimes, and
+the dataset's `lastUpdated` says when it was pushed, not what is in it. `--skip-source-check`
+exists for a build that will not be run. Proved by making `chain.py` drift on purpose.
 
 ### What 0.959 is worth in rank, 2026-10-16
 
@@ -1140,11 +1376,25 @@ host's is a radiologist on the hidden test, and the two cannot be subtracted. **
 experts contribute is decorrelation at equal quality, not superiority** — which is also
 why no per-column weight regime tuned against the out-of-fold comparator ever paid.
 
-**ACL at 0.980 is our best column and may be the first we hold over the host.** His ACL
-was never probed alone; ACL + Medial OA sum to 1.924 from the block arithmetic, so his ACL
-exceeds ours only if his Medial OA falls to 0.944 — below any column he is known to hold.
-At 0.962 each we would be ahead by +0.018. A `void-acl` submission would settle it, and
-our weights currently leave that column to him.
+**ACL at 0.980 is our best column, and it is not ahead of the host — measured
+2026-10-18.** The probe is the symmetric of our own: void the **eleven other** columns and
+leave ACL to the host, so `auc = 12 x macro - 5.5` with no `macro_host` in it and only the
+rounding left, **±0.006** against ±0.030 for voiding the column itself. `h958-hostonly-acl`
+read **0.541**, so his ACL is **0.992** and he is **+0.012 ahead of us**. The reading
+written down beforehand — that above 0.542 the arithmetic would be broken, since an AUC
+cannot exceed 1 — held.
+
+| column | ours | host | gap |
+|---|---|---|---|
+| ACL | 0.980 | **0.992** | **−0.012** |
+| PF OA | 0.908 | 0.932 | −0.024 |
+| Lateral OA | 0.884 | 0.896 | −0.012 |
+
+**Four columns now measured on the same footing and the host leads every one of them**, by
+0.012 to 0.024. The speculation two days earlier that ACL might be the first column we
+hold is refuted. By subtraction his Medial OA would fall near 0.932, but the 1.924 sum came
+off the 0.956 host and this probe off the 0.958, so that is an inference and not a
+measurement. **What we contribute is decorrelation at equal quality, and nothing else.**
 
 **The 58 gold studies are not a representative predictor, and that is now measured.** Two
 paired probes, the only variable the ACL expert:

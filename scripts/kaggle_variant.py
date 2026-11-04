@@ -310,6 +310,40 @@ WEIGHTS = {
     #: that ever won went **down**, 0.5 to 0.40 for +0.001 — measured when our experts
     #: genuinely were weaker. Parity predicts the opposite direction.
     "parity": {t: 0.50 for t in TARGETS8 if t != "MCL"},
+    #: `parity` lowered, so that 0.50 / 0.40 / 0.30 form a ladder over **the same seven
+    #: columns** and the weight is the only variable between them.
+    #:
+    #: **The case for going down is the strongest it has been**, and it is not the old
+    #: one. The solo probes now price us against the host on the same hidden test with
+    #: the same labels: he reads 0.992 on ACL to our 0.980, 0.932 to our 0.908 on PF OA,
+    #: 0.896 to our 0.884 on Lateral OA. He leads every column measured that way, so his
+    #: share should rise and ours fall -- and the one weight change that ever won went
+    #: down, 0.5 to 0.40 for +0.001.
+    #:
+    #: **The case against is the sweep already done.** Seven allocations span 0.15 to
+    #: 0.77 and the whole spread is 0.002; `divided` is the only low point tested, at
+    #: 0.15 on three columns, and it **lost 0.002**. At w = 0 our leg is worth nothing by
+    #: construction and at w = 0.5 it is worth +0.001 of macro, so lowering hands part of
+    #: that back -- about 0.0004 at w = 0.3, under what three decimals resolve. And the
+    #: leaderboard shows only a team's *best* submission, so two of our own attempts
+    #: cannot be told apart below a thousandth anyway.
+    "parity40": {t: 0.40 for t in TARGETS8 if t != "MCL"},
+    #: MCL **and ACL** both handed back. ACL is the only other column where the host
+    #: reads **0.992**, and that figure is our tightest measurement of him anywhere --
+    #: +/-0.006, from the `--keep` probe where `macro_host` cancels, against +/-0.030 for
+    #: the void probes. At 0.992 only 0.008 of headroom is left, so mixing our ordering
+    #: in at 0.40 can pull the column down rather than up: our solo probe puts us at
+    #: 0.980 there, below him. The same logic that sent MCL back, on the same number.
+    #:
+    #: Independent support, never submitted until now: `no_acl` has sat in this mapping
+    #: for weeks because ACL is the one column of eight where `convnext_nano` *loses* to
+    #: `resnet18`, on four folds of five.
+    "parity40_no_acl": {t: 0.40 for t in TARGETS8 if t not in ("MCL", "ACL")},
+    #: The same six columns at 0.50, so that the ACL removal is tested at both weights
+    #: rather than confounded with one. Against the scored 0.959 of `parity` and
+    #: `parity40`, the pair isolates the removal twice over.
+    "parity_no_acl": {t: 0.50 for t in TARGETS8 if t not in ("MCL", "ACL")},
+    "parity30": {t: 0.30 for t in TARGETS8 if t != "MCL"},
 }
 
 GRAFT_CELL = '''# ===================== OUR LEG — the experts, grafted on =====================
@@ -340,6 +374,22 @@ BLEND = {blend}
 # and is the one that has to fit in what the host leaves of the nine hours.
 MIRROR_TTA = {mirror}
 JITTER_TTA = {jitter}
+# Abstain where the five folds of the landmark model disagree about the point an expert's
+# crop hangs off, in mm; None keeps every study. The spread is bimodal over the corpus --
+# median 1.26 mm, then 2.25 % of studies above 15 mm and out to 55.7 -- so 10 names a
+# population rather than cutting a tail. Shipped on a prior rather than a measurement:
+# out of fold those 97 studies move ACL 0.871 -> 0.782 and Medial Meniscus 0.916 -> 0.884
+# but Medial OA 0.874 -> 0.917, every one inside one sigma at ~5 positives a column.
+LANDMARK_SPREAD_MM = {spread}
+# The other half, and it catches what the spread cannot: a model confident and wrong.
+# `landmark_both` returns the two compartment centres, which the tibial plateau holds
+# ~50 mm apart in everyone (median 52.6, p1 41.1 over 4407). The two studies where they
+# collapse sit at 2.0 and 4.8 mm **with fold spreads of 4.6 and 2.6** -- five folds
+# agreeing on an impossible answer, which LANDMARK_SPREAD_MM at 10 misses entirely.
+# The next study up is 18.4 mm, so anything in [6, 35] catches those two and nothing
+# else; 25 is under half the median and leaves margin for a hidden-test collapse that
+# lands at 15 rather than 2.
+LANDMARK_APART_MM = {apart}
 INPUT = Path("/kaggle/input")
 
 
@@ -414,6 +464,8 @@ else:
         data_root=root, split="test_series", out="submission.csv",
         scratch=scratch, blend=BLEND, workers=4,
         mirror_tta=MIRROR_TTA, jitter_tta=JITTER_TTA,
+        landmark_spread_mm=LANDMARK_SPREAD_MM,
+        landmark_apart_mm=LANDMARK_APART_MM,
         device="cuda" if torch.cuda.is_available() else "cpu", log=print)
 
     before = pd.read_csv("/kaggle/working/_public_before_experts.csv")
@@ -432,7 +484,7 @@ def patch_experts(nb: dict) -> None:
     """
 
     nb["cells"].append({"cell_type": "code", "execution_count": None, "metadata": {},
-                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND, mirror=True, jitter=False)]})
+                        "outputs": [], "source": [GRAFT_CELL.format(blend=EXPERT_BLEND, mirror=True, jitter=False, spread=None, apart=None)]})
 
 
 #: RadImageNet is **not** here on purpose. Removing it also removes

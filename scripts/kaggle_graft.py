@@ -68,6 +68,21 @@ KNOWN = {
     #: single hash here would refuse the newer one and silently date the guard. The value
     #: is therefore a mapping of hash to what it scored, and a pull that matches neither
     #: is still refused.
+    #: A *different* pipeline from heliosli's, not a fork of it: the same CoAtNet and R6
+    #: plus the 2.5D MIL reader **and** `heliosli/rsna-knee-compact-r7cnxfsss`, an R7 arm
+    #: no heliosli host carries. Bannered LB 0.958, 384 votes, `DEADLINE_HOURS = 8.3`, and
+    #: it mounts the R6 bundle from `rostigor` rather than the heliosli copy its owner
+    #: republished and broke -- so no swap is needed.
+    "goodpjw2008/rsna-knee-coatnet-r6-2-5d-mil-lb-0-958":
+        "8ca205f6e1fe802e074292c6de6c822e020fa6ae9230e59d851b2afa4b01c775",
+    #: The 0.958 pipeline plus goodpjw2008's 2.5D ConvNeXt reader, bannered 0.9586 and
+    #: published after it. **Same `DEADLINE_HOURS = 8.3`**, so the extra arm comes out of
+    #: the host's own budget and leaves our leg the same ~42 minutes. It mounts
+    #: `heliosli/rsna-knee-r6-frozen-fe055406` rather than the `-w1` copy, and that plain
+    #: slug is the one Kaggle refused to submit on 2026-10-15 as a non-versioned dataset
+    #: -- which is cheap to discover, since the refusal lands before the run.
+    "heliosli/this-is-best-public-dataset-new-version-0-9586":
+        "aea92881dc5cb4d87f947fb022af27058ce24872e811d16ef95f5852ad0726a8",
     "heliosli/blend-mine-in-private-lb-luck-to-all-upvoters": {
         "f359aeecb1dba916d65ecc6b0c31909c8524a88b89c5b7a745701d5cb30a3d6d": "0.956",
         "e00557dc403f9eeba7f15b963caad9173278a67a34e4da4c640ed67f21c1afe7": "0.958",
@@ -176,6 +191,64 @@ print(f"[void] {{len(COLUMNS)}} of {{len(sub.columns) - 1}} columns voided; the 
       f"should fall by sum(auc - 0.5) / 12 over them", flush=True)
 '''
 
+def source_is_current(skip: bool = False) -> None:
+    """Refuse to build if the published `rsna-src` is not the code in this checkout.
+
+    **This cost a submission on 2026-10-18.** `chain.py` was changed to average several
+    runs per column, committed, and the kernel built and pushed -- but the *dataset* the
+    notebook imports from was never republished, so the run loaded the previous chain
+    and raised on the very case the change existed to allow. It failed 8 minutes in, with
+    `submission.csv` already written by the host, so it looked like a late crash rather
+    than a stale mount.
+
+    Nothing about the local tree can reveal that: the code is committed, the tests pass,
+    the kernel is correct. The only authority is what Kaggle serves, so this downloads it
+    -- 180 KB, a second or two -- and compares. A timestamp would not do: a `git checkout`
+    rewrites mtimes, and the dataset's `lastUpdated` says when it was pushed, not what is
+    in it.
+    """
+
+    if skip:
+        print("  source check skipped")
+        return
+    import io
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as room:
+        try:
+            subprocess.run([str(Path(sys.executable).with_name("kaggle")), "datasets",
+                            "download", f"{OWNER}/rsna-src", "-p", room],
+                           check=True, capture_output=True, timeout=180)
+            archive = next(Path(room).glob("*.zip"))
+            zf = zipfile.ZipFile(archive)
+            inner = [n for n in zf.namelist() if n.endswith(".zip")]
+            if inner:
+                zf = zipfile.ZipFile(io.BytesIO(zf.read(inner[0])))
+            published = {n: zf.read(n) for n in zf.namelist() if n.endswith(".py")}
+        except Exception as exc:                                  # noqa: BLE001
+            print(f"  WARNING: could not read the published rsna-src ({exc}); "
+                  f"the mounted code is unverified")
+            return
+
+    local_root = ROOT / "src" / "rsna"
+    stale = []
+    for path in sorted(local_root.rglob("*.py")):
+        key = str(path.relative_to(local_root))
+        here = path.read_bytes()
+        there = published.get(key)
+        if there is None:
+            stale.append(f"{key} (not published)")
+        elif there != here:
+            stale.append(key)
+    if stale:
+        raise SystemExit(
+            f"  REFUSED: {len(stale)} file(s) differ from the published rsna-src: "
+            f"{', '.join(stale[:6])}{' ...' if len(stale) > 6 else ''}\n"
+            f"  Run `python -m scripts.kaggle_dataset --source` first, wait for Kaggle "
+            f"to process it, then build again. Pass --skip-source-check to override.")
+    print(f"  rsna-src matches this checkout ({len(published)} file(s))")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("host", help="owner/kernel-slug of the notebook to graft onto")
@@ -223,6 +296,19 @@ def main() -> int:
                          "and the second reading is worth +0.0024 a column over 15 "
                          "paired folds, for one extra pass on three of the eight "
                          "experts.")
+    ap.add_argument("--landmark-spread-mm", type=float, default=None,
+                    help="abstain where the five landmark folds disagree by more than "
+                         "this, in mm, about a point the expert's crop hangs off. The "
+                         "spread is bimodal -- median 1.26 mm, then 2.25 %% of studies "
+                         "above 15 -- so 10 names a population. Shipped on a prior: out "
+                         "of fold two of five columns are WORSE on those studies and "
+                         "two are better, all inside one sigma")
+    ap.add_argument("--landmark-apart-mm", type=float, default=None,
+                    help="abstain where lat_centre and med_centre come back closer than "
+                         "this, in mm -- anatomically impossible, the plateau holds them "
+                         "~50 mm apart. Independent of --landmark-spread-mm: the two "
+                         "collapsed studies have fold spreads of 4.6 and 2.6 mm, so the "
+                         "spread check misses both")
     ap.add_argument("--jitter-tta", action="store_true",
                     help="also average five in-plane affines drawn from the training "
                          "augmentation, over all eight experts. Worth +0.0009 a column "
@@ -266,6 +352,9 @@ def main() -> int:
                          "training studies, which the extractor itself only matches at "
                          "0.841 against the 58 radiologist readings -- and the 58 gold "
                          "studies cannot either, at +/-0.05.")
+    ap.add_argument("--skip-source-check", action="store_true",
+                    help="build even if the published rsna-src is not this checkout. "
+                         "Only for a build that will not be run.")
     ap.add_argument("--push", action="store_true")
     args = ap.parse_args()
 
@@ -309,6 +398,8 @@ def main() -> int:
                                    for x in meta.get("dataset_sources", [])]
         print(f"  SWAPPED {a} -> {b} in {hits} place(s); the host's hash no longer "
               f"matches and its bundle assert is now the only check")
+    if not (args.bare or (args.constant and not args.solo)):
+        source_is_current(args.skip_source_check)
     host_cells = len(nb["cells"])
     # `--keep` is `--constant` over the complement. Resolving it here rather than giving
     # it a cell of its own means one voiding cell, one arithmetic, one thing to be wrong.
@@ -342,7 +433,9 @@ def main() -> int:
                             "metadata": {}, "outputs": [],
                             "source": [GRAFT_CELL.format(blend=repr(blend),
                                                          mirror=args.mirror_tta,
-                                                         jitter=args.jitter_tta)]})
+                                                         jitter=args.jitter_tta,
+                                                         spread=args.landmark_spread_mm,
+                                                         apart=args.landmark_apart_mm)]})
     if args.constant:
         wanted = [c.strip() for c in args.constant.split(",") if c.strip()]
         unknown = [c for c in wanted if c not in TARGETS]
@@ -360,7 +453,9 @@ def main() -> int:
                             "metadata": {}, "outputs": [],
                             "source": [GRAFT_CELL.format(blend=repr(blend),
                                                          mirror=args.mirror_tta,
-                                                         jitter=args.jitter_tta)]})
+                                                         jitter=args.jitter_tta,
+                                                         spread=args.landmark_spread_mm,
+                                                         apart=args.landmark_apart_mm)]})
     for cell in nb["cells"]:
         if cell["cell_type"] == "code":
             compiles("".join(cell["source"]))
